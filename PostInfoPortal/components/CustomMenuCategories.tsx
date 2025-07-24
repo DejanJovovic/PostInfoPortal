@@ -1,37 +1,20 @@
-import {View, Text, ScrollView, TouchableOpacity} from 'react-native';
-import React, {useState} from 'react';
-
-const categories = [
-    "Naslovna",
-    "Danas",
-    "Politika",
-    "Energetika",
-    "Privreda",
-    "Bezbednost",
-    "Ekonomija",
-    "Društvo",
-    "Obrazovanje",
-    "Tehnologija",
-    "Turizam",
-    "Zdravstvo",
-    "Sport",
-    "Kultura",
-    "Događaji",
-    "Lokal",
-    "Region",
-    "Planeta",
-    "Latin | Ćirilica",
-];
+import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { menuData } from '@/types/menuData';
 
 const CustomMenuCategories = () => {
     const [active, setActive] = useState("Naslovna");
+
+    const categories = menuData.map((item) =>
+        typeof item === 'string' ? item : item.title
+    );
 
     return (
         <View className="h-[60px] w-full bg-white">
             <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={true}
-                contentContainerStyle={{paddingHorizontal: 16, alignItems: 'center'}}
+                contentContainerStyle={{ paddingHorizontal: 16, alignItems: 'center' }}
                 className="flex-row"
             >
                 {categories.map((category) => (
@@ -40,7 +23,11 @@ const CustomMenuCategories = () => {
                         onPress={() => setActive(category)}
                         className="mr-4"
                     >
-                        <Text className={`uppercase font-bold ${active === category ? ' text-[#FA0A0F]' : 'text-black'}`}>
+                        <Text
+                            className={`uppercase font-bold ${
+                                active === category ? ' text-[#FA0A0F]' : 'text-black'
+                            }`}
+                        >
                             {category}
                         </Text>
                     </TouchableOpacity>
