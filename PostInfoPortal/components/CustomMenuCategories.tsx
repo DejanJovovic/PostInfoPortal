@@ -1,13 +1,17 @@
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
-import React, { useState } from 'react';
+import React from 'react';
+import { View, ScrollView, Text, TouchableOpacity } from 'react-native';
 import { menuData } from '@/types/menuData';
 
-const CustomMenuCategories = () => {
-    const [active, setActive] = useState("Naslovna");
+type Props = {
+    onSelectCategory: (categoryName: string) => void;
+    activeCategory: string;
+};
 
-    const categories = menuData.map((item) =>
-        typeof item === 'string' ? item : item.title
-    );
+const CustomMenuCategories: React.FC<Props> = ({ onSelectCategory, activeCategory }) => {
+    const categories = menuData
+        .map((item) => (typeof item === 'string' ? item : item.title))
+        .filter((category) => category !== 'Latin | Ćirilica');
+    // Latin | Ćirilica is left out because it doenst contain any posts, as it should only change text (will be implemented later)
 
     return (
         <View className="h-[60px] w-full bg-white">
@@ -20,12 +24,12 @@ const CustomMenuCategories = () => {
                 {categories.map((category) => (
                     <TouchableOpacity
                         key={category}
-                        onPress={() => setActive(category)}
+                        onPress={() => onSelectCategory(category)}
                         className="mr-4"
                     >
                         <Text
                             className={`uppercase font-bold ${
-                                active === category ? ' text-[#FA0A0F]' : 'text-black'
+                                activeCategory === category ? 'text-[#FA0A0F]' : 'text-black'
                             }`}
                         >
                             {category}

@@ -1,34 +1,34 @@
 import { View, Text, Image, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
-import React, { useEffect, useState } from 'react';
+import React, {useEffect, useState} from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CustomHeader from '@/components/CustomHeader';
 import CustomMenuCategories from '@/components/CustomMenuCategories';
 import CustomFooter from '@/components/CustomFooter';
-import axios from 'axios';
-import {useRouter} from "expo-router";
-import {WPPost} from "@/types/wp";
+import {useLocalSearchParams, useRouter} from 'expo-router';
+import { WPPost } from '@/types/wp';
+import { usePostsByCategory } from '@/hooks/usePostsByCategory';
 
 const Index = () => {
-    const [posts, setPosts] = useState([]);
-    // controls footer visibility
     const [menuOpen, setMenuOpen] = useState(false);
-    const [loading, setLoading] = useState(true);
+    const [activeCategory, setActiveCategory] = useState('Naslovna');
+    const { selectedCategory } = useLocalSearchParams();
+
+    const { posts, loading, fetchPostsForCategory } = usePostsByCategory();
     const router = useRouter();
 
-    const fetchPosts = async () => {
-        try {
-            const res = await axios.get('https://postinfo.rs/wp-json/wp/v2/posts?_embed');
-            setPosts(res.data);
-        } catch (err) {
-            console.error('Greška pri preuzimanju vesti:', err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
     useEffect(() => {
-        fetchPosts();
-    }, []);
+        if (selectedCategory && typeof selectedCategory === 'string') {
+            fetchPostsForCategory(selectedCategory);
+            setActiveCategory(selectedCategory);
+        }
+    }, [selectedCategory]);
+
+    const handleCategorySelect = (categoryName: string) => {
+        if (categoryName === 'Latin | Ćirilica') return;
+        setActiveCategory(categoryName);
+        fetchPostsForCategory(categoryName);
+        setMenuOpen(false); // closes menu if the category is selected
+    };
 
     const renderItem = ({ item }: { item: WPPost }) => {
         const image = item._embedded?.['wp:featuredmedia']?.[0]?.source_url;
@@ -64,27 +64,35 @@ const Index = () => {
         );
     };
 
-    if (loading) {
-        return (
-            <SafeAreaView className="flex-1 items-center justify-center bg-white">
-                <ActivityIndicator size="large" color="#201F5B" />
-            </SafeAreaView>
-        );
-    }
-
     return (
         <SafeAreaView className="flex-1 bg-white">
-
-            <CustomHeader onMenuToggle={(visible) => setMenuOpen(visible)} />
-            <CustomMenuCategories />
-            <FlatList
-                data={posts}
-                renderItem={renderItem}
-                keyExtractor={(item) => item.id.toString()}
-                contentContainerStyle={{ paddingBottom: 90 }}
-                className="flex-1"
+            {/*selected categories are marked on both menuCategories (below header) and inside the menuDrawer*/}
+            <CustomHeader
+                onMenuToggle={(visible) => setMenuOpen(visible)}
+                onCategorySelected={handleCategorySelect}
+                activeCategory={activeCategory}
             />
-            {/*conditionally render CustomFooter if the sliding menu is open, to prevent overlaping*/}
+            <CustomMenuCategories
+                onSelectCategory={handleCategorySelect}
+                activeCategory={activeCategory}
+            />
+
+            {/*i should also add some text if there is no posts for a certain category!!!*/}
+
+            {loading ? (
+                <View className="flex-1 items-center justify-center">
+                    <ActivityIndicator size="large" color="#201F5B" />
+                </View>
+            ) : (
+                <FlatList
+                    data={posts}
+                    renderItem={renderItem}
+                    keyExtractor={(item) => item.id.toString()}
+                    contentContainerStyle={{ paddingBottom: 90 }}
+                    className="flex-1"
+                />
+            )}
+
             {!menuOpen && <CustomFooter />}
         </SafeAreaView>
     );

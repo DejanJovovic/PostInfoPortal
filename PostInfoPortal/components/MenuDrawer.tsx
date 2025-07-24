@@ -1,17 +1,15 @@
-import React, {useState} from 'react';
+import React from 'react';
 import { ScrollView, View, Text, TouchableOpacity, Image } from 'react-native';
 import { menuData } from '@/types/menuData';
 import MenuCategoryItem from './MenuCategoryItem';
 import icons from '@/constants/icons';
 
-const MenuDrawer = () => {
+type MenuDrawerProps = {
+    onCategorySelect: (categoryName: string) => void;
+    activeCategory: string;
+};
 
-    const [activeCategory, setActiveCategory] = useState('Naslovna');
-
-    const handleCategoryPress = (title: string) => {
-        setActiveCategory(title);
-    };
-
+const MenuDrawer: React.FC<MenuDrawerProps> = ({ onCategorySelect, activeCategory }) => {
     return (
         <ScrollView
             showsVerticalScrollIndicator={false}
@@ -22,10 +20,11 @@ const MenuDrawer = () => {
                 <MenuCategoryItem
                     key={typeof item === 'string' ? item : item.title}
                     item={item}
-                    onPress={handleCategoryPress}
+                    onPress={onCategorySelect}
                     activeCategory={activeCategory}
                 />
             ))}
+
             <View className="flex-row justify-around items-center mt-6 px-4">
                 {[icons.facebook, icons.twitter, icons.youtube, icons.instagram, icons.linkedin, icons.tiktok, icons.wifi].map(
                     (icon, index) => (
