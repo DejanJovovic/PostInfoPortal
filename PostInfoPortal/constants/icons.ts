@@ -14,6 +14,8 @@ import instagram from "../assets/icons/instagram.png"
 import linkedin from "../assets/icons/linkedin.png"
 import tiktok from "../assets/icons/tik-tok.png"
 import wifi from "../assets/icons/wifi.png"
+import rightArrow from "../assets/icons/right-arrow.png"
+import downArrow from "../assets/icons/down-arrow.png"
 
 
 export default {
@@ -33,4 +35,6 @@ export default {
     linkedin,
     tiktok,
     wifi,
+    rightArrow,
+    downArrow
 }
