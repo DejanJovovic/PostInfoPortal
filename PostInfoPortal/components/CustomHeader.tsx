@@ -15,9 +15,11 @@ import MenuDrawer from './MenuDrawer';
 
 type CustomHeaderProps = {
     onMenuToggle?: (visible: boolean) => void;
+    onCategorySelected?: (category: string) => void;
+    activeCategory: string;
 };
 
-const CustomHeader: React.FC<CustomHeaderProps> = ({ onMenuToggle }) => {
+const CustomHeader: React.FC<CustomHeaderProps> = ({ onMenuToggle, onCategorySelected, activeCategory }) => {
     const router = useRouter();
     const pathname = usePathname();
     const isRoot = pathname === '/';
@@ -66,14 +68,13 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({ onMenuToggle }) => {
 
     return (
         <View className="w-full h-[90px] relative">
-            {/* Header Background Image */}
             <Image
                 source={images.header}
                 className="w-full h-full"
                 resizeMode="cover"
             />
 
-            {/* Clickable center area */}
+            {/* only center area is clickable */}
             <TouchableOpacity
                 onPress={() => router.replace('/')}
                 className="absolute top-0 bottom-0 left-1/3 right-1/3 z-10"
@@ -81,7 +82,7 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({ onMenuToggle }) => {
                 <View className="w-full h-full" />
             </TouchableOpacity>
 
-            {/* Back Arrow */}
+            {/* Back Arrow only shows when not on index.tsx */}
             {!isRoot && (
                 <TouchableOpacity
                     onPress={() => router.back()}
@@ -96,7 +97,6 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({ onMenuToggle }) => {
                 </TouchableOpacity>
             )}
 
-            {/* Menu Icon */}
             <TouchableOpacity
                 onPress={openMenu}
                 className="absolute right-4 top-11 -translate-y-1/2 z-10"
@@ -132,7 +132,13 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({ onMenuToggle }) => {
                         </View>
 
                         <View className="h-[1px] bg-gray-700 mt-4 mb-2 mx-2" />
-                        <MenuDrawer />
+                        <MenuDrawer
+                            onCategorySelect={(category) => {
+                                onCategorySelected?.(category);
+                                closeMenu(); // close the drawer when a new category is selected
+                            }}
+                            activeCategory={activeCategory}
+                        />
                     </Animated.View>
 
                     {/* Right Overlay Backdrop */}
