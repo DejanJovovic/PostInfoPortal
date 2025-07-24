@@ -6,6 +6,14 @@ import add from "../assets/icons/add.png"
 import allCategories from "../assets/icons/allCategories.png"
 import search from "../assets/icons/search.png"
 import backArrow from "../assets/icons/backArrow.png"
+import close from "../assets/icons/close.png"
+import facebook from "../assets/icons/facebook.png"
+import twitter from "../assets/icons/twitter.png"
+import youtube from "../assets/icons/youtube.png"
+import instagram from "../assets/icons/instagram.png"
+import linkedin from "../assets/icons/linkedin.png"
+import tiktok from "../assets/icons/tik-tok.png"
+import wifi from "../assets/icons/wifi.png"
 
 
 export default {
@@ -16,5 +24,13 @@ export default {
     add,
     allCategories,
     search,
-    backArrow
+    backArrow,
+    close,
+    facebook,
+    twitter,
+    youtube,
+    instagram,
+    linkedin,
+    tiktok,
+    wifi,
 }
