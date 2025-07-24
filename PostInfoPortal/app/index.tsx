@@ -10,6 +10,8 @@ import {WPPost} from "@/types/wp";
 
 const Index = () => {
     const [posts, setPosts] = useState([]);
+    // controls footer visibility
+    const [menuOpen, setMenuOpen] = useState(false);
     const [loading, setLoading] = useState(true);
     const router = useRouter();
 
@@ -72,7 +74,8 @@ const Index = () => {
 
     return (
         <SafeAreaView className="flex-1 bg-white">
-            <CustomHeader />
+
+            <CustomHeader onMenuToggle={(visible) => setMenuOpen(visible)} />
             <CustomMenuCategories />
             <FlatList
                 data={posts}
@@ -81,7 +84,8 @@ const Index = () => {
                 contentContainerStyle={{ paddingBottom: 90 }}
                 className="flex-1"
             />
-            <CustomFooter />
+            {/*conditionally render CustomFooter if the sliding menu is open, to prevent overlaping*/}
+            {!menuOpen && <CustomFooter />}
         </SafeAreaView>
     );
 };
