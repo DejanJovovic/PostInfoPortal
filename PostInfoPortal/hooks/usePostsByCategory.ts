@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getCategories, getPostsByCategoryId, getPostsBySearch } from '@/utils/wpApi';
+import {getCategories, getPostsByCategoryId, getPostsBySearch} from '@/utils/wpApi';
 import axios from 'axios';
 import { nameToSlugMap } from '@/constants/nameToSlugMap';
 
@@ -7,6 +7,7 @@ export const usePostsByCategory = () => {
     const [categories, setCategories] = useState<{ id: number; name: string; slug: string }[]>([]);
     const [posts, setPosts] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [searchLoading, setSearchLoading] = useState(false);
     const [slugToId, setSlugToId] = useState<Record<string, number>>({});
 
     const fetchCategories = async () => {
@@ -73,6 +74,27 @@ export const usePostsByCategory = () => {
         setLoading(false);
     };
 
+    const searchPosts = async (query: string) => {
+        setSearchLoading(true);
+        try {
+            const response = await fetch(`https://www.postinfo.rs/wp-json/wp/v2/posts?search=${encodeURIComponent(query)}&_embed&per_page=100`);
+            const allResults = await response.json();
+
+            const filtered = allResults.filter((post: any) =>
+                post.title?.rendered?.toLowerCase().includes(query.toLowerCase())
+            );
+
+            setPosts(filtered);
+            return filtered;
+        } catch (e) {
+            console.error('Greška pri pretrazi:', e);
+            setPosts([]);
+            return [];
+        } finally {
+            setSearchLoading(false);
+        }
+    };
+
     useEffect(() => {
         fetchCategories();
         fetchAllPosts();
@@ -82,6 +104,9 @@ export const usePostsByCategory = () => {
         categories,
         posts,
         loading,
+        searchLoading,
         fetchPostsForCategory,
+        searchPosts,
+        setPosts
     };
 };
