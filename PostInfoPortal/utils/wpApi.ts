@@ -17,3 +17,9 @@ export const getPostsBySearch = async (query: string) => {
     const res = await fetch(`${BASE_URL}/posts?search=${encodeURIComponent(query)}&_embed`);
     return await res.json();
 };
+
+// function for search by title of the post
+export const searchPostsByTitle = async (query: string) => {
+    const res = await fetch(`${BASE_URL}/posts?search=${encodeURIComponent(query)}&_embed`);
+    return await res.json();
+};
