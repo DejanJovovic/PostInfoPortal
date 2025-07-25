@@ -4,7 +4,6 @@ import {
     TouchableOpacity,
     Animated,
     Dimensions,
-    TextInput,
 } from 'react-native';
 import React, { useRef, useState } from 'react';
 import { usePathname, useRouter } from 'expo-router';
@@ -12,14 +11,17 @@ import images from '@/constants/images';
 import icons from '@/constants/icons';
 import colors from '@/constants/colors';
 import MenuDrawer from './MenuDrawer';
+import CustomSearchBar from "@/components/CustomSearchBar";
+
 
 type CustomHeaderProps = {
     onMenuToggle?: (visible: boolean) => void;
     onCategorySelected?: (category: string) => void;
     activeCategory: string;
+    onSearchQuery?: (query: string) => void;
 };
 
-const CustomHeader: React.FC<CustomHeaderProps> = ({ onMenuToggle, onCategorySelected, activeCategory }) => {
+const CustomHeader: React.FC<CustomHeaderProps> = ({ onMenuToggle, onCategorySelected, activeCategory, onSearchQuery }) => {
     const router = useRouter();
     const pathname = usePathname();
     const isRoot = pathname === '/';
@@ -122,14 +124,13 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({ onMenuToggle, onCategorySel
                         }}
                     >
                         {/* Search Bar */}
-                        <View className="flex-row items-center bg-[#1a1a1a] px-4 py-3 mt-10 mx-2 rounded-2xl">
-                            <TextInput
-                                placeholder="Pretraga..."
-                                placeholderTextColor="#999"
-                                className="flex-1 text-white text-sm"
-                            />
-                            <Image source={icons.search} className="w-4 h-4 ml-2" tintColor="#999" />
-                        </View>
+                        <CustomSearchBar
+                            onSearch={(query: string) => {
+                                onCategorySelected?.('');
+                                setTimeout(() => onSearchQuery?.(query), 0);
+                                closeMenu();
+                            }}
+                        />
 
                         <View className="h-[1px] bg-gray-700 mt-4 mb-2 mx-2" />
                         <MenuDrawer
