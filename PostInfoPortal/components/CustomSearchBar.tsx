@@ -7,9 +7,16 @@ type CustomSearchBarProps = {
     onSearch: (query: string) => void;
     onReset?: () => void;
     backgroundColor?: string;
+    autoFocus?: boolean; // dodato
 };
 
-const CustomSearchBar: React.FC<CustomSearchBarProps> = ({ query = '', onSearch, onReset, backgroundColor }) => {
+const CustomSearchBar: React.FC<CustomSearchBarProps> = ({
+                                                             query = '',
+                                                             onSearch,
+                                                             onReset,
+                                                             backgroundColor,
+                                                             autoFocus = false
+                                                         }) => {
     const [input, setInput] = useState(query);
 
     useEffect(() => {
@@ -25,7 +32,8 @@ const CustomSearchBar: React.FC<CustomSearchBarProps> = ({ query = '', onSearch,
     return (
         <View
             className="flex-row items-center px-4 py-3 mt-10 mx-2 rounded-2xl"
-            style={{ backgroundColor: backgroundColor || '#1a1a1a' }}>
+            style={{ backgroundColor: backgroundColor || '#1a1a1a' }}
+        >
             <TextInput
                 placeholder="Pretraga..."
                 placeholderTextColor="#999"
@@ -34,6 +42,7 @@ const CustomSearchBar: React.FC<CustomSearchBarProps> = ({ query = '', onSearch,
                 onChangeText={setInput}
                 onSubmitEditing={handleSearch}
                 returnKeyType="search"
+                autoFocus={autoFocus}
             />
             {input.length === 0 ? (
                 <TouchableOpacity onPress={handleSearch}>

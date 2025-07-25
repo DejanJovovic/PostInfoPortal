@@ -10,8 +10,19 @@ const navItems = [
     { key: 'search', label: 'Pretraga', icon: icons.search },
 ];
 
-const CustomFooter = () => {
+type CustomFooterProps = {
+    onSearchPress?: () => void;
+};
+
+const CustomFooter: React.FC<CustomFooterProps> = ({ onSearchPress }) => {
     const [active, setActive] = useState('home');
+
+    const handlePress = (key: string) => {
+        setActive(key);
+        if (key === 'search' && onSearchPress) {
+            onSearchPress();
+        }
+    };
 
     return (
         <View className="absolute bottom-0 w-full mb-5 bg-[#201F5B] rounded-3xl flex-row justify-between items-center px-2 py-3 z-50">
@@ -22,15 +33,16 @@ const CustomFooter = () => {
                 return (
                     <TouchableOpacity
                         key={item.key}
-                        onPress={() => setActive(item.key)}
+                        onPress={() => handlePress(item.key)}
                         className="flex-1 items-center"
                     >
                         <Image
                             source={item.icon}
                             style={{ width: 24, height: 24, tintColor }}
                         />
-                        <Text style={{ color: tintColor}}
-                        className="text-[8px] mt-1">{item.label}</Text>
+                        <Text style={{ color: tintColor }} className="text-[8px] mt-1">
+                            {item.label}
+                        </Text>
                     </TouchableOpacity>
                 );
             })}

@@ -5,7 +5,7 @@ import {
     Animated,
     Dimensions,
 } from 'react-native';
-import React, { useRef, useState } from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import { usePathname, useRouter } from 'expo-router';
 import images from '@/constants/images';
 import icons from '@/constants/icons';
@@ -19,9 +19,10 @@ type CustomHeaderProps = {
     onCategorySelected?: (category: string) => void;
     activeCategory: string;
     onSearchQuery?: (query: string) => void;
+    triggerSearchOpen?: boolean;
 };
 
-const CustomHeader: React.FC<CustomHeaderProps> = ({ onMenuToggle, onCategorySelected, activeCategory, onSearchQuery }) => {
+const CustomHeader: React.FC<CustomHeaderProps> = ({ onMenuToggle, onCategorySelected, activeCategory, onSearchQuery, triggerSearchOpen }) => {
     const router = useRouter();
     const pathname = usePathname();
     const isRoot = pathname === '/';
@@ -67,6 +68,12 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({ onMenuToggle, onCategorySel
             onMenuToggle?.(false);
         });
     };
+
+    useEffect(() => {
+        if (triggerSearchOpen && !menuVisible) {
+            openMenu();
+        }
+    }, [triggerSearchOpen]);
 
     return (
         <View className="w-full h-[90px] relative">
@@ -130,6 +137,7 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({ onMenuToggle, onCategorySel
                                 setTimeout(() => onSearchQuery?.(query), 0);
                                 closeMenu();
                             }}
+                            autoFocus={triggerSearchOpen}
                         />
 
                         <View className="h-[1px] bg-gray-700 mt-4 mb-2 mx-2" />

@@ -11,6 +11,7 @@ import CustomSearchBar from "@/components/CustomSearchBar";
 
 const Index = () => {
     const [menuOpen, setMenuOpen] = useState(false);
+    const [triggerSearchOpen, setTriggerSearchOpen] = useState(false);
     const [activeCategory, setActiveCategory] = useState('Naslovna');
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearchActive, setIsSearchActive] = useState(false);
@@ -78,6 +79,10 @@ const Index = () => {
         await fetchPostsForCategory('Naslovna');
     };
 
+    const handleFooterSearch = () => {
+        setTriggerSearchOpen(true); // aktivira signal
+    };
+
     const renderItem = ({ item }: { item: WPPost }) => {
         const image = item._embedded?.['wp:featuredmedia']?.[0]?.source_url;
         const title = item.title.rendered;
@@ -115,10 +120,14 @@ const Index = () => {
     return (
         <SafeAreaView className="flex-1 bg-white">
             <CustomHeader
-                onMenuToggle={(visible) => setMenuOpen(visible)}
+                onMenuToggle={(visible) => {
+                    setMenuOpen(visible);
+                    if (!visible) setTriggerSearchOpen(false); // reset signal kada se meni zatvori
+                }}
                 onCategorySelected={handleCategorySelect}
                 activeCategory={activeCategory}
                 onSearchQuery={handleSearch}
+                triggerSearchOpen={triggerSearchOpen}
             />
 
             <CustomMenuCategories
@@ -170,7 +179,7 @@ const Index = () => {
                 />
             )}
 
-            {!menuOpen && <CustomFooter />}
+            {!menuOpen && <CustomFooter onSearchPress={handleFooterSearch} />}
         </SafeAreaView>
     );
 };
