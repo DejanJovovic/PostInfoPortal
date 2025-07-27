@@ -21,6 +21,7 @@ export const usePostsByCategory = () => {
         title: post.title,
         excerpt: post.excerpt,
         content: post.content,
+        date: post.date,
         _embedded: {
             'wp:featuredmedia': post._embedded?.['wp:featuredmedia']
         }

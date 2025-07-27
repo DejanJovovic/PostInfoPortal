@@ -7,7 +7,7 @@ type CustomSearchBarProps = {
     onSearch: (query: string) => void;
     onReset?: () => void;
     backgroundColor?: string;
-    autoFocus?: boolean; // dodato
+    autoFocus?: boolean;
 };
 
 const CustomSearchBar: React.FC<CustomSearchBarProps> = ({

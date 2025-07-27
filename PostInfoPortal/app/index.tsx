@@ -1,12 +1,21 @@
-import {View, Text, Image, TouchableOpacity, FlatList, ActivityIndicator, ScrollView} from 'react-native';
-import React, { useEffect, useState } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+    View,
+    Text,
+    Image,
+    TouchableOpacity,
+    FlatList,
+    ActivityIndicator,
+    ScrollView,
+    RefreshControl
+} from 'react-native';
+import React, {useCallback, useEffect, useState} from 'react';
+import {SafeAreaView} from 'react-native-safe-area-context';
 import CustomHeader from '@/components/CustomHeader';
 import CustomMenuCategories from '@/components/CustomMenuCategories';
 import CustomFooter from '@/components/CustomFooter';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { WPPost } from '@/types/wp';
-import { usePostsByCategory } from '@/hooks/usePostsByCategory';
+import {useLocalSearchParams, useRouter} from 'expo-router';
+import {WPPost} from '@/types/wp';
+import {usePostsByCategory} from '@/hooks/usePostsByCategory';
 import CustomSearchBar from "@/components/CustomSearchBar";
 import CustomPostsSection from "@/components/CustomPostsSection";
 
@@ -18,8 +27,9 @@ const Index = () => {
     const [isSearchActive, setIsSearchActive] = useState(false);
     const [noSearchResults, setNoSearchResults] = useState(false);
     const [searchAttemptCount, setSearchAttemptCount] = useState(0);
+    const [refreshing, setRefreshing] = useState(false);
 
-    const { selectedCategory } = useLocalSearchParams();
+    const {selectedCategory} = useLocalSearchParams();
     const {
         posts,
         loading,
@@ -95,10 +105,22 @@ const Index = () => {
         setTriggerSearchOpen(true);
     };
 
-    const renderItem = ({ item }: { item: WPPost }) => {
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        await fetchPostsForCategory(activeCategory || 'Naslovna');
+        setRefreshing(false);
+    }, [activeCategory]);
+
+    const renderItem = ({item}: { item: WPPost }) => {
         const image = item._embedded?.['wp:featuredmedia']?.[0]?.source_url;
         const title = item.title.rendered;
         const excerpt = item.excerpt.rendered.replace(/<[^>]+>/g, '');
+        const date = new Date(item.date).toLocaleDateString('sr-RS', {
+            year: 'numeric',
+            month: 'numeric',
+            day: 'numeric',
+        });
+
 
         return (
             <TouchableOpacity
@@ -106,13 +128,16 @@ const Index = () => {
                 onPress={() =>
                     router.push({
                         pathname: '/post-details',
-                        params: { post: JSON.stringify(item) },
+                        params: {
+                            post: JSON.stringify(item),
+                            category: activeCategory
+                        }
                     })
                 }
             >
                 {image && (
                     <Image
-                        source={{ uri: image }}
+                        source={{uri: image}}
                         className="w-[90px] h-[90px] rounded-md"
                         resizeMode="cover"
                     />
@@ -121,6 +146,7 @@ const Index = () => {
                     <Text className="font-semibold text-base text-black" numberOfLines={2}>
                         {title}
                     </Text>
+                    <Text className="text-gray-400 text-xs mt-1">{date}</Text>
                     <Text className="text-gray-500 text-sm mt-1" numberOfLines={3}>
                         {excerpt}
                     </Text>
@@ -163,7 +189,7 @@ const Index = () => {
 
             {(loading || searchLoading) ? (
                 <View className="flex-1 items-center justify-center">
-                    <ActivityIndicator size="large" color="#201F5B" />
+                    <ActivityIndicator size="large" color="#201F5B"/>
                 </View>
             ) : isSearchActive ? (
                 posts.length === 0 && noSearchResults ? (
@@ -177,9 +203,9 @@ const Index = () => {
                         data={posts}
                         renderItem={renderItem}
                         keyExtractor={(item) => item.id.toString()}
-                        contentContainerStyle={{ paddingBottom: 90 }}
+                        contentContainerStyle={{paddingBottom: 90}}
                         ListHeaderComponent={
-                            isSearchActive && noSearchResults  ? (
+                            isSearchActive && noSearchResults ? (
                                 <View className="px-4 mt-6 mb-10">
                                     <Text className="text-center text-gray-600 font-bold">
                                         Nema rezultata pretrage. Pogledajte neke od ovih objava.
@@ -190,7 +216,10 @@ const Index = () => {
                     />
                 )
             ) : activeCategory === 'Naslovna' && Object.keys(groupedPosts).length > 0 ? (
-                <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 100 }}>
+                <ScrollView className="flex-1" contentContainerStyle={{paddingBottom: 100}}
+                            refreshControl={
+                                <RefreshControl refreshing={refreshing} onRefresh={onRefresh}/>
+                            }>
                     {Object.entries(generalGroupedPosts).map(([categoryName, categoryPosts]) => (
                         <CustomPostsSection
                             key={categoryName}
@@ -226,12 +255,15 @@ const Index = () => {
                     data={posts}
                     renderItem={renderItem}
                     keyExtractor={(item) => item.id.toString()}
-                    contentContainerStyle={{ paddingBottom: 100 }}
+                    contentContainerStyle={{paddingBottom: 100}}
                     className="flex-1"
+                    refreshControl={
+                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh}/>
+                    }
                 />
             )}
 
-            {!menuOpen && <CustomFooter onSearchPress={handleFooterSearch} />}
+            {!menuOpen && <CustomFooter onSearchPress={handleFooterSearch}/>}
         </SafeAreaView>
     );
 };
