@@ -16,6 +16,7 @@ import tiktok from "../assets/icons/tik-tok.png"
 import wifi from "../assets/icons/wifi.png"
 import rightArrow from "../assets/icons/right-arrow.png"
 import downArrow from "../assets/icons/down-arrow.png"
+import bookmark from "../assets/icons/bookmark.png"
 
 
 export default {
@@ -36,5 +37,6 @@ export default {
     tiktok,
     wifi,
     rightArrow,
-    downArrow
+    downArrow,
+    bookmark
 }
