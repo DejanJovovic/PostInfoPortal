@@ -50,7 +50,6 @@ const PostDetails = () => {
                 <Text className="text-xl font-bold mb-2 text-black">{title}</Text>
                 <RenderHTML contentWidth={width} source={{ html: content }} />
             </ScrollView>
-            {!menuOpen && <CustomFooter />}
         </SafeAreaView>
     );
 };
