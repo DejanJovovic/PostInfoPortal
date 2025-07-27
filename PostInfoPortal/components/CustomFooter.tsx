@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, Image } from 'react-native';
 import icons from '@/constants/icons';
+import { router, usePathname } from "expo-router";
 
 const navItems = [
     { key: 'home', label: 'Naslovna', icon: icons.home },
-    { key: 'bell', label: 'Najnovije', icon: icons.bell },
-    { key: 'add', label: 'Moje kategorije', icon: icons.add },
+    { key: 'new', label: 'Najnovije', icon: icons.bell },
+    { key: 'favorites', label: 'Moje kategorije', icon: icons.add },
     { key: 'all', label: 'Sve kategorije', icon: icons.allCategories },
     { key: 'search', label: 'Pretraga', icon: icons.search },
 ];
@@ -15,13 +16,39 @@ type CustomFooterProps = {
 };
 
 const CustomFooter: React.FC<CustomFooterProps> = ({ onSearchPress }) => {
+    const pathname = usePathname();
     const [active, setActive] = useState('home');
 
+    useEffect(() => {
+        if (pathname === '/') {
+            setActive('home');
+        } else if (pathname === '/favorites') {
+            setActive('favorites');
+        } else if (pathname === '/search') {
+            setActive('search');
+        } else {
+            setActive(''); // fallback
+        }
+    }, [pathname]);
+
     const handlePress = (key: string) => {
-        setActive(key);
         if (key === 'search' && onSearchPress) {
             onSearchPress();
+            return;
         }
+
+        if (key === 'favorites') {
+            if (pathname === '/favorites') return;
+            router.push('/favorites');
+            return;
+        }
+
+        if (key === 'home') {
+            if (pathname === '/') return;
+            router.replace({ pathname: '/', params: { selectedCategory: 'Naslovna' } });
+            return;
+        }
+
     };
 
     return (

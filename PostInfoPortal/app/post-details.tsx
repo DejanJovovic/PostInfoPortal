@@ -2,8 +2,6 @@ import { Text, Image, ScrollView, useWindowDimensions, View, TouchableOpacity } 
 import React, { useState, useEffect } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import CustomHeader from '@/components/CustomHeader';
-import CustomMenuCategories from '@/components/CustomMenuCategories';
-import CustomFooter from '@/components/CustomFooter';
 import RenderHTML from 'react-native-render-html';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
