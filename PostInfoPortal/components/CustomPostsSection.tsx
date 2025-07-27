@@ -25,7 +25,7 @@ const CustomPostsSection: React.FC<Props> = ({categoryName, posts, title}) => {
 
                         router.push({
                             pathname: '/post-details',
-                            params: {post: JSON.stringify(fullPost)},
+                            params: {post: JSON.stringify(fullPost), category: categoryName},
                         });
                     } catch (error) {
                         console.error('Greška prilikom učitavanja detalja posta:', error);

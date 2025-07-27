@@ -20,9 +20,10 @@ type CustomHeaderProps = {
     activeCategory: string;
     onSearchQuery?: (query: string) => void;
     triggerSearchOpen?: boolean;
+    showMenu?: boolean;
 };
 
-const CustomHeader: React.FC<CustomHeaderProps> = ({ onMenuToggle, onCategorySelected, activeCategory, onSearchQuery, triggerSearchOpen }) => {
+const CustomHeader: React.FC<CustomHeaderProps> = ({ onMenuToggle, onCategorySelected, activeCategory, onSearchQuery, triggerSearchOpen, showMenu }) => {
     const router = useRouter();
     const pathname = usePathname();
     const isRoot = pathname === '/';
@@ -106,20 +107,19 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({ onMenuToggle, onCategorySel
                 </TouchableOpacity>
             )}
 
-            <TouchableOpacity
-                onPress={openMenu}
-                className="absolute right-4 top-11 -translate-y-1/2 z-10"
-            >
-                <Image
-                    source={icons.menu}
-                    className="w-6 h-6"
-                    tintColor="white"
-                    resizeMode="contain"
-                />
-            </TouchableOpacity>
+            {showMenu !== false && (
+                <TouchableOpacity onPress={openMenu} className="absolute right-4 top-11 -translate-y-1/2 z-10">
+                    <Image
+                        source={icons.menu}
+                        className="w-6 h-6"
+                        tintColor="white"
+                        resizeMode="contain"
+                    />
+                </TouchableOpacity>
+            )}
 
             {/* Slide-In Drawer */}
-            {menuVisible && (
+            {menuVisible && showMenu !== false && (
                 <View className="absolute top-0 left-0 w-full h-screen flex-row z-50">
                     {/* Left Drawer Panel */}
                     <Animated.View
