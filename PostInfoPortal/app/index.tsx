@@ -1,4 +1,4 @@
-import { View, Text, Image, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
+import {View, Text, Image, TouchableOpacity, FlatList, ActivityIndicator, ScrollView} from 'react-native';
 import React, { useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CustomHeader from '@/components/CustomHeader';
@@ -8,6 +8,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { WPPost } from '@/types/wp';
 import { usePostsByCategory } from '@/hooks/usePostsByCategory';
 import CustomSearchBar from "@/components/CustomSearchBar";
+import CustomPostsSection from "@/components/CustomPostsSection";
 
 const Index = () => {
     const [menuOpen, setMenuOpen] = useState(false);
@@ -26,6 +27,10 @@ const Index = () => {
         fetchPostsForCategory,
         searchPosts,
         setPosts,
+        groupedPosts,
+        lokalGroupedPosts,
+        generalGroupedPosts,
+        okruziGroupedPosts,
     } = usePostsByCategory();
 
     const router = useRouter();
@@ -40,6 +45,12 @@ const Index = () => {
             setSearchAttemptCount(0);
         }
     }, [selectedCategory]);
+
+    useEffect(() => {
+        if (!selectedCategory && activeCategory === 'Naslovna') {
+            fetchPostsForCategory('Naslovna');
+        }
+    }, []);
 
     const handleCategorySelect = (categoryName: string) => {
         if (categoryName === 'Latin | Ćirilica') return;
@@ -79,8 +90,9 @@ const Index = () => {
         await fetchPostsForCategory('Naslovna');
     };
 
+    // function that opens up search in MenuDrawer from footer
     const handleFooterSearch = () => {
-        setTriggerSearchOpen(true); // aktivira signal
+        setTriggerSearchOpen(true);
     };
 
     const renderItem = ({ item }: { item: WPPost }) => {
@@ -122,7 +134,7 @@ const Index = () => {
             <CustomHeader
                 onMenuToggle={(visible) => {
                     setMenuOpen(visible);
-                    if (!visible) setTriggerSearchOpen(false); // reset signal kada se meni zatvori
+                    if (!visible) setTriggerSearchOpen(false);
                 }}
                 onCategorySelected={handleCategorySelect}
                 activeCategory={activeCategory}
@@ -138,7 +150,7 @@ const Index = () => {
             {isSearchActive && (
                 <View className="px-2 py-4">
                     <Text className="text-base font-bold text-gray-800 px-4">
-                        Rezultati pretrage &quot;{searchQuery}&quot;
+                        {`Rezultati pretrage "${searchQuery}"`}
                     </Text>
                     <CustomSearchBar
                         query={searchQuery}
@@ -153,29 +165,69 @@ const Index = () => {
                 <View className="flex-1 items-center justify-center">
                     <ActivityIndicator size="large" color="#201F5B" />
                 </View>
-            ) : posts.length === 0 && noSearchResults ? (
-                <View className="flex-1 items-center justify-center px-4">
-                    <Text className="text-center text-black text-base">
-                        Nema rezultata za prikaz.
-                    </Text>
-                </View>
+            ) : isSearchActive ? (
+                posts.length === 0 && noSearchResults ? (
+                    <View className="flex-1 items-center justify-center px-4">
+                        <Text className="text-center text-black text-base">
+                            Nema rezultata za prikaz.
+                        </Text>
+                    </View>
+                ) : (
+                    <FlatList
+                        data={posts}
+                        renderItem={renderItem}
+                        keyExtractor={(item) => item.id.toString()}
+                        contentContainerStyle={{ paddingBottom: 90 }}
+                        ListHeaderComponent={
+                            isSearchActive && noSearchResults  ? (
+                                <View className="px-4 mt-6 mb-10">
+                                    <Text className="text-center text-gray-600 font-bold">
+                                        Nema rezultata pretrage. Pogledajte neke od ovih objava.
+                                    </Text>
+                                </View>
+                            ) : null
+                        }
+                    />
+                )
+            ) : activeCategory === 'Naslovna' && Object.keys(groupedPosts).length > 0 ? (
+                <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 100 }}>
+                    {Object.entries(generalGroupedPosts).map(([categoryName, categoryPosts]) => (
+                        <CustomPostsSection
+                            key={categoryName}
+                            categoryName={categoryName}
+                            posts={categoryPosts}
+                        />
+                    ))}
+
+                    {Object.keys(lokalGroupedPosts).length > 0 && (
+                        <Text className="text-xl font-extrabold text-black px-4 mt-6 mb-2">Lokal</Text>
+                    )}
+                    {Object.entries(lokalGroupedPosts).map(([categoryName, categoryPosts]) => (
+                        <CustomPostsSection
+                            key={categoryName}
+                            categoryName={categoryName}
+                            posts={categoryPosts}
+                        />
+                    ))}
+
+                    {Object.keys(okruziGroupedPosts).length > 0 && (
+                        <Text className="text-xl font-extrabold text-black px-4 mt-6 mb-2">Okruzi</Text>
+                    )}
+                    {Object.entries(okruziGroupedPosts).map(([categoryName, categoryPosts]) => (
+                        <CustomPostsSection
+                            key={categoryName}
+                            categoryName={categoryName}
+                            posts={categoryPosts}
+                        />
+                    ))}
+                </ScrollView>
             ) : (
                 <FlatList
                     data={posts}
                     renderItem={renderItem}
                     keyExtractor={(item) => item.id.toString()}
-                    contentContainerStyle={{ paddingBottom: 90 }}
+                    contentContainerStyle={{ paddingBottom: 100 }}
                     className="flex-1"
-                    //it activates only the first time the search fails, every other it display a different message without posts
-                    ListHeaderComponent={
-                        isSearchActive && noSearchResults && posts.length > 0 ? (
-                            <View className="px-4 mt-6 mb-10">
-                                <Text className="text-center text-gray-600 font-bold">
-                                    Nema rezultata pretrage. Pogledajte neke od ovih objava.
-                                </Text>
-                            </View>
-                        ) : null
-                    }
                 />
             )}
 
@@ -185,3 +237,4 @@ const Index = () => {
 };
 
 export default Index;
+
