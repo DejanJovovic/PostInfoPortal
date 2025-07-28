@@ -8,6 +8,7 @@ import {
     View as RNView, UIManager,
 } from 'react-native';
 import { menuData } from '@/types/menuData';
+import {useTheme} from "@/components/ThemeContext";
 
 type Props = {
     onSelectCategory: (categoryName: string) => void;
@@ -21,6 +22,9 @@ const CustomMenuCategories: React.FC<Props> = ({ onSelectCategory, activeCategor
 
     const scrollViewRef = useRef<ScrollView>(null);
     const categoryRefs = useRef<Record<string, RNView | null>>({});
+
+    const { theme } = useTheme();
+    const isDark = theme === 'dark';
 
     useEffect(() => {
         const node = categoryRefs.current[activeCategory];
@@ -44,7 +48,8 @@ const CustomMenuCategories: React.FC<Props> = ({ onSelectCategory, activeCategor
     }, [activeCategory]);
 
     return (
-        <View className="h-[60px] w-full bg-white">
+        <View className="h-[60px] w-full"
+              style={{ backgroundColor: isDark ? '#000000' : 'white' }}>
             <ScrollView
                 ref={scrollViewRef}
                 horizontal
@@ -63,7 +68,11 @@ const CustomMenuCategories: React.FC<Props> = ({ onSelectCategory, activeCategor
                     >
                         <Text
                             className={`uppercase font-bold ${
-                                activeCategory === category ? 'text-[#FA0A0F]' : 'text-black'
+                                activeCategory === category
+                                    ? 'text-[#FA0A0F]'
+                                    : isDark
+                                        ? 'text-white'
+                                        : 'text-black'
                             }`}
                         >
                             {category}

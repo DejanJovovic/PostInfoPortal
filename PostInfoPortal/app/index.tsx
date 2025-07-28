@@ -18,6 +18,7 @@ import {WPPost} from '@/types/wp';
 import {usePostsByCategory} from '@/hooks/usePostsByCategory';
 import CustomSearchBar from "@/components/CustomSearchBar";
 import CustomPostsSection from "@/components/CustomPostsSection";
+import {useTheme} from "@/components/ThemeContext";
 
 const Index = () => {
     const [menuOpen, setMenuOpen] = useState(false);
@@ -28,6 +29,9 @@ const Index = () => {
     const [noSearchResults, setNoSearchResults] = useState(false);
     const [searchAttemptCount, setSearchAttemptCount] = useState(0);
     const [refreshing, setRefreshing] = useState(false);
+
+    const {theme} = useTheme();
+    const isDark = theme === 'dark';
 
     const {selectedCategory} = useLocalSearchParams();
     const {
@@ -129,12 +133,15 @@ const Index = () => {
 
     // function that highlights search term in post title
     const highlightSearchTerm = (text: string, term: string) => {
-        if (!term) return <Text className="font-bold text-base text-black">{text}</Text>;
+        if (!term) return <Text className="font-bold text-base"
+                                style={{color: isDark ? '#fff' : '#000000'}}>{text}</Text>;
 
         const parts = text.split(new RegExp(`(${term})`, 'gi'));
 
         return (
-            <Text className="font-bold text-base text-black" numberOfLines={2}>
+            <Text className="font-bold text-base"
+                  style={{color: isDark ? '#fff' : '#000000'}}
+                  numberOfLines={2}>
                 {parts.map((part, i) => (
                     <Text
                         key={i}
@@ -156,7 +163,6 @@ const Index = () => {
             month: 'numeric',
             day: 'numeric',
         });
-
 
         return (
             <TouchableOpacity
@@ -190,7 +196,8 @@ const Index = () => {
     };
 
     return (
-        <SafeAreaView className="flex-1 bg-white">
+        <SafeAreaView className="flex-1"
+                      style={{backgroundColor: isDark ? '#000000' : 'white'}}>
             <CustomHeader
                 onMenuToggle={(visible) => {
                     setMenuOpen(visible);
@@ -209,7 +216,8 @@ const Index = () => {
 
             {isSearchActive && (
                 <View className="px-2 py-4">
-                    <Text className="text-base font-bold text-gray-800 px-4">
+                    <Text className="text-base font-bold mt-2 px-4"
+                          style={{color: isDark ? '#F9F9F9' : '#1f2937'}}>
                         {searchQuery.trim().length > 0
                             ? `Rezultati pretrage "${searchQuery}"`
                             : 'Unesite željenu reč za pretragu ispod'}
@@ -231,7 +239,9 @@ const Index = () => {
             ) : isSearchActive ? (
                 posts.length === 0 && noSearchResults ? (
                     <View className="flex-1 items-center justify-center px-4">
-                        <Text className="text-center text-black text-base">
+                        <Text className="text-center text-base"
+                              style={{color: isDark ? '#F9F9F9' : '#1f2937'}}
+                        >
                             Nema rezultata za prikaz.
                         </Text>
                     </View>
@@ -242,12 +252,13 @@ const Index = () => {
                         keyExtractor={(item) => item.id.toString()}
                         contentContainerStyle={{paddingBottom: 90}}
                         refreshControl={
-                            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                            <RefreshControl refreshing={refreshing} onRefresh={onRefresh}/>
                         }
                         ListHeaderComponent={
                             isSearchActive && noSearchResults ? (
                                 <View className="px-4 mt-6 mb-10">
-                                    <Text className="text-center text-gray-600 font-bold">
+                                    <Text className="text-center font-bold"
+                                          style={{color: isDark ? '#F9F9F9' : 'white'}}>
                                         Nema rezultata pretrage. Pogledajte neke od ovih objava.
                                     </Text>
                                 </View>
@@ -269,7 +280,8 @@ const Index = () => {
                     ))}
 
                     {Object.keys(lokalGroupedPosts).length > 0 && (
-                        <Text className="text-xl font-extrabold text-black px-4 mt-6 mb-2">Lokal</Text>
+                        <Text className="text-xl font-extrabold  px-4 mt-6 mb-2"
+                              style={{color: isDark ? '#fff' : '#000000'}}>Lokal</Text>
                     )}
                     {Object.entries(lokalGroupedPosts).map(([categoryName, categoryPosts]) => (
                         <CustomPostsSection
@@ -280,7 +292,8 @@ const Index = () => {
                     ))}
 
                     {Object.keys(okruziGroupedPosts).length > 0 && (
-                        <Text className="text-xl font-extrabold text-black px-4 mt-6 mb-2">Okruzi</Text>
+                        <Text className="text-xl font-extrabold  px-4 mt-6 mb-2"
+                              style={{ color: isDark ? '#fff' : '#000000' }}>Okruzi</Text>
                     )}
                     {Object.entries(okruziGroupedPosts).map(([categoryName, categoryPosts]) => (
                         <CustomPostsSection

@@ -2,7 +2,7 @@ import React from 'react';
 import {View, FlatList, TouchableOpacity, Image, Text} from 'react-native';
 import {WPPost} from '@/types/wp';
 import {router} from "expo-router";
-import colors from "@/constants/colors";
+import {useTheme} from "@/components/ThemeContext";
 
 type Props = {
     categoryName: string;
@@ -11,6 +11,10 @@ type Props = {
 };
 
 const CustomPostsSection: React.FC<Props> = ({categoryName, posts, title}) => {
+
+    const { theme } = useTheme();
+    const isDark = theme === 'dark';
+
     const renderItem = ({item}: { item: WPPost }) => {
         const image = item._embedded?.['wp:featuredmedia']?.[0]?.source_url;
         const postTitle = item.title.rendered;
@@ -38,8 +42,10 @@ const CustomPostsSection: React.FC<Props> = ({categoryName, posts, title}) => {
                         className="w-[140px] h-[100px] rounded-md"
                         resizeMode="cover"
                     />
-                )}
-                <Text className="text-lg mt-1 w-[140px] font-semibold text-black" numberOfLines={2}>
+            )}
+                <Text className="text-lg mt-1 w-[140px] font-semibold"
+                      style={{ color: isDark ? '#F9F9F9' : '#000000' }}
+                      numberOfLines={2}>
                     {postTitle}
                 </Text>
             </TouchableOpacity>
@@ -48,8 +54,10 @@ const CustomPostsSection: React.FC<Props> = ({categoryName, posts, title}) => {
 
     return (
         <View className="mb-6 px-4 mt-5">
-            <Text className="text-xl font-bold mb-2" style={{color: colors.black}}>{title || categoryName}</Text>
-            <View className="h-[1px] bg-gray-700 mt-4 mb-2"/>
+            <Text className="text-xl font-bold mb-2"
+                  style={{ color: isDark ? '#fff' : '#000000' }}>{title || categoryName}</Text>
+            <View className="h-[1px] mt-4 mb-2"
+                  style={{ backgroundColor: isDark ? '#F9F9F9' : '#000000' }}/>
             <FlatList
                 data={posts}
                 renderItem={renderItem}

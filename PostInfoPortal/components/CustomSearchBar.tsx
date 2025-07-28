@@ -39,7 +39,7 @@ const CustomSearchBar: React.FC<CustomSearchBarProps> = ({
         >
             <TextInput
                 placeholder="Pretraga..."
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.grey}
                 className="flex-1 text-white text-sm"
                 value={input}
                 onChangeText={setInput}

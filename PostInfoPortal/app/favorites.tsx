@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import CustomHeader from '@/components/CustomHeader';
 import CustomFooter from '@/components/CustomFooter';
 import icons from '@/constants/icons';
+import {useTheme} from "@/components/ThemeContext";
 
 type FavoritePost = WPPost & { category: string };
 
@@ -25,6 +26,9 @@ const Favorites = () => {
     const [refreshing, setRefreshing] = useState(false);
 
     const router = useRouter();
+
+    const {theme} = useTheme();
+    const isDark = theme === 'dark';
 
     const loadFavorites = async () => {
         const saved = await AsyncStorage.getItem('favorites');
@@ -131,14 +135,21 @@ const Favorites = () => {
                             resizeMode="cover"
                         />
                     )}
-                    <Text className="text-black font-bold mt-2" numberOfLines={2}>
+                    <Text className="font-bold mt-2" numberOfLines={2}
+                          style={{color: isDark ? '#FFFFFF' : '#000000'}}>
                         {item.title.rendered}
                     </Text>
                 </TouchableOpacity>
                 <View className="flex-row justify-between items-center mt-1">
                     <Text className="text-gray-500 text-xs">{date}</Text>
                     <TouchableOpacity onPress={() => removePost(item.id)}>
-                        <View className="p-1 rounded-lg border border-black">
+                        <View
+                            className="p-1 rounded-lg"
+                            style={{
+                                borderWidth: 1,
+                                borderColor: isDark ? '#ffffff' : '#000000',
+                            }}
+                        >
                             <Image
                                 source={icons.close}
                                 style={{ width: 20, height: 20, tintColor: '#FA0A0F' }}
@@ -152,7 +163,8 @@ const Favorites = () => {
     };
 
     return (
-        <SafeAreaView className="flex-1 bg-white">
+        <SafeAreaView className="flex-1"
+                      style={{backgroundColor: isDark ? '#000000' : 'white'}}>
             <CustomHeader
                 onMenuToggle={(visible) => setMenuOpen(visible)}
                 onCategorySelected={handleCategorySelected}
@@ -172,9 +184,16 @@ const Favorites = () => {
                     Object.entries(groupedFavorites).map(([category, posts]) => (
                         <View key={category} className="mb-6">
                             <View className="flex-row justify-between items-center mb-2">
-                                <Text className="text-xl font-bold text-black mt-5 mb-5">{category}</Text>
+                                <Text className="text-xl font-bold  mt-5 mb-5"
+                                style={{color: isDark ? '#FFFFFF' : '#000000'}}>{category}</Text>
                                 <TouchableOpacity onPress={() => removeCategory(category)}>
-                                    <View className="p-1 rounded-lg border border-black">
+                                    <View
+                                        className="p-1 rounded-lg"
+                                        style={{
+                                            borderWidth: 1,
+                                            borderColor: isDark ? '#ffffff' : '#000000',
+                                        }}
+                                    >
                                         <Image
                                             source={icons.close}
                                             style={{ width: 20, height: 20, tintColor: '#FA0A0F' }}
@@ -190,7 +209,8 @@ const Favorites = () => {
                                 keyExtractor={(item) => item.id.toString()}
                                 renderItem={({ item }) => renderPost({ item }, category)}
                             />
-                            <View className="h-[1px] bg-gray-700 mt-5"/>
+                            <View className="h-[1px] mt-5"
+                            style={{ backgroundColor: isDark ? '#FFFFFF' : '#1a1a1a'}}/>
                         </View>
                     ))
                 )}

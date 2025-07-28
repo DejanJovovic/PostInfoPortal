@@ -1,8 +1,10 @@
 import React from 'react';
-import { ScrollView, View, Text, TouchableOpacity, Image } from 'react-native';
+import {ScrollView, View, Text, TouchableOpacity, Image, Switch} from 'react-native';
 import { menuData } from '@/types/menuData';
 import MenuCategoryItem from './MenuCategoryItem';
 import icons from '@/constants/icons';
+import { Feather } from '@expo/vector-icons';
+import {useTheme} from "@/components/ThemeContext";
 
 type MenuDrawerProps = {
     onCategorySelect: (categoryName: string) => void;
@@ -10,6 +12,10 @@ type MenuDrawerProps = {
 };
 
 const MenuDrawer: React.FC<MenuDrawerProps> = ({ onCategorySelect, activeCategory }) => {
+    const { theme, toggleTheme } = useTheme();
+
+    const isDarkMode = theme === 'dark';
+
     return (
         <ScrollView
             showsVerticalScrollIndicator={false}
@@ -33,6 +39,19 @@ const MenuDrawer: React.FC<MenuDrawerProps> = ({ onCategorySelect, activeCategor
                         </TouchableOpacity>
                     )
                 )}
+            </View>
+
+            <View className="flex-row items-center justify-between px-4 mt-6">
+                <View className="flex-row items-center gap-2">
+                    <Feather name="sun" size={20} color={isDarkMode ? '#aaa' : '#333'} />
+                    <Switch
+                        value={isDarkMode}
+                        onValueChange={toggleTheme}
+                        trackColor={{ false: '#ccc', true: '#666' }}
+                        thumbColor={isDarkMode ? '#fff' : '#000'}
+                    />
+                    <Feather name="moon" size={20} color={isDarkMode ? '#fff' : '#888'} />
+                </View>
             </View>
 
             <View className="mt-6 px-4 pb-10">
