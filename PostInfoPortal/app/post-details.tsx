@@ -1,4 +1,14 @@
-import {Text, Image, ScrollView, useWindowDimensions, View, TouchableOpacity, Alert} from 'react-native';
+import {
+    Text,
+    Image,
+    ScrollView,
+    useWindowDimensions,
+    View,
+    TouchableOpacity,
+    Alert,
+    Linking,
+    Share
+} from 'react-native';
 import React, { useState, useEffect } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import CustomHeader from '@/components/CustomHeader';
@@ -62,6 +72,52 @@ const PostDetails = () => {
         }
     };
 
+    // this function handles sharing posts to social apps
+    const handleShare = async (platform: string) => {
+        const postLink = postData.link;
+
+        try {
+            let url = '';
+            switch (platform) {
+                case 'facebook':
+                    // share api, instead of linking because fb doesnt allow linking to fb pages
+                    await Share.share({
+                        message: `${postLink}`,
+                        url: postLink,
+                        title: title.rendered,
+                    });
+                    return;
+                case 'twitter':
+                    url = `https://twitter.com/intent/tweet?url=${encodeURIComponent(postLink)}&text=${encodeURIComponent(title.rendered)}`;
+                    break;
+                case 'linkedin':
+                    url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(postLink)}`;
+                    break;
+                case 'mail':
+                    url = `mailto:?subject=${encodeURIComponent(title.rendered)}&body=${encodeURIComponent(postLink)}`;
+                    break;
+                case 'whatsapp':
+                    url = `whatsapp://send?text=${encodeURIComponent(postLink)}`;
+                    break;
+                default:
+                    return;
+            }
+
+            const supported = await Linking.canOpenURL(url);
+            if (supported) {
+                await Linking.openURL(url);
+            } else {
+                Alert.alert(
+                    'Aplikacija nije dostupna',
+                    `Izgleda da ${platform.charAt(0).toUpperCase() + platform.slice(1)} aplikacija nije instalirana na ovom uređaju.`
+                );
+            }
+        } catch (error) {
+            console.error('Greška pri deljenju:', error);
+            Alert.alert('Greška', 'Nije moguće izvršiti deljenje.');
+        }
+    };
+
     const handleCategorySelected = (category: string) => {
         setActiveCategory(category);
         router.replace({ pathname: '/', params: { selectedCategory: category } });
@@ -98,6 +154,23 @@ const PostDetails = () => {
                 </View>
 
                 <Text className="text-gray-400 text-sm mb-3">{formattedDate}</Text>
+                <View className="flex-row justify-around items-center mt-5 mb-5 px-4">
+                    {[
+                        { icon: icons.facebook, platform: 'facebook' },
+                        { icon: icons.twitter, platform: 'twitter' },
+                        { icon: icons.linkedin, platform: 'linkedin' },
+                        { icon: icons.mail, platform: 'mail' },
+                        { icon: icons.whatsapp, platform: 'whatsapp' },
+                    ].map(({ icon, platform }, index) => (
+                        <TouchableOpacity
+                            key={index}
+                            onPress={() => handleShare(platform)}
+                            className="p-3 mx-1 rounded-full border border-gray-300 bg-white shadow-sm"
+                        >
+                            <Image source={icon} style={{ width: 20, height: 20 }} />
+                        </TouchableOpacity>
+                    ))}
+                </View>
 
                 <RenderHTML contentWidth={width} source={{ html: content?.rendered }} />
             </ScrollView>

@@ -17,6 +17,8 @@ import wifi from "../assets/icons/wifi.png"
 import rightArrow from "../assets/icons/right-arrow.png"
 import downArrow from "../assets/icons/down-arrow.png"
 import bookmark from "../assets/icons/bookmark.png"
+import mail from "../assets/icons/mail.png"
+import whatsapp from "../assets/icons/whatsapp.png"
 
 
 export default {
@@ -38,5 +40,7 @@ export default {
     wifi,
     rightArrow,
     downArrow,
-    bookmark
+    bookmark,
+    mail,
+    whatsapp
 }
