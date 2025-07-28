@@ -39,7 +39,7 @@ const CustomPostsSection: React.FC<Props> = ({categoryName, posts, title}) => {
                         resizeMode="cover"
                     />
                 )}
-                <Text className="text-sm mt-1 w-[140px]" numberOfLines={2}>
+                <Text className="text-lg mt-1 w-[140px] font-semibold text-black" numberOfLines={2}>
                     {postTitle}
                 </Text>
             </TouchableOpacity>

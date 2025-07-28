@@ -138,7 +138,7 @@ const Favorites = () => {
                 <View className="flex-row justify-between items-center mt-1">
                     <Text className="text-gray-500 text-xs">{date}</Text>
                     <TouchableOpacity onPress={() => removePost(item.id)}>
-                        <View className="p-1 rounded-xl border border-black">
+                        <View className="p-1 rounded-lg border border-black">
                             <Image
                                 source={icons.close}
                                 style={{ width: 20, height: 20, tintColor: '#FA0A0F' }}
@@ -174,7 +174,7 @@ const Favorites = () => {
                             <View className="flex-row justify-between items-center mb-2">
                                 <Text className="text-xl font-bold text-black mt-5 mb-5">{category}</Text>
                                 <TouchableOpacity onPress={() => removeCategory(category)}>
-                                    <View className="p-1 rounded-xl border border-black">
+                                    <View className="p-1 rounded-lg border border-black">
                                         <Image
                                             source={icons.close}
                                             style={{ width: 20, height: 20, tintColor: '#FA0A0F' }}

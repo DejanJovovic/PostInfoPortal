@@ -1,4 +1,4 @@
-import { Text, Image, ScrollView, useWindowDimensions, View, TouchableOpacity } from 'react-native';
+import {Text, Image, ScrollView, useWindowDimensions, View, TouchableOpacity, Alert} from 'react-native';
 import React, { useState, useEffect } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import CustomHeader from '@/components/CustomHeader';
@@ -42,14 +42,21 @@ const PostDetails = () => {
             const saved = await AsyncStorage.getItem('favorites');
             let favorites = saved ? JSON.parse(saved) : [];
 
+            let toastMessage = '';
+
             if (isBookmarked) {
                 favorites = favorites.filter((item: any) => item.id !== id);
+                toastMessage = 'Post uklonjen iz omiljenih';
             } else {
                 favorites.push({ ...postData, category: activeCategory });
+                toastMessage = 'Post dodat u omiljene';
             }
 
             await AsyncStorage.setItem('favorites', JSON.stringify(favorites));
             setIsBookmarked(!isBookmarked);
+
+            Alert.alert('Obaveštenje', toastMessage, [{ text: 'OK' }], { cancelable: true });
+
         } catch (e) {
             console.error('Greška pri čuvanju omiljenih:', e);
         }

@@ -1,6 +1,7 @@
 import React, {useEffect, useState} from 'react';
 import {View, TextInput, Image, TouchableOpacity} from 'react-native';
 import icons from '@/constants/icons';
+import colors from "@/constants/colors";
 
 type CustomSearchBarProps = {
     query?: string;
@@ -20,7 +21,9 @@ const CustomSearchBar: React.FC<CustomSearchBarProps> = ({
     const [input, setInput] = useState(query);
 
     useEffect(() => {
-        setInput(query);
+        if (query === '') {
+            setInput('');
+        }
     }, [query]);
 
     const handleSearch = () => {
@@ -46,12 +49,18 @@ const CustomSearchBar: React.FC<CustomSearchBarProps> = ({
             />
             {input.length === 0 ? (
                 <TouchableOpacity onPress={handleSearch}>
-                    <Image source={icons.search} className="w-4 h-4 ml-2" tintColor="#999" />
+                    <Image source={icons.search} className="w-4 h-4 ml-2" tintColor={colors.grey} />
                 </TouchableOpacity>
             ) : (
                 onReset && (
-                    <TouchableOpacity onPress={onReset}>
-                        <Image source={icons.close} className="w-4 h-4 ml-2" tintColor="#999" />
+                    <TouchableOpacity
+                        onPress={() => {
+                            setInput('');
+                            onReset?.();
+                        }}
+                    >
+                        <Image source={icons.close} className="w-4 h-4 ml-2" tintColor={colors.grey} />
+
                     </TouchableOpacity>
                 )
             )}

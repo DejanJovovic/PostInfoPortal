@@ -102,14 +102,50 @@ const Index = () => {
 
     // function that opens up search in MenuDrawer from footer
     const handleFooterSearch = () => {
+        setSearchQuery('');
+        setIsSearchActive(true);
+        setNoSearchResults(true);
+        setSearchAttemptCount(0);
+        setPosts([]);
         setTriggerSearchOpen(true);
     };
 
+    // refresh function, works for
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
-        await fetchPostsForCategory(activeCategory || 'Naslovna');
+
+        if (isSearchActive) {
+            // resets search state and displays the other message
+            setSearchQuery('');
+            setPosts([]); // clear results
+            setNoSearchResults(true); // show message
+            setSearchAttemptCount(0);
+        } else {
+            await fetchPostsForCategory(activeCategory || 'Naslovna');
+        }
+
         setRefreshing(false);
-    }, [activeCategory]);
+    }, [isSearchActive, activeCategory]);
+
+    // function that highlights search term in post title
+    const highlightSearchTerm = (text: string, term: string) => {
+        if (!term) return <Text className="font-bold text-base text-black">{text}</Text>;
+
+        const parts = text.split(new RegExp(`(${term})`, 'gi'));
+
+        return (
+            <Text className="font-bold text-base text-black" numberOfLines={2}>
+                {parts.map((part, i) => (
+                    <Text
+                        key={i}
+                        className={part.toLowerCase() === term.toLowerCase() ? 'font-bold text-[#FA0A0F]' : ''}
+                    >
+                        {part}
+                    </Text>
+                ))}
+            </Text>
+        );
+    };
 
     const renderItem = ({item}: { item: WPPost }) => {
         const image = item._embedded?.['wp:featuredmedia']?.[0]?.source_url;
@@ -143,9 +179,7 @@ const Index = () => {
                     />
                 )}
                 <View className="flex-1">
-                    <Text className="font-semibold text-base text-black" numberOfLines={2}>
-                        {title}
-                    </Text>
+                    {highlightSearchTerm(title, searchQuery)}
                     <Text className="text-gray-400 text-xs mt-1">{date}</Text>
                     <Text className="text-gray-500 text-sm mt-1" numberOfLines={3}>
                         {excerpt}
@@ -176,9 +210,12 @@ const Index = () => {
             {isSearchActive && (
                 <View className="px-2 py-4">
                     <Text className="text-base font-bold text-gray-800 px-4">
-                        {`Rezultati pretrage "${searchQuery}"`}
+                        {searchQuery.trim().length > 0
+                            ? `Rezultati pretrage "${searchQuery}"`
+                            : 'Unesite željenu reč za pretragu ispod'}
                     </Text>
                     <CustomSearchBar
+                        key={searchQuery + searchAttemptCount} // resets component if the query changes
                         query={searchQuery}
                         onSearch={handleSearch}
                         onReset={resetSearch}
@@ -204,6 +241,9 @@ const Index = () => {
                         renderItem={renderItem}
                         keyExtractor={(item) => item.id.toString()}
                         contentContainerStyle={{paddingBottom: 90}}
+                        refreshControl={
+                            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                        }
                         ListHeaderComponent={
                             isSearchActive && noSearchResults ? (
                                 <View className="px-4 mt-6 mb-10">
