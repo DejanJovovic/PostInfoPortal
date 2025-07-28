@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
-import { getCategories, getPostsByCategoryId, getPostsBySearch } from '@/utils/wpApi';
-import { nameToSlugMap } from '@/constants/nameToSlugMap';
-import { WPPost } from '@/types/wp';
-import { menuData } from '@/types/menuData';
+import {useEffect, useState} from 'react';
+import {getCategories, getPostsByCategoryId, getPostsBySearch} from '@/utils/wpApi';
+import {nameToSlugMap} from '@/constants/nameToSlugMap';
+import {WPPost} from '@/types/wp';
+import {menuData} from '@/types/menuData';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const usePostsByCategory = () => {
@@ -113,13 +113,11 @@ export const usePostsByCategory = () => {
             // checks for cached groupedPosts[categoryName] and uses that if it can
             const cacheRaw = await AsyncStorage.getItem('groupedPostsCache');
             if (cacheRaw) {
-                const { data, timestamp } = JSON.parse(cacheRaw);
-                const oneDay = 24 * 60 * 60 * 1000;
-                if (Date.now() - timestamp < oneDay) {
-                    setGroupedPosts(data);
-                    setLoading(false);
-                    return;
-                }
+                const {data} = JSON.parse(cacheRaw);
+                setGroupedPosts(data);
+                setLoading(false);
+                return;
+
             }
 
             await fetchAllPosts();
@@ -128,7 +126,7 @@ export const usePostsByCategory = () => {
 
         const cachedGrouped = await AsyncStorage.getItem('groupedPostsCache');
         if (cachedGrouped) {
-            const { data } = JSON.parse(cachedGrouped);
+            const {data} = JSON.parse(cachedGrouped);
             if (data[categoryName]) {
                 setPosts(data[categoryName]);
                 setLoading(false);
@@ -235,7 +233,7 @@ export const usePostsByCategory = () => {
 
             const cacheRaw = await AsyncStorage.getItem('groupedPostsCache');
             if (cacheRaw) {
-                const { data, timestamp } = JSON.parse(cacheRaw);
+                const {data, timestamp} = JSON.parse(cacheRaw);
                 const oneDay = 24 * 60 * 60 * 1000;
                 if (Date.now() - timestamp < oneDay) {
                     setGroupedPosts(data);
