@@ -2,6 +2,7 @@ import {useEffect, useRef} from 'react';
 import {View, Animated, Dimensions} from 'react-native';
 import {Image} from 'expo-image';
 import {StatusBar} from 'expo-status-bar';
+import colors from "@/constants/colors";
 
 export default function SplashScreen({onFinish}: { onFinish: () => void }) {
 
@@ -24,10 +25,10 @@ export default function SplashScreen({onFinish}: { onFinish: () => void }) {
 
     return (
         <Animated.View
-            className="bg-white"
             style={{
                 flex: 1,
-                transform: [{translateX}]
+                transform: [{translateX}],
+                backgroundColor: colors.blue
 
             }}>
 

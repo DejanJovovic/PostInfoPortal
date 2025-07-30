@@ -8,7 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export const usePostsByCategory = () => {
     const [categories, setCategories] = useState<{ id: number; name: string; slug: string }[]>([]);
     // used to save all available categories from api (naziv, id i slug)
-    const [posts, setPosts] = useState([]);
+    const [posts, setPosts] = useState<WPPost[]>([]);
     const [groupedPosts, setGroupedPosts] = useState<Record<string, WPPost[]>>({});
     const [loading, setLoading] = useState(false);
     const [searchLoading, setSearchLoading] = useState(false);
@@ -233,12 +233,9 @@ export const usePostsByCategory = () => {
 
             const cacheRaw = await AsyncStorage.getItem('groupedPostsCache');
             if (cacheRaw) {
-                const {data, timestamp} = JSON.parse(cacheRaw);
-                const oneDay = 24 * 60 * 60 * 1000;
-                if (Date.now() - timestamp < oneDay) {
-                    setGroupedPosts(data);
-                    return;
-                }
+                const { data } = JSON.parse(cacheRaw);
+                setGroupedPosts(data);
+                return;
             }
 
             await fetchAllPosts();
