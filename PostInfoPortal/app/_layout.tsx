@@ -30,6 +30,7 @@ export default function RootLayout() {
             <Stack>
                 <Stack.Screen name="index" options={{headerShown: false}}/>
                 <Stack.Screen name="favorites" options={{headerShown: false}}/>
+                <Stack.Screen name="categories" options={{headerShown: false}}/>
                 <Stack.Screen name="post-details" options={{headerShown: false}}/>
             </Stack>
         </ThemeProvider>

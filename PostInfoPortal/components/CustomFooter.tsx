@@ -7,7 +7,7 @@ const navItems = [
     { key: 'home', label: 'Naslovna', icon: icons.home },
     { key: 'new', label: 'Najnovije', icon: icons.bell },
     { key: 'favorites', label: 'Moje kategorije', icon: icons.add },
-    { key: 'all', label: 'Sve kategorije', icon: icons.allCategories },
+    { key: 'categories', label: 'Sve kategorije', icon: icons.allCategories },
     { key: 'search', label: 'Pretraga', icon: icons.search },
 ];
 
@@ -26,14 +26,18 @@ const CustomFooter: React.FC<CustomFooterProps> = ({ onSearchPress }) => {
             setActive('favorites');
         } else if (pathname === '/search') {
             setActive('search');
+        } else if (pathname === '/categories') {
+            setActive('categories');
         } else {
             setActive(''); // fallback
         }
     }, [pathname]);
 
     const handlePress = (key: string) => {
-        if (key === 'search' && onSearchPress) {
-            onSearchPress();
+
+        if (key === 'home') {
+            if (pathname === '/') return;
+            router.replace({ pathname: '/', params: { selectedCategory: 'Naslovna' } });
             return;
         }
 
@@ -43,12 +47,16 @@ const CustomFooter: React.FC<CustomFooterProps> = ({ onSearchPress }) => {
             return;
         }
 
-        if (key === 'home') {
-            if (pathname === '/') return;
-            router.replace({ pathname: '/', params: { selectedCategory: 'Naslovna' } });
+        if (key === 'categories') {
+            if (pathname === '/categories') return;
+            router.push('/categories');
             return;
         }
 
+        if (key === 'search' && onSearchPress) {
+            onSearchPress();
+            return;
+        }
     };
 
     return (
