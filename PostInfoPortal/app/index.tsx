@@ -154,44 +154,45 @@ const Index = () => {
         );
     };
 
-    const renderItem = ({item}: { item: WPPost }) => {
+    const renderItem = ({ item, index }: { item: WPPost; index: number }) => {
         const image = item._embedded?.['wp:featuredmedia']?.[0]?.source_url;
-        const title = item.title.rendered;
+        const date = new Date(item.date).toLocaleDateString('sr-RS');
         const excerpt = item.excerpt.rendered.replace(/<[^>]+>/g, '');
-        const date = new Date(item.date).toLocaleDateString('sr-RS', {
-            year: 'numeric',
-            month: 'numeric',
-            day: 'numeric',
-        });
 
         return (
-            <TouchableOpacity
-                className="flex-row items-start gap-3 p-4 border-b border-gray-200"
-                onPress={() =>
-                    router.push({
-                        pathname: '/post-details',
-                        params: {
-                            post: JSON.stringify(item),
-                            category: activeCategory
-                        }
-                    })
-                }
+            <View
+                className="rounded-2xl shadow-md mb-6 mx-3 p-4 border"
+                style={{
+                    backgroundColor: isDark ? '#1b1b1b' : 'white',
+                    borderColor: isDark ? '#333' : '#e5e7eb',
+                }}
             >
-                {image && (
-                    <Image
-                        source={{uri: image}}
-                        className="w-[90px] h-[90px] rounded-md"
-                        resizeMode="cover"
-                    />
-                )}
-                <View className="flex-1">
-                    {highlightSearchTerm(title, searchQuery)}
-                    <Text className="text-gray-400 text-xs mt-1">{date}</Text>
-                    <Text className="text-gray-500 text-sm mt-1" numberOfLines={3}>
+                <TouchableOpacity
+                    onPress={() =>
+                        router.push({
+                            pathname: '/post-details',
+                            params: { post: JSON.stringify(item), category: activeCategory }
+                        })
+                    }
+                >
+                    {image && (
+                        <Image
+                            source={{ uri: image }}
+                            className="w-full h-48 rounded-xl mb-3"
+                            resizeMode="cover"
+                        />
+                    )}
+                    {highlightSearchTerm(item.title.rendered, searchQuery)}
+                    <Text className="text-xs mb-1"
+                          style={{ color: isDark ? '#9ca3af' : '#6b7280' }}>
+                        {date}
+                    </Text>
+                    <Text className="text-sm" numberOfLines={3}
+                          style={{ color: isDark ? '#959898' : '#999a9b' }}>
                         {excerpt}
                     </Text>
-                </View>
-            </TouchableOpacity>
+                </TouchableOpacity>
+            </View>
         );
     };
 

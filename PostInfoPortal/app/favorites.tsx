@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, {useState, useCallback} from 'react';
 import {
     View,
     Text,
@@ -10,8 +10,8 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {useFocusEffect, useRouter} from 'expo-router';
-import { WPPost } from '@/types/wp';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {WPPost} from '@/types/wp';
+import {SafeAreaView} from 'react-native-safe-area-context';
 import CustomHeader from '@/components/CustomHeader';
 import CustomFooter from '@/components/CustomFooter';
 import icons from '@/constants/icons';
@@ -59,7 +59,7 @@ const Favorites = () => {
 
     const handleCategorySelected = (category: string) => {
         setActiveCategory(category);
-        router.replace({ pathname: '/', params: { selectedCategory: category } });
+        router.replace({pathname: '/', params: {selectedCategory: category}});
     };
 
     const removePost = (postId: number) => {
@@ -114,48 +114,64 @@ const Favorites = () => {
         );
     };
 
-    const renderPost = ({ item }: { item: WPPost }, category: string) => {
+    const renderPost = ({item}: { item: WPPost }) => {
         const image = item._embedded?.['wp:featuredmedia']?.[0]?.source_url;
         const date = new Date(item.date).toLocaleDateString('sr-RS');
+        const excerpt = item.excerpt.rendered.replace(/<[^>]+>/g, '');
+        const title = item.title.rendered;
 
         return (
-            <View className="w-[240px] mr-3">
-                <TouchableOpacity
-                    onPress={() =>
-                        router.push({
-                            pathname: '/post-details',
-                            params: { post: JSON.stringify(item) },
-                        })
-                    }
+            <View className="w-[260px] mr-3">
+                <View
+                    className="rounded-2xl shadow-md p-3 border"
+                    style={{
+                        backgroundColor: isDark ? '#1b1b1b' : 'white',
+                        borderColor: isDark ? '#333' : '#e5e7eb',
+                    }}
                 >
-                    {image && (
-                        <Image
-                            source={{ uri: image }}
-                            className="h-32 w-full rounded-md"
-                            resizeMode="cover"
-                        />
-                    )}
-                    <Text className="font-bold mt-2" numberOfLines={2}
-                          style={{color: isDark ? '#FFFFFF' : '#000000'}}>
-                        {item.title.rendered}
-                    </Text>
-                </TouchableOpacity>
-                <View className="flex-row justify-between items-center mt-1">
-                    <Text className="text-gray-500 text-xs">{date}</Text>
-                    <TouchableOpacity onPress={() => removePost(item.id)}>
-                        <View
-                            className="p-1 rounded-lg"
-                            style={{
-                                borderWidth: 1,
-                                borderColor: isDark ? '#ffffff' : '#000000',
-                            }}
-                        >
+                    <TouchableOpacity
+                        onPress={() =>
+                            router.push({
+                                pathname: '/post-details',
+                                params: {post: JSON.stringify(item)},
+                            })
+                        }
+                    >
+                        {image && (
                             <Image
-                                source={icons.close}
-                                style={{ width: 20, height: 20, tintColor: '#FA0A0F' }}
-                                className="rounded-xl"
+                                source={{uri: image}}
+                                className="w-full h-[110px] rounded-xl mb-2"
+                                resizeMode="cover"
                             />
+                        )}
+                        <Text className="text-base font-semibold mb-1"
+                              style={{color: isDark ? 'white' : 'black'}}
+                              numberOfLines={2}>
+                            {title}
+                        </Text>
+
+                        <View className="flex-row justify-between items-center mb-1">
+                            <Text className="text-xs"
+                                  style={{color: isDark ? '#9ca3af' : '#6b7280'}}>
+                                {date}
+                            </Text>
+
+                            <TouchableOpacity onPress={() => removePost(item.id)}>
+                                <Image
+                                    source={icons.close}
+                                    style={{
+                                        width: 20,
+                                        height: 20,
+                                        tintColor: isDark ? 'white' : 'black'
+                                    }}
+                                />
+                            </TouchableOpacity>
                         </View>
+
+                        <Text className="text-sm" numberOfLines={2}
+                              style={{color: isDark ? '#686c75' : '#b9babe'}}>
+                            {excerpt}
+                        </Text>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -172,12 +188,13 @@ const Favorites = () => {
                 showMenu={false}
             />
             <ScrollView
-                contentContainerStyle={{ paddingBottom: 100 }}
+                contentContainerStyle={{paddingBottom: 100}}
                 className="px-4 pt-4"
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh}/>}
             >
                 {Object.entries(groupedFavorites).length === 0 ? (
-                    <Text className="text-center text-gray-500 mt-10">
+                    <Text className="text-center  mt-10"
+                    style={{color: isDark ? "white" : "black"}}>
                         Nema sačuvanih omiljenih objava.
                     </Text>
                 ) : (
@@ -185,21 +202,12 @@ const Favorites = () => {
                         <View key={category} className="mb-6">
                             <View className="flex-row justify-between items-center mb-2">
                                 <Text className="text-xl font-bold  mt-5 mb-5"
-                                style={{color: isDark ? '#FFFFFF' : '#000000'}}>{category}</Text>
+                                      style={{color: isDark ? '#FFFFFF' : '#000000'}}>{category}</Text>
                                 <TouchableOpacity onPress={() => removeCategory(category)}>
-                                    <View
-                                        className="p-1 rounded-lg"
-                                        style={{
-                                            borderWidth: 1,
-                                            borderColor: isDark ? '#ffffff' : '#000000',
-                                        }}
-                                    >
-                                        <Image
-                                            source={icons.close}
-                                            style={{ width: 20, height: 20, tintColor: '#FA0A0F' }}
-                                            className="rounded-xl"
-                                        />
-                                    </View>
+                                    <Image
+                                        source={icons.close}
+                                        style={{width: 20, height: 20, tintColor: isDark ? 'white' : 'black'}}
+                                    />
                                 </TouchableOpacity>
                             </View>
                             <FlatList
@@ -207,16 +215,16 @@ const Favorites = () => {
                                 horizontal
                                 showsHorizontalScrollIndicator={false}
                                 keyExtractor={(item) => item.id.toString()}
-                                renderItem={({ item }) => renderPost({ item }, category)}
+                                renderItem={({item}) => renderPost({item})}
                             />
                             <View className="h-[1px] mt-5"
-                            style={{ backgroundColor: isDark ? '#FFFFFF' : '#1a1a1a'}}/>
+                                  style={{backgroundColor: isDark ? '#FFFFFF' : '#1a1a1a'}}/>
                         </View>
                     ))
                 )}
             </ScrollView>
 
-            {!menuOpen && <CustomFooter />}
+            {!menuOpen && <CustomFooter/>}
         </SafeAreaView>
     );
 };
