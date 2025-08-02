@@ -118,8 +118,11 @@ const PostDetails = () => {
                         title: title.rendered,
                     });
                     return;
+                case 'x':
+                    url = `https://x.com/intent/tweet?url=${encodeURIComponent(postLink)}&text=${encodeURIComponent(title.rendered)}`;
+                    break;
                 case 'twitter':
-                    url = `https://twitter.com/intent/tweet?url=${encodeURIComponent(postLink)}&text=${encodeURIComponent(title.rendered)}`;
+                    url = `https://x.com/intent/tweet?url=${encodeURIComponent(postLink)}&text=${encodeURIComponent(title.rendered)}`;
                     break;
                 case 'linkedin':
                     url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(postLink)}`;
@@ -128,8 +131,7 @@ const PostDetails = () => {
                     url = `mailto:?subject=${encodeURIComponent(title.rendered)}&body=${encodeURIComponent(postLink)}`;
                     break;
                 case 'whatsapp':
-                    url = `whatsapp://send?text=${encodeURIComponent(postLink)}`;
-                    break;
+                    url = `whatsapp://send?text=${encodeURIComponent(postLink)}`;                    break;
                 default:
                     return;
             }
@@ -196,7 +198,7 @@ const PostDetails = () => {
                 <View className="flex-row justify-around items-center mt-5 mb-5 px-4">
                     {[
                         {icon: icons.facebook, platform: 'facebook'},
-                        {icon: icons.twitter, platform: 'twitter'},
+                        {icon: icons.twitter, platform: 'x'},
                         {icon: icons.linkedin, platform: 'linkedin'},
                         {icon: icons.mail, platform: 'mail'},
                         {icon: icons.whatsapp, platform: 'whatsapp'},

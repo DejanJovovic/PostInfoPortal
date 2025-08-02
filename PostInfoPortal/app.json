@@ -15,7 +15,69 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/icons/favicon.png"
       },
-      "edgeToEdgeEnabled": true
+      "package": "com.gosmartdevelopment.PostInfoPortal",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": {
+            "scheme": "mailto"
+          },
+          "category": ["BROWSABLE", "DEFAULT"]
+        },
+        {
+          "action": "VIEW",
+          "data": {
+            "scheme": "https",
+            "host": "x.com"
+          },
+          "category": ["BROWSABLE", "DEFAULT"]
+        },
+        {
+          "action": "VIEW",
+          "data": {
+            "scheme": "x"
+          },
+          "category": ["BROWSABLE", "DEFAULT"]
+        },
+        {
+          "action": "VIEW",
+          "data": {
+            "scheme": "https",
+            "host": "www.x.com"
+          },
+          "category": ["BROWSABLE", "DEFAULT"]
+        },
+        {
+          "action": "VIEW",
+          "data": {
+            "scheme": "twitter"
+          },
+          "category": ["BROWSABLE", "DEFAULT"]
+        },
+        {
+          "action": "VIEW",
+          "data": {
+            "scheme": "https",
+            "host": "linkedin.com"
+          },
+          "category": ["BROWSABLE", "DEFAULT"]
+        },
+        {
+          "action": "VIEW",
+          "data": {
+            "scheme": "https",
+            "host": "wa.me"
+          },
+          "category": ["BROWSABLE", "DEFAULT"]
+        },
+        {
+          "action": "VIEW",
+          "data": {
+            "scheme": "whatsapp"
+          },
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -36,6 +98,14 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "a7036cc2-2a04-413e-90a3-ad4316979e51"
+      }
     }
   }
 }
