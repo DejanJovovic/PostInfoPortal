@@ -8,10 +8,10 @@ type Props = {
     categoryName: string;
     posts: WPPost[];
     title?: string;
+    loading?: boolean;
 };
 
-const CustomPostsSection: React.FC<Props> = ({categoryName, posts, title}) => {
-
+const CustomPostsSection: React.FC<Props> = ({ categoryName, posts, title, loading }) => {
     const { theme } = useTheme();
     const isDark = theme === 'dark';
 
@@ -71,16 +71,38 @@ const CustomPostsSection: React.FC<Props> = ({categoryName, posts, title}) => {
         );
     };
 
+    const SkeletonCard = () => (
+        <View className="w-[240px] mr-3">
+            <View
+                className="rounded-2xl shadow-md p-3 border"
+                style={{
+                    backgroundColor: isDark ? '#1b1b1b' : 'white',
+                    borderColor: isDark ? '#333' : '#e5e7eb',
+                }}
+            >
+                <View className="w-full h-[110px] rounded-xl mb-2"
+                      style={{ backgroundColor: isDark ? '#2a2a2a' : '#e5e7eb' }}/>
+                <View className="h-4 rounded mb-2"
+                      style={{ backgroundColor: isDark ? '#3a3a3a' : '#d1d5db', width: '90%' }}/>
+                <View className="h-3 rounded mb-2"
+                      style={{ backgroundColor: isDark ? '#3a3a3a' : '#d1d5db', width: '40%' }}/>
+                <View className="h-3 rounded"
+                      style={{ backgroundColor: isDark ? '#3a3a3a' : '#d1d5db', width: '100%' }}/>
+            </View>
+        </View>
+    );
+
     return (
         <View className="mb-6 px-4 mt-5">
             <Text className="text-xl font-bold mb-2"
                   style={{ color: isDark ? '#fff' : '#000000' }}>{title || categoryName}</Text>
             <View className="h-[1px] mt-4 mb-4"
                   style={{ backgroundColor: isDark ? '#F9F9F9' : '#000000' }}/>
+
             <FlatList
-                data={posts}
-                renderItem={renderItem}
-                keyExtractor={(item) => item.id.toString()}
+                data={loading ? Array(3).fill(null) : posts}
+                renderItem={loading ? () => <SkeletonCard /> : renderItem}
+                keyExtractor={(item, index) => (item ? item.id.toString() : `skeleton-${index}`)}
                 horizontal
                 showsHorizontalScrollIndicator={false}
             />

@@ -39,8 +39,9 @@ const Index = () => {
         loading,
         searchLoading,
         fetchPostsForCategory,
-        searchPosts,
+        searchPostsFromCache,
         setPosts,
+        initialized,
         groupedPosts,
         lokalGroupedPosts,
         generalGroupedPosts,
@@ -61,10 +62,11 @@ const Index = () => {
     }, [selectedCategory]);
 
     useEffect(() => {
-        if (!selectedCategory && activeCategory === 'Naslovna') {
+        if (!selectedCategory && activeCategory === 'Naslovna' && initialized) {
             fetchPostsForCategory('Naslovna');
         }
-    }, []);
+    }, [selectedCategory, activeCategory, initialized]);
+
 
     const handleCategorySelect = (categoryName: string) => {
         if (categoryName === 'Latin | Ćirilica') return;
@@ -83,7 +85,7 @@ const Index = () => {
         setNoSearchResults(false);
         setSearchAttemptCount((prev) => prev + 1);
         setPosts([]);
-        const found = await searchPosts(query);
+        const found = await searchPostsFromCache(query);
         if (found.length === 0) {
             if (searchAttemptCount === 0) {
                 setNoSearchResults(true);
@@ -110,7 +112,6 @@ const Index = () => {
         setIsSearchActive(true);
         setNoSearchResults(true);
         setSearchAttemptCount(0);
-        setPosts([]);
         setTriggerSearchOpen(true);
     };
 
@@ -154,7 +155,8 @@ const Index = () => {
         );
     };
 
-    const renderItem = ({ item, index }: { item: WPPost; index: number }) => {
+
+    const renderItem = ({item, index}: { item: WPPost; index: number }) => {
         const image = item._embedded?.['wp:featuredmedia']?.[0]?.source_url;
         const date = new Date(item.date).toLocaleDateString('sr-RS');
         const excerpt = item.excerpt.rendered.replace(/<[^>]+>/g, '');
@@ -171,24 +173,24 @@ const Index = () => {
                     onPress={() =>
                         router.push({
                             pathname: '/post-details',
-                            params: { post: JSON.stringify(item), category: activeCategory }
+                            params: {post: JSON.stringify(item), category: activeCategory}
                         })
                     }
                 >
                     {image && (
                         <Image
-                            source={{ uri: image }}
+                            source={{uri: image}}
                             className="w-full h-48 rounded-xl mb-3"
                             resizeMode="cover"
                         />
                     )}
                     {highlightSearchTerm(item.title.rendered, searchQuery)}
                     <Text className="text-xs mb-1"
-                          style={{ color: isDark ? '#9ca3af' : '#6b7280' }}>
+                          style={{color: isDark ? '#9ca3af' : '#6b7280'}}>
                         {date}
                     </Text>
                     <Text className="text-sm" numberOfLines={3}
-                          style={{ color: isDark ? '#959898' : '#999a9b' }}>
+                          style={{color: isDark ? '#959898' : '#999a9b'}}>
                         {excerpt}
                     </Text>
                 </TouchableOpacity>
@@ -267,6 +269,10 @@ const Index = () => {
                         }
                     />
                 )
+            ) : activeCategory === 'Naslovna' && (!initialized || Object.keys(groupedPosts).length === 0) ? (
+                <View className="flex-1 items-center justify-center">
+                    <ActivityIndicator size="large" color="#201F5B"/>
+                </View>
             ) : activeCategory === 'Naslovna' && Object.keys(groupedPosts).length > 0 ? (
                 <ScrollView className="flex-1" contentContainerStyle={{paddingBottom: 100}}
                             refreshControl={
@@ -277,6 +283,7 @@ const Index = () => {
                             key={categoryName}
                             categoryName={categoryName}
                             posts={categoryPosts}
+                            loading={!groupedPosts[categoryName]}
                         />
                     ))}
 
@@ -289,18 +296,20 @@ const Index = () => {
                             key={categoryName}
                             categoryName={categoryName}
                             posts={categoryPosts}
+                            loading={!groupedPosts[categoryName]}
                         />
                     ))}
 
                     {Object.keys(okruziGroupedPosts).length > 0 && (
                         <Text className="text-xl font-extrabold  px-4 mt-6 mb-2"
-                              style={{ color: isDark ? '#fff' : '#000000' }}>Okruzi</Text>
+                              style={{color: isDark ? '#fff' : '#000000'}}>Okruzi</Text>
                     )}
                     {Object.entries(okruziGroupedPosts).map(([categoryName, categoryPosts]) => (
                         <CustomPostsSection
                             key={categoryName}
                             categoryName={categoryName}
                             posts={categoryPosts}
+                            loading={!groupedPosts[categoryName]}
                         />
                     ))}
                 </ScrollView>

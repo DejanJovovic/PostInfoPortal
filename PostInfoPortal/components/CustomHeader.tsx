@@ -133,8 +133,8 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({ onMenuToggle, onCategorySel
                         {/* Search Bar */}
                         <CustomSearchBar
                             onSearch={(query: string) => {
-                                onCategorySelected?.('');
-                                setTimeout(() => onSearchQuery?.(query), 0);
+                                if (onCategorySelected) onCategorySelected('');
+                                if (onSearchQuery) onSearchQuery(query);
                                 closeMenu();
                             }}
                             autoFocus={triggerSearchOpen}

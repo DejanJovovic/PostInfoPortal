@@ -13,6 +13,7 @@ export const usePostsByCategory = () => {
     const [loading, setLoading] = useState(false);
     const [searchLoading, setSearchLoading] = useState(false);
     const [slugToId, setSlugToId] = useState<Record<string, number>>({});
+    const [initialized, setInitialized] = useState(false);
 
 
     // simplifies post so it can be stored in cache (only title and picture) and use less space
@@ -78,23 +79,41 @@ export const usePostsByCategory = () => {
     const fetchAllPosts = async () => {
         setLoading(true);
         const grouped: Record<string, WPPost[]> = {};
+
         try {
             const categoriesToFetch = extractCategoryNames(menuData);
 
             for (const name of categoriesToFetch) {
                 const slug = nameToSlugMap[name];
                 const categoryId = slugToId[slug];
+
                 if (categoryId) {
-                    const posts = await getPostsByCategoryId(categoryId);
-                    grouped[name] = posts;
+                    // load posts in the background
+                    getPostsByCategoryId(categoryId)
+                        .then((posts) => {
+                            grouped[name] = posts;
+                            setGroupedPosts((prev) => {
+                                const updated = {...prev, [name]: posts};
+                                saveGroupedPostsToCache(updated); // save immediately
+                                return updated;
+                            });
+                        })
+                        .catch((err) => {
+                            console.error(`Greška za kategoriju ${name}:`, err);
+                        });
+
+                    // show first 2 categories
+                    if (Object.keys(grouped).length < 2) {
+                        const earlyPosts = await getPostsByCategoryId(categoryId);
+                        grouped[name] = earlyPosts;
+                        setGroupedPosts((prev) => ({...prev, [name]: earlyPosts}));
+                    }
                 }
             }
 
-            setGroupedPosts(grouped);
-            await saveGroupedPostsToCache(grouped);
             setPosts([]);
         } catch (err) {
-            console.error('Greška pri dohvatanju svih postova za Naslovnu:', err);
+            console.error('Greška pri postepenom dohvatanju postova:', err);
             setGroupedPosts({});
         } finally {
             setLoading(false);
@@ -102,31 +121,41 @@ export const usePostsByCategory = () => {
     };
 
     const fetchPostsForCategory = async (categoryName: string) => {
+        if (!categoryName) {
+            setLoading(false);
+            return;
+        }
         setLoading(true);
 
-        // if its on "Naslovna" tries to load "groupedPosts" from cache, and if it timed out - calls fetchAllPosts
+        // if its already in memory (faster)
+        if (groupedPosts[categoryName]) {
+            setPosts(groupedPosts[categoryName]);
+            setLoading(false);
+            return;
+        }
+
+        // if its on "Naslovna" category, fallback to fetchAllPosts
         if (categoryName.toLowerCase() === 'naslovna') {
-            if (Object.keys(groupedPosts).length > 0) {
-                setLoading(false);
-                return;
-            }
-            // checks for cached groupedPosts[categoryName] and uses that if it can
             const cacheRaw = await AsyncStorage.getItem('groupedPostsCache');
             if (cacheRaw) {
                 const {data} = JSON.parse(cacheRaw);
                 setGroupedPosts(data);
+                if (data['Naslovna']) {
+                    setPosts(data['Naslovna']);
+                }
                 setLoading(false);
                 return;
-
             }
 
-            await fetchAllPosts();
+            await fetchAllPosts(); // fallback
+            setLoading(false);
             return;
         }
 
-        const cachedGrouped = await AsyncStorage.getItem('groupedPostsCache');
-        if (cachedGrouped) {
-            const {data} = JSON.parse(cachedGrouped);
+        // if it exists in asyncStorage, use it
+        const cacheRaw = await AsyncStorage.getItem('groupedPostsCache');
+        if (cacheRaw) {
+            const {data} = JSON.parse(cacheRaw);
             if (data[categoryName]) {
                 setPosts(data[categoryName]);
                 setLoading(false);
@@ -134,11 +163,10 @@ export const usePostsByCategory = () => {
             }
         }
 
-        // fallback if its not in cache
+        // if there is no posts in cache, try to fetch them from api
         const slug = nameToSlugMap[categoryName];
         const categoryId = slugToId[slug];
 
-        // if it doesnt exist, it makes an API call by ID or looks for a fallback via text search
         if (categoryId) {
             try {
                 const posts = await getPostsByCategoryId(categoryId);
@@ -156,31 +184,71 @@ export const usePostsByCategory = () => {
                 setPosts([]);
             }
         }
+
         setLoading(false);
     };
 
-    // function that does an api search (/wp-json/wp/v2/posts?search=) and then locally filters results that contain the keyword in the title
-    // result then sets in posts
-    const searchPosts = async (query: string) => {
+    const normalizeText = (text: string) => {
+        return text
+            .replace(/<[^>]+>/g, '')  // clears html tags
+            .replace(/&[^;]+;/g, '')  // clears html entities
+            .toLowerCase()
+            .trim();
+    };
+
+    const searchPostsFromCache = async (query: string): Promise<WPPost[]> => {
         setSearchLoading(true);
         try {
-            const response = await fetch(
-                `https://www.postinfo.rs/wp-json/wp/v2/posts?search=${encodeURIComponent(query)}&_embed&per_page=100`
-            );
-            const allResults = await response.json();
-            const filtered = allResults.filter((post: any) =>
-                post.title?.rendered?.toLowerCase().includes(query.toLowerCase())
-            );
+            const cacheRaw = await AsyncStorage.getItem('groupedPostsCache');
+            if (!cacheRaw) {
+                setPosts([]);
+                return [];
+            }
+
+            const {data} = JSON.parse(cacheRaw);
+            const allPosts: WPPost[] = Object.values(data).flat() as WPPost[];
+
+            const normalizedQuery = normalizeText(query);
+
+            const filtered = allPosts.filter((post) => {
+                const title = normalizeText(post.title?.rendered || '');
+                return title.includes(normalizedQuery);
+            });
+
             setPosts(filtered);
+            console.log('CACHE SEARCH:', normalizedQuery);
             return filtered;
-        } catch (e) {
-            console.error('Greška pri pretrazi:', e);
+        } catch (error) {
+            console.error('Greška u searchPostsFromCache:', error);
             setPosts([]);
             return [];
         } finally {
             setSearchLoading(false);
         }
     };
+
+    // function that does an api search (/wp-json/wp/v2/posts?search=) and then locally filters results that contain the keyword in the title
+    // result then sets in posts
+    // const searchPosts = async (query: string) => {
+    //     setSearchLoading(true);
+    //     try {
+    //         const response = await fetch(
+    //             `https://www.postinfo.rs/wp-json/wp/v2/posts?search=${encodeURIComponent(query)}&_embed&per_page=100`
+    //         );
+    //         const allResults = await response.json();
+    //         const filtered = allResults.filter((post: any) =>
+    //             post.title?.rendered?.toLowerCase().includes(query.toLowerCase())
+    //         );
+    //         setPosts(filtered);
+    //         return filtered;
+    //     } catch (e) {
+    //         console.error('Greška pri pretrazi:', e);
+    //         setPosts([]);
+    //         return [];
+    //     } finally {
+    //         setSearchLoading(false);
+    //     }
+    // };
 
     // find "Lokal" from menuData and gets all subcategories
     const lokalItem = menuData.find(
@@ -233,12 +301,13 @@ export const usePostsByCategory = () => {
 
             const cacheRaw = await AsyncStorage.getItem('groupedPostsCache');
             if (cacheRaw) {
-                const { data } = JSON.parse(cacheRaw);
+                const {data} = JSON.parse(cacheRaw);
                 setGroupedPosts(data);
-                return;
+            } else {
+                await fetchAllPosts();
             }
 
-            await fetchAllPosts();
+            setInitialized(true);
         };
 
         init();
@@ -250,7 +319,7 @@ export const usePostsByCategory = () => {
         loading,
         searchLoading,
         fetchPostsForCategory,
-        searchPosts,
+        searchPostsFromCache,
         setPosts,
         groupedPosts,
         lokalGroupedPosts,
@@ -258,5 +327,6 @@ export const usePostsByCategory = () => {
         beogradGroupedPosts,
         gradoviGroupedPosts,
         okruziGroupedPosts,
+        initialized
     };
 };
