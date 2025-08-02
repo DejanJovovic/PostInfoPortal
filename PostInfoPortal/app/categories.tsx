@@ -1,74 +1,39 @@
-import React, {useCallback, useRef, useState} from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     View,
     Text,
+    FlatList,
     Animated,
-    TouchableOpacity,
-    Image,
-    ActivityIndicator,
-    Easing, RefreshControl,
+    RefreshControl
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useTheme } from '@/components/ThemeContext';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import CustomHeader from '@/components/CustomHeader';
-import CustomFilterModal from '@/components/CustomFilterModal';
+import CustomFooter from '@/components/CustomFooter';
+import { useTheme } from '@/components/ThemeContext';
 import { usePostsByCategory } from '@/hooks/usePostsByCategory';
 import { WPPost } from '@/types/wp';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import colors from '@/constants/colors';
-import CustomFooter from "@/components/CustomFooter";
-import { ChevronDown, ChevronUp } from 'lucide-react-native';
+import CustomCategoryFilter from '@/components/CustomCategoryFilter';
 
 const Categories = () => {
     const { theme } = useTheme();
     const isDark = theme === 'dark';
-    const router = useRouter();
 
-    const { groupedPosts, loading } = usePostsByCategory();
+    const {
+        groupedPosts,
+    } = usePostsByCategory();
+
+    const [filteredPosts, setFilteredPosts] = useState<WPPost[]>([]);
+    const [isFilterApplied, setIsFilterApplied] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState<string>('');
     const [selectedDate, setSelectedDate] = useState<{ month?: number; year?: number }>({});
-    const [filteredPosts, setFilteredPosts] = useState<WPPost[]>([]);
-    const [menuOpen, setMenuOpen] = useState(false);
-    const [activeCategory, setActiveCategory] = useState('Naslovna');
-    const [showDateModal, setShowDateModal] = useState(false);
-    const [filterLoading, setFilterLoading] = useState(false);
-    const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
-    const isFilterActive = selectedCategory !== '' || selectedDate.month || selectedDate.year;
     const [refreshing, setRefreshing] = useState(false);
 
-
     const animationRefs = useRef<Animated.Value[]>([]);
-    const categoryList = Object.keys(groupedPosts);
 
-    const onRefresh = useCallback(() => {
-        setRefreshing(true);
-
-        setSelectedCategory('');
-        setSelectedDate({});
-        setFilteredPosts([]);
-        
-        applyFilterWithCategory('', {});
-
-        setRefreshing(false);
-    }, []);
-
-    const toggleSortOrder = () => {
-        setFilteredPosts((prev) => [...prev].reverse());
-        setSortOrder((prev) => (prev === 'desc' ? 'asc' : 'desc'));
-    };
-
-    const handleApplyFilter = (
-        overrideCategory?: string,
-        overrideDate?: { month?: number; year?: number }
-    ) => {
-        const categoryToUse = overrideCategory ?? selectedCategory;
-        const dateToUse = overrideDate ?? selectedDate;
-
-        setSelectedCategory(categoryToUse);
-        setSelectedDate(dateToUse);
-
-        applyFilterWithCategory(categoryToUse, dateToUse);
-    };
+    useEffect(() => {
+        animationRefs.current = filteredPosts.map(() => new Animated.Value(0));
+        runAnimations();
+    }, [filteredPosts]);
 
     const runAnimations = () => {
         const animations = animationRefs.current.map((anim, index) =>
@@ -76,86 +41,22 @@ const Categories = () => {
                 toValue: 1,
                 duration: 400,
                 delay: index * 100,
-                easing: Easing.out(Easing.ease),
                 useNativeDriver: true,
             })
         );
         Animated.stagger(100, animations).start();
     };
 
-    const handleCategorySelected = (category: string) => {
-        const isAlreadySelected = selectedCategory === category;
-        const newSelectedCategory = isAlreadySelected ? '' : category;
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
 
-        setSelectedCategory(newSelectedCategory);
-        setActiveCategory(newSelectedCategory);
-
-        if (selectedDate.month && selectedDate.year) {
-            applyFilterWithCategory(newSelectedCategory, selectedDate);
-        } else {
-            if (newSelectedCategory) {
-                const posts = groupedPosts[newSelectedCategory] || [];
-                const sorted = posts.sort((a, b) =>
-                    sortOrder === 'desc'
-                        ? new Date(b.date).getTime() - new Date(a.date).getTime()
-                        : new Date(a.date).getTime() - new Date(b.date).getTime()
-                );
-                animationRefs.current = sorted.map(() => new Animated.Value(0));
-                setFilteredPosts(sorted);
-                runAnimations();
-            } else {
-                setFilteredPosts([]);
-            }
-
-            router.replace({ pathname: '/', params: { selectedCategory: newSelectedCategory } });
-        }
-    };
-
-    const applyFilterWithCategory = (
-        category: string,
-        date: { month?: number; year?: number }
-    ) => {
-        const isFilterActive = category !== '' || date.month || date.year;
-
-        if (!isFilterActive) {
-            setFilteredPosts([]);
-            return;
-        }
-
-        setFilterLoading(true);
+        // resets all filters
+        setSelectedCategory('');
+        setSelectedDate({});
         setFilteredPosts([]);
-
-        let allPosts: WPPost[] = [];
-
-        if (category) {
-            allPosts = groupedPosts[category] || [];
-        } else {
-            Object.values(groupedPosts).forEach((posts) => {
-                allPosts.push(...posts);
-            });
-        }
-
-        const filtered = allPosts.filter((post) => {
-            const postDate = new Date(post.date);
-            const matchesMonth = date.month ? (postDate.getMonth() + 1) === date.month : true;
-            const matchesYear = date.year ? postDate.getFullYear() === date.year : true;
-            return matchesMonth && matchesYear;
-        });
-
-        const sorted = filtered.sort((a, b) =>
-            sortOrder === 'desc'
-                ? new Date(b.date).getTime() - new Date(a.date).getTime()
-                : new Date(a.date).getTime() - new Date(b.date).getTime()
-        );
-
-        animationRefs.current = sorted.map(() => new Animated.Value(0));
-
-        setTimeout(() => {
-            setFilteredPosts(sorted);
-            runAnimations();
-            setFilterLoading(false);
-        }, 600);
-    };
+        setIsFilterApplied(false);
+        setRefreshing(false);
+    }, []);
 
     const renderItem = ({ item, index }: { item: WPPost; index: number }) => {
         const animStyle = {
@@ -183,138 +84,72 @@ const Categories = () => {
                         borderColor: isDark ? '#333' : '#e5e7eb',
                     }}
                 >
-                    <TouchableOpacity
-                        onPress={() =>
-                            router.push({
-                                pathname: '/post-details',
-                                params: { post: JSON.stringify(item), category: selectedCategory }
-                            })
-                        }
-                    >
-                        {image && (
-                            <Image
+                    {image && (
+                        <View className="mb-3">
+                            <Animated.Image
                                 source={{ uri: image }}
-                                className="w-full h-48 rounded-xl mb-3"
+                                className="w-full h-48 rounded-xl"
                                 resizeMode="cover"
                             />
-                        )}
-                        <Text className="text-xl font-semibold mb-1"
-                        style={{color: isDark ? 'white' : 'black'}}>
-                            {item.title.rendered}
-                        </Text>
-                        <Text className="text-xs mb-1"
-                        style={{color: isDark ? '#9ca3af' : '#6b7280'}}>{date}</Text>
-                        <Text className="text-sm" numberOfLines={3}
-                              style={{color: isDark ? '#374151' : '#d1d5db'}}>
-                            {excerpt}
-                        </Text>
-                    </TouchableOpacity>
+                        </View>
+                    )}
+                    <Text className="text-xl font-semibold mb-1" style={{ color: isDark ? 'white' : 'black' }}>
+                        {item.title.rendered}
+                    </Text>
+                    <Text className="text-xs mb-1" style={{ color: isDark ? '#9ca3af' : '#6b7280' }}>
+                        {date}
+                    </Text>
+                    <Text className="text-sm" numberOfLines={3} style={{ color: isDark ? '#8f939a' : '#999ea1' }}>
+                        {excerpt}
+                    </Text>
                 </View>
             </Animated.View>
         );
     };
 
-    const renderHeader = () => (
-        <View className="px-4 mt-4">
-            <CustomFilterModal
-                categories={categoryList}
-                selectedCategory={selectedCategory}
-                onCategorySelect={setSelectedCategory}
-                selectedDate={selectedDate}
-                setSelectedDate={setSelectedDate}
-                onApply={handleApplyFilter}
-                showDateModal={showDateModal}
-                setShowDateModal={setShowDateModal}
-                filteredPosts={filteredPosts}
-                setFilteredPosts={setFilteredPosts}
-            />
-
-            {isFilterActive && filteredPosts.length > 0 && (
-                <>
-                    <View className="flex-row justify-end items-center mr-1 mb-2">
-                        <TouchableOpacity onPress={toggleSortOrder} className="flex-row items-center">
-                            <Text className="text-sm font-semibold mr-1"
-                                  style={{color: isDark ? 'white' : 'black'}}>
-                                {sortOrder === 'desc' ? 'Najnoviji' : 'Najstariji'}
-                            </Text>
-                            {sortOrder === 'desc' ? (
-                                <ChevronDown size={18} color={isDark ? 'white' : 'black'} />
-                            ) : (
-                                <ChevronUp size={18} color={isDark ? 'white' : 'black'} />
-                            )}
-                        </TouchableOpacity>
-                    </View>
-
-                    <Text className="text-center my-4 text-base font-bold"
-                          style={{color: isDark ? 'white' : 'black'}}>
-                        Rezultat pretrage za {selectedCategory || 'sve kategorije'}{' '}
-                        {String(selectedDate.month).padStart(2, '0')}/{selectedDate.year}
-                    </Text>
-                </>
-            )}
-        </View>
-    );
-
-    if (loading) {
-        return (
-            <SafeAreaView
-                style={{
-                    flex: 1,
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    backgroundColor: isDark ? '#000' : '#fff',
-                }}
-            >
-                <ActivityIndicator size="large" color={isDark ? colors.red : colors.blue} />
-            </SafeAreaView>
-        );
-    }
-
-    const showLoading = categoryList.length === 0 || filterLoading;
-
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? '#000' : '#fff' }}>
+        <SafeAreaView className="flex-1" style={{ backgroundColor: isDark ? '#000' : '#fff' }}>
             <CustomHeader
-                onMenuToggle={(visible) => setMenuOpen(visible)}
-                onCategorySelected={handleCategorySelected}
-                activeCategory={activeCategory}
                 showMenu={false}
+                activeCategory=""
+                onCategorySelected={() => {}}
+                onMenuToggle={() => {}}
             />
 
-            {showLoading ? (
-                <View className="flex-1 justify-center items-center mt-10">
-                    <ActivityIndicator size="large" color={isDark ? colors.red : colors.blue} />
-                </View>
-            ) : (
-                <Animated.FlatList
-                    data={filteredPosts}
-                    keyExtractor={(item) => item.id.toString()}
-                    renderItem={renderItem}
-                    ListHeaderComponent={renderHeader}
-                    refreshControl={
-                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-                    }
-                    ListEmptyComponent={
-                        selectedDate.month && selectedDate.year ? (
-                            <Text className="text-center mt-10 font-bold text-base"
-                                  style={{color: isDark ? '#9ca3af' : '#6b7280'}}>
-                                Nema rezultata za prikaz za {selectedCategory || 'sve kategorije'}{' '}
-                                {String(selectedDate.month).padStart(2, '0')}/{selectedDate.year}.
+            <FlatList
+                data={isFilterApplied ? filteredPosts : []}
+                ListHeaderComponent={
+                    <CustomCategoryFilter
+                        selectedCategory={selectedCategory}
+                        onCategorySelect={setSelectedCategory}
+                        selectedDate={selectedDate}
+                        setSelectedDate={setSelectedDate}
+                        groupedPostsCache={groupedPosts}
+                        filteredPosts={filteredPosts}
+                        setFilteredPosts={setFilteredPosts}
+                        isFilterApplied={isFilterApplied}
+                        setIsFilterApplied={setIsFilterApplied}
+                    />
+                }
+                renderItem={renderItem}
+                keyExtractor={(item) => item.id.toString()}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+                contentContainerStyle={{ paddingBottom: 100 }}
+                ListEmptyComponent={
+                    isFilterApplied ? (
+                        <View className="px-4 mt-10">
+                            <Text className="text-base text-center font-semibold" style={{ color: isDark ? '#fff' : '#000' }}>
+                                Nema rezultata za prikaz.
                             </Text>
-                        ) : (
-                            <Text className="text-center mt-10 text-base font-bold text-gray-500 dark:text-gray-400"
-                                  style={{color: isDark ? '#9ca3af' : '#6b7280'}}>
-                                Izaberite datum i/ili kategoriju za filtriranje.
-                            </Text>
-                        )
-                    }
-                    contentContainerStyle={{ paddingBottom: 100 }}
-                />
-            )}
+                        </View>
+                    ) : null
+                }
+            />
 
-            {!menuOpen && <CustomFooter />}
+            <CustomFooter onSearchPress={() => {}} />
         </SafeAreaView>
     );
 };
 
 export default Categories;
+
