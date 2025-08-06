@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, Image } from 'react-native';
 import icons from '@/constants/icons';
-import { router, usePathname } from "expo-router";
+import { router, usePathname } from 'expo-router';
 
 const navItems = [
     { key: 'home', label: 'Naslovna', icon: icons.home },
@@ -17,45 +17,31 @@ type CustomFooterProps = {
 
 const CustomFooter: React.FC<CustomFooterProps> = ({ onSearchPress }) => {
     const pathname = usePathname();
-    const [active, setActive] = useState('home');
 
-    useEffect(() => {
-        if (pathname === '/') {
-            setActive('home');
-        } else if (pathname === '/favorites') {
-            setActive('favorites');
-        } else if (pathname === '/search') {
-            setActive('search');
-        } else if (pathname === '/categories') {
-            setActive('categories');
-        } else {
-            setActive(''); // fallback
-        }
+    const active = useMemo(() => {
+        if (pathname === '/') return 'home';
+        if (pathname === '/favorites') return 'favorites';
+        if (pathname === '/search') return 'search';
+        if (pathname === '/categories') return 'categories';
+        return '';
     }, [pathname]);
 
     const handlePress = (key: string) => {
+        if (key === active) return;
 
-        if (key === 'home') {
-            if (pathname === '/') return;
-            router.replace({ pathname: '/', params: { selectedCategory: 'Naslovna' } });
-            return;
-        }
-
-        if (key === 'favorites') {
-            if (pathname === '/favorites') return;
-            router.push('/favorites');
-            return;
-        }
-
-        if (key === 'categories') {
-            if (pathname === '/categories') return;
-            router.push('/categories');
-            return;
-        }
-
-        if (key === 'search' && onSearchPress) {
-            onSearchPress();
-            return;
+        switch (key) {
+            case 'home':
+                router.replace({ pathname: '/', params: { selectedCategory: 'Naslovna' } });
+                break;
+            case 'favorites':
+                router.push('/favorites');
+                break;
+            case 'categories':
+                router.push('/categories');
+                break;
+            case 'search':
+                if (onSearchPress) onSearchPress();
+                break;
         }
     };
 

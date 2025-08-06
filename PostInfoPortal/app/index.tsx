@@ -19,6 +19,7 @@ import {usePostsByCategory} from '@/hooks/usePostsByCategory';
 import CustomSearchBar from "@/components/CustomSearchBar";
 import CustomPostsSection from "@/components/CustomPostsSection";
 import {useTheme} from "@/components/ThemeContext";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const Index = () => {
     const [menuOpen, setMenuOpen] = useState(false);
@@ -63,6 +64,7 @@ const Index = () => {
 
     useEffect(() => {
         if (!selectedCategory && activeCategory === 'Naslovna' && initialized) {
+            if (generalGroupedPosts['Naslovna']) return;
             fetchPostsForCategory('Naslovna');
         }
     }, [selectedCategory, activeCategory, initialized]);
@@ -173,7 +175,7 @@ const Index = () => {
                     onPress={() =>
                         router.push({
                             pathname: '/post-details',
-                            params: {post: JSON.stringify(item), category: activeCategory}
+                            params: { postId: item.id.toString(), category: activeCategory }
                         })
                     }
                 >
@@ -283,7 +285,6 @@ const Index = () => {
                             key={categoryName}
                             categoryName={categoryName}
                             posts={categoryPosts}
-                            loading={!groupedPosts[categoryName]}
                         />
                     ))}
 
@@ -296,7 +297,6 @@ const Index = () => {
                             key={categoryName}
                             categoryName={categoryName}
                             posts={categoryPosts}
-                            loading={!groupedPosts[categoryName]}
                         />
                     ))}
 
@@ -309,7 +309,6 @@ const Index = () => {
                             key={categoryName}
                             categoryName={categoryName}
                             posts={categoryPosts}
-                            loading={!groupedPosts[categoryName]}
                         />
                     ))}
                 </ScrollView>
