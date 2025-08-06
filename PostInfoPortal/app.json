@@ -28,45 +28,7 @@
           "action": "VIEW",
           "data": {
             "scheme": "https",
-            "host": "x.com"
-          },
-          "category": ["BROWSABLE", "DEFAULT"]
-        },
-        {
-          "action": "VIEW",
-          "data": {
-            "scheme": "x"
-          },
-          "category": ["BROWSABLE", "DEFAULT"]
-        },
-        {
-          "action": "VIEW",
-          "data": {
-            "scheme": "https",
-            "host": "www.x.com"
-          },
-          "category": ["BROWSABLE", "DEFAULT"]
-        },
-        {
-          "action": "VIEW",
-          "data": {
-            "scheme": "twitter"
-          },
-          "category": ["BROWSABLE", "DEFAULT"]
-        },
-        {
-          "action": "VIEW",
-          "data": {
-            "scheme": "https",
             "host": "linkedin.com"
-          },
-          "category": ["BROWSABLE", "DEFAULT"]
-        },
-        {
-          "action": "VIEW",
-          "data": {
-            "scheme": "https",
-            "host": "wa.me"
           },
           "category": ["BROWSABLE", "DEFAULT"]
         },

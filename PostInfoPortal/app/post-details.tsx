@@ -137,29 +137,40 @@ const PostDetails = () => {
     };
 
     const handleShare = async (platform: string) => {
+        const linkToShare = postData.link || `https://www.postinfo.rs/?p=${postData.id}`;
+        const postTitle = postData.title?.rendered || '';
+
+        if (!linkToShare) {
+            Alert.alert('Greška', 'Nema linka za deljenje.');
+            return;
+        }
+
         try {
             let url = '';
+
             switch (platform) {
                 case 'facebook':
+                case 'twitter':
+                case 'x':
                     await Share.share({
-                        message: `${link}`,
-                        url: link,
-                        title: title.rendered,
+                        message: linkToShare,
+                        url: linkToShare,
+                        title: postTitle,
                     });
                     return;
-                case 'x':
-                case 'twitter':
-                    url = `https://x.com/intent/tweet?url=${encodeURIComponent(link)}&text=${encodeURIComponent(title.rendered)}`;
-                    break;
+
                 case 'linkedin':
-                    url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(link)}`;
+                    url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(linkToShare)}`;
                     break;
+
                 case 'mail':
-                    url = `mailto:?subject=${encodeURIComponent(title.rendered)}&body=${encodeURIComponent(link)}`;
+                    url = `mailto:?subject=${encodeURIComponent(postTitle)}&body=${encodeURIComponent(linkToShare)}`;
                     break;
+
                 case 'whatsapp':
-                    url = `whatsapp://send?text=${encodeURIComponent(link)}`;
+                    url = `whatsapp://send?text=${encodeURIComponent(postTitle + ' ' + linkToShare)}`;
                     break;
+
                 default:
                     return;
             }
@@ -170,7 +181,7 @@ const PostDetails = () => {
             } else {
                 Alert.alert(
                     'Aplikacija nije dostupna',
-                    `Izgleda da ${platform.charAt(0).toUpperCase() + platform.slice(1)} aplikacija nije instalirana na ovom uređaju.`
+                    `Izgleda da aplikacija za ${platform} nije instalirana ili ne podržava deljenje sa ovog uređaja.`
                 );
             }
         } catch (error) {
@@ -178,7 +189,6 @@ const PostDetails = () => {
             Alert.alert('Greška', 'Nije moguće izvršiti deljenje.');
         }
     };
-
     const handleCategorySelected = (category: string) => {
         setActiveCategory(category);
         router.replace({ pathname: '/', params: { selectedCategory: category } });
