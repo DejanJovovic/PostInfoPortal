@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {
     View,
     Text,
@@ -8,21 +8,21 @@ import {
     Alert,
     TouchableOpacity,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {SafeAreaView} from 'react-native-safe-area-context';
 import CustomHeader from '@/components/CustomHeader';
 import CustomFooter from '@/components/CustomFooter';
-import { useTheme } from '@/components/ThemeContext';
+import {useTheme} from '@/components/ThemeContext';
 import CustomCategoryFilter from '@/components/CustomCategoryFilter';
 import CustomSearchBar from '@/components/CustomSearchBar';
-import { usePostsByCategory } from '@/hooks/usePostsByCategory';
-import { WPPost } from '@/types/wp';
+import {usePostsByCategory} from '@/hooks/usePostsByCategory';
+import {WPPost} from '@/types/wp';
 import {router} from "expo-router";
 
 const Categories = () => {
-    const { theme } = useTheme();
+    const {theme} = useTheme();
     const isDark = theme === 'dark';
 
-    const { groupedPosts } = usePostsByCategory();
+    const {groupedPosts} = usePostsByCategory();
 
     const [filteredPosts, setFilteredPosts] = useState<WPPost[]>([]);
     const [isFilterApplied, setIsFilterApplied] = useState(false);
@@ -87,7 +87,7 @@ const Categories = () => {
 
     const highlightSearchTerm = (text: string, term: string) => {
         if (!term) return (
-            <Text className="text-xl font-semibold mb-1" style={{ color: isDark ? 'white' : 'black' }}>
+            <Text className="text-xl font-semibold mb-1" style={{color: isDark ? 'white' : 'black'}}>
                 {text}
             </Text>
         );
@@ -95,7 +95,7 @@ const Categories = () => {
         const parts = text.split(new RegExp(`(${term})`, 'gi'));
 
         return (
-            <Text className="text-xl font-semibold mb-1" style={{ color: isDark ? 'white' : 'black' }}>
+            <Text className="text-xl font-semibold mb-1" style={{color: isDark ? 'white' : 'black'}}>
                 {parts.map((part, i) => (
                     <Text
                         key={i}
@@ -108,7 +108,7 @@ const Categories = () => {
         );
     };
 
-    const renderItem = ({ item, index }: { item: WPPost; index: number }) => {
+    const renderItem = ({item, index}: { item: WPPost; index: number }) => {
         const animStyle = {
             opacity: animationRefs.current[index] || new Animated.Value(1),
             transform: [
@@ -132,7 +132,7 @@ const Categories = () => {
                     onPress={() =>
                         router.push({
                             pathname: '/post-details',
-                            params: { postId: item.id.toString(), category: selectedCategory || '' }
+                            params: {postId: item.id.toString(), category: selectedCategory || ''}
                         })
                     }
                 >
@@ -146,17 +146,17 @@ const Categories = () => {
                         {image && (
                             <View className="mb-3">
                                 <Animated.Image
-                                    source={{ uri: image }}
+                                    source={{uri: image}}
                                     className="w-full h-48 rounded-xl"
                                     resizeMode="cover"
                                 />
                             </View>
                         )}
                         {highlightSearchTerm(item.title.rendered, searchQuery)}
-                        <Text className="text-xs mb-1" style={{ color: isDark ? '#9ca3af' : '#6b7280' }}>
+                        <Text className="text-xs mb-1" style={{color: isDark ? '#9ca3af' : '#6b7280'}}>
                             {date}
                         </Text>
-                        <Text className="text-sm" numberOfLines={3} style={{ color: isDark ? '#8f939a' : '#999ea1' }}>
+                        <Text className="text-sm" numberOfLines={3} style={{color: isDark ? '#8f939a' : '#999ea1'}}>
                             {excerpt}
                         </Text>
                     </View>
@@ -166,11 +166,12 @@ const Categories = () => {
     };
 
     return (
-        <SafeAreaView className="flex-1" style={{ backgroundColor: isDark ? '#000' : '#fff' }}>
+        <SafeAreaView className="flex-1" style={{backgroundColor: isDark ? '#000' : '#fff'}}>
             <CustomHeader
                 showMenu={false}
                 activeCategory=""
-                onCategorySelected={() => {}}
+                onCategorySelected={() => {
+                }}
                 onMenuToggle={(visible) => {
                     setTriggerSearchOpen(visible);
                     if (!visible) setTriggerSearchOpen(false);
@@ -182,7 +183,7 @@ const Categories = () => {
             {isSearchActive && (
                 <View className="px-2 py-4">
                     <View className="flex-row items-center justify-between px-2 mt-2">
-                        <Text className="text-base font-bold flex-1" style={{ color: isDark ? '#F9F9F9' : '#1f2937' }}>
+                        <Text className="text-base font-bold flex-1" style={{color: isDark ? '#F9F9F9' : '#1f2937'}}>
                             {searchQuery.trim().length > 0
                                 ? `Rezultati pretrage "${searchQuery}"`
                                 : 'Unesite željenu reč za pretragu ispod'}
@@ -195,7 +196,7 @@ const Categories = () => {
                                     setIsSearchActive(false);
                                 }}
                                 className="ml-3 text-lg font-bold"
-                                style={{ color: '#FA0A0F' }}
+                                style={{color: '#FA0A0F'}}
                             >
                                 ✕
                             </Text>
@@ -220,11 +221,12 @@ const Categories = () => {
                     data={searchFromFilteredCache(searchQuery)}
                     renderItem={renderItem}
                     keyExtractor={(item) => item.id.toString()}
-                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-                    contentContainerStyle={{ paddingBottom: 100 }}
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh}/>}
+                    contentContainerStyle={{paddingBottom: 100}}
                     ListEmptyComponent={
                         <View className="px-4 mt-10">
-                            <Text className="text-base text-center font-semibold" style={{ color: isDark ? '#fff' : '#000' }}>
+                            <Text className="text-base text-center font-semibold"
+                                  style={{color: isDark ? '#fff' : '#000'}}>
                                 Nema rezultata za prikaz.
                             </Text>
                         </View>
@@ -248,12 +250,13 @@ const Categories = () => {
                     }
                     renderItem={renderItem}
                     keyExtractor={(item) => item.id.toString()}
-                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-                    contentContainerStyle={{ paddingBottom: 100 }}
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh}/>}
+                    contentContainerStyle={{paddingBottom: 100}}
                     ListEmptyComponent={
                         isFilterApplied ? (
                             <View className="px-4 mt-10">
-                                <Text className="text-base text-center font-semibold" style={{ color: isDark ? '#fff' : '#000' }}>
+                                <Text className="text-base text-center font-semibold"
+                                      style={{color: isDark ? '#fff' : '#000'}}>
                                     Nema rezultata za prikaz.
                                 </Text>
                             </View>
@@ -262,7 +265,7 @@ const Categories = () => {
                 />
             )}
 
-            <CustomFooter onSearchPress={handleFooterSearch} />
+            <CustomFooter onSearchPress={handleFooterSearch}/>
         </SafeAreaView>
     );
 };

@@ -31,7 +31,7 @@ const CustomFooter: React.FC<CustomFooterProps> = ({ onSearchPress }) => {
 
         switch (key) {
             case 'home':
-                router.replace({ pathname: '/', params: { selectedCategory: 'Naslovna' } });
+                router.push('/');
                 break;
             case 'favorites':
                 router.push('/favorites');

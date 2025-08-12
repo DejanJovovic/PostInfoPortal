@@ -46,6 +46,7 @@ const Index = () => {
         groupedPosts,
         lokalGroupedPosts,
         generalGroupedPosts,
+        beogradGroupedPosts,
         okruziGroupedPosts,
     } = usePostsByCategory();
 
@@ -64,7 +65,6 @@ const Index = () => {
 
     useEffect(() => {
         if (!selectedCategory && activeCategory === 'Naslovna' && initialized) {
-            if (generalGroupedPosts['Naslovna']) return;
             fetchPostsForCategory('Naslovna');
         }
     }, [selectedCategory, activeCategory, initialized]);
@@ -280,6 +280,7 @@ const Index = () => {
                             refreshControl={
                                 <RefreshControl refreshing={refreshing} onRefresh={onRefresh}/>
                             }>
+                    {/* General section */}
                     {Object.entries(generalGroupedPosts).map(([categoryName, categoryPosts]) => (
                         <CustomPostsSection
                             key={categoryName}
@@ -288,21 +289,34 @@ const Index = () => {
                         />
                     ))}
 
-                    {Object.keys(lokalGroupedPosts).length > 0 && (
-                        <Text className="text-xl font-extrabold  px-4 mt-6 mb-2"
-                              style={{color: isDark ? '#fff' : '#000000'}}>Lokal</Text>
+                    {/* Beograd section */}
+                    {Object.keys(beogradGroupedPosts).length > 0 && (
+                        <CustomPostsSection
+                            key="Beograd"
+                            categoryName="Beograd"
+                            posts={lokalGroupedPosts["Beograd"] || []} // Ako ima zbirne
+                        />
                     )}
-                    {Object.entries(lokalGroupedPosts).map(([categoryName, categoryPosts]) => (
+                    {Object.entries(beogradGroupedPosts).map(([categoryName, categoryPosts]) => (
                         <CustomPostsSection
                             key={categoryName}
                             categoryName={categoryName}
                             posts={categoryPosts}
                         />
                     ))}
+                    <CustomPostsSection
+                        key="Gradovi"
+                        categoryName="Gradovi"
+                        posts={lokalGroupedPosts["Gradovi"] || []}
+                    />
 
+                    {/* Okruzi section */}
                     {Object.keys(okruziGroupedPosts).length > 0 && (
-                        <Text className="text-xl font-extrabold  px-4 mt-6 mb-2"
-                              style={{color: isDark ? '#fff' : '#000000'}}>Okruzi</Text>
+                        <CustomPostsSection
+                            key="Okruzi"
+                            categoryName="Okruzi"
+                            posts={lokalGroupedPosts["Okruzi"] || []}
+                        />
                     )}
                     {Object.entries(okruziGroupedPosts).map(([categoryName, categoryPosts]) => (
                         <CustomPostsSection
