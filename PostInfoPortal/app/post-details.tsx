@@ -1,3 +1,4 @@
+import React, {useState, useEffect, useMemo} from 'react';
 import {
     Text,
     Image,
@@ -9,68 +10,140 @@ import {
     Linking,
     Share,
     ActivityIndicator,
-    TextStyle,
 } from 'react-native';
-import React, {useState, useEffect, useMemo} from 'react';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import CustomHeader from '@/components/CustomHeader';
-import RenderHTML, {MixedStyleRecord} from 'react-native-render-html';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {SafeAreaView} from 'react-native-safe-area-context';
+import {useLocalSearchParams, useRouter} from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import RenderHTML from 'react-native-render-html';
+
+import CustomHeader from '@/components/CustomHeader';
+import {useTheme} from '@/components/ThemeContext';
 import icons from '@/constants/icons';
-import { useTheme } from '@/components/ThemeContext';
-import {WPPost} from "@/types/wp";
+import {WPPost} from '@/types/wp';
+
+// 🔹 notifications inbox helpers (read only for preview mode)
+import {getInbox, type InboxItem} from '@/types/notificationInbox';
+import CustomFooter from "@/components/CustomFooter";
+import {globalSearch} from "@/utils/searchNavigation";
+
+const deriveCategoryName = (post: any): string | undefined => {
+    const groups = post?._embedded?.['wp:term'];
+    if (Array.isArray(groups)) {
+        const flat = groups.flat().filter(Boolean);
+        const cat = flat.find((t: any) => t?.taxonomy === 'category' && t?.name);
+        if (cat?.name) return String(cat.name);
+    }
+    return undefined;
+};
+
+type PreviewFromNotification = {
+    title?: string;
+    message?: string;
+    imageUrl?: string;
+    receivedAt?: number;
+    categoryName?: string;
+};
 
 const PostDetails = () => {
-    const { width } = useWindowDimensions();
+    const {width} = useWindowDimensions();
     const contentWidth = useMemo(() => width, [width]);
-    const { postId, category } = useLocalSearchParams();
+
+    const {postId, category} = useLocalSearchParams<{ postId?: string; category?: string }>();
     const router = useRouter();
 
     const categoryParam = Array.isArray(category) ? category[0] : category;
-    const [activeCategory, setActiveCategory] = useState(categoryParam || 'Naslovna');
+    const [activeCategory, setActiveCategory] = useState<string>(categoryParam || '');
     const [menuOpen, setMenuOpen] = useState(false);
     const [isBookmarked, setIsBookmarked] = useState(false);
-    const [postData, setPostData] = useState<any>(null);
+    const [postData, setPostData] = useState<WPPost | any | null>(null);
     const [loadingPost, setLoadingPost] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
-    const { theme } = useTheme();
+    // 🔸 if we’re showing a notification-only preview (no network/cache)
+    const [preview, setPreview] = useState<PreviewFromNotification | null>(null);
+
+    const {theme} = useTheme();
     const isDark = theme === 'dark';
-
     const htmlTextColor = isDark ? '#ffffff' : '#000000';
 
-    const tagsStyles = useMemo(() => ({
-        body: { color: htmlTextColor },
-        p: { color: htmlTextColor },
-        span: { color: htmlTextColor },
-        li: { color: htmlTextColor },
-        h1: { color: htmlTextColor },
-        h2: { color: htmlTextColor },
-        h3: { color: htmlTextColor },
-    }), [htmlTextColor]);
+    const tagsStyles = useMemo(
+        () => ({
+            body: {color: htmlTextColor},
+            p: {color: htmlTextColor},
+            span: {color: htmlTextColor},
+            li: {color: htmlTextColor},
+            h1: {color: htmlTextColor},
+            h2: {color: htmlTextColor},
+            h3: {color: htmlTextColor},
+            a: {color: '#1d4ed8'},
+        }),
+        [htmlTextColor]
+    );
 
-    // 1. Load post by ID
     useEffect(() => {
         const loadPost = async () => {
+            setLoadingPost(true);
+            setError(null);
+            setPreview(null);
+            setPostData(null);
+
             try {
+                const idRaw = Array.isArray(postId) ? postId[0] : postId;
+                if (!idRaw) throw new Error('Nedostaje ID objave');
+                const idNum = parseInt(String(idRaw), 10);
+                if (!Number.isFinite(idNum)) throw new Error('Neispravan ID objave');
+
+                // 1) Try cache FIRST (normal behavior for live posts)
                 const cacheRaw = await AsyncStorage.getItem('groupedPostsCache');
                 if (cacheRaw) {
-                    const { data } = JSON.parse(cacheRaw);
-
-                    const allPosts = Object.values(data).flat() as WPPost[];
-                    const foundPost = allPosts.find(p => p.id === parseInt(postId as string));
-                    if (foundPost) {
-                        setPostData(foundPost);
+                    const {data} = JSON.parse(cacheRaw || '{}');
+                    const allPosts = Object.values(data ?? {}).flat() as WPPost[];
+                    const cached = allPosts.find((p) => p.id === idNum);
+                    if (cached) {
+                        setPostData(cached);
+                        if (!activeCategory) {
+                            const derived = deriveCategoryName(cached);
+                            if (derived) setActiveCategory(derived);
+                        }
                         return;
                     }
                 }
 
-                // Fallback API call
-                const res = await fetch(`https://www.postinfo.rs/wp-json/wp/v2/posts/${postId}?_embed`);
-                const post = await res.json();
-                setPostData(post);
-            } catch (e) {
-                console.error('Greška prilikom učitavanja posta:', e);
+                // 2) If not in cache, check notifications inbox for a preview item with same postId
+                const inbox = await getInbox();
+                const match: InboxItem | undefined = inbox.find(
+                    (i) => String(i.postId) === String(idNum)
+                );
+
+                if (match) {
+                    // PREVIEW MODE: do NOT fetch network, render from notification only
+                    setPreview({
+                        title: match.title,
+                        message: match.message,
+                        imageUrl: match.imageUrl,
+                        receivedAt: match.receivedAt,
+                        categoryName: (match as any).categoryName,
+                    });
+                    if (!activeCategory) {
+                        setActiveCategory((match as any).categoryName || categoryParam || 'Naslovna');
+                    }
+                    return;
+                }
+
+                // 3) Fallback: if neither cache nor inbox had it, do the normal fetch (for real posts)
+                const res = await fetch(`https://www.postinfo.rs/wp-json/wp/v2/posts/${idNum}?_embed=1`);
+                if (!res.ok) throw new Error('Greška pri učitavanju');
+                const json = await res.json();
+                if (!json || !json.id) throw new Error('Objava nije pronađena');
+
+                setPostData(json);
+                if (!activeCategory) {
+                    const derived = deriveCategoryName(json);
+                    if (derived) setActiveCategory(derived);
+                }
+            } catch (e: any) {
+                console.warn('Greška pri učitavanju objave:', e?.message ?? e);
+                setError('Nije moguće učitati objavu. Pokušajte ponovo.');
             } finally {
                 setLoadingPost(false);
             }
@@ -79,66 +152,94 @@ const PostDetails = () => {
         loadPost();
     }, [postId]);
 
-    // 2. Check if post is bookmarked (runs every time postData promeni)
+    // Bookmark state (works for both preview and normal)
     useEffect(() => {
-        if (!postData) return;
-
-        const checkIfBookmarked = async () => {
+        const check = async () => {
             const saved = await AsyncStorage.getItem('favorites');
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                setIsBookmarked(parsed.some((item: any) => item.id === postData.id));
-            }
+            const idRaw = Array.isArray(postId) ? postId[0] : postId;
+            const idNum = parseInt(String(idRaw || ''), 10);
+            if (!saved || !idNum) return;
+
+            const parsed = JSON.parse(saved);
+            setIsBookmarked(parsed.some((item: any) => item.id === idNum));
         };
+        check();
+    }, [postData, preview, postId]);
 
-        checkIfBookmarked();
-    }, [postData]);
+    const formattedDate =
+        preview?.receivedAt
+            ? new Date(preview.receivedAt).toLocaleDateString('sr-RS', {
+                year: 'numeric',
+                month: 'numeric',
+                day: 'numeric',
+            })
+            : postData?.date
+                ? new Date(postData.date).toLocaleDateString('sr-RS', {
+                    year: 'numeric',
+                    month: 'numeric',
+                    day: 'numeric',
+                })
+                : undefined;
 
-    if (loadingPost || !postData) {
-        return (
-            <SafeAreaView className="flex-1 items-center justify-center"
-                          style={{ backgroundColor: isDark ? '#000' : '#fff' }}>
-                <ActivityIndicator size="large" color={isDark ? '#fff' : '#000'} />
-                <Text className="mt-4" style={{ color: isDark ? '#fff' : '#000' }}>Učitavanje objave...</Text>
-            </SafeAreaView>
-        );
-    }
-
-    const { id, title, content, date, _embedded, link } = postData;
-    const image = _embedded?.['wp:featuredmedia']?.[0]?.source_url;
-    const formattedDate = new Date(date).toLocaleDateString('sr-RS', {
-        year: 'numeric',
-        month: 'numeric',
-        day: 'numeric',
-    });
+    const image = preview?.imageUrl || postData?._embedded?.['wp:featuredmedia']?.[0]?.source_url;
 
     const toggleBookmark = async () => {
         try {
+            const idRaw = Array.isArray(postId) ? postId[0] : postId;
+            const idNum = parseInt(String(idRaw || ''), 10);
+            if (!idNum) return;
+
             const saved = await AsyncStorage.getItem('favorites');
             let favorites = saved ? JSON.parse(saved) : [];
 
-            let toastMessage = '';
-
             if (isBookmarked) {
-                favorites = favorites.filter((item: any) => item.id !== id);
-                toastMessage = 'Post uklonjen iz omiljenih';
+                favorites = favorites.filter((item: any) => item.id !== idNum);
+                await AsyncStorage.setItem('favorites', JSON.stringify(favorites));
+                setIsBookmarked(false);
+                Alert.alert('Obaveštenje', 'Post uklonjen iz omiljenih', [{text: 'OK'}], {
+                    cancelable: true,
+                });
             } else {
-                favorites.push({ ...postData, category: activeCategory });
-                toastMessage = 'Post dodat u omiljene';
+                const categoryToSave =
+                    activeCategory ||
+                    preview?.categoryName ||
+                    (postData ? deriveCategoryName(postData) : '') ||
+                    'Naslovna';
+
+                // Save either the full WP post (if we have it) or a minimal object from preview
+                const toSave =
+                    postData && postData.id
+                        ? {...postData, category: categoryToSave}
+                        : {
+                            id: idNum,
+                            title: {rendered: preview?.title || 'Objava'},
+                            content: {rendered: ''},
+                            excerpt: {rendered: preview?.message || ''},
+                            date: preview?.receivedAt ? new Date(preview.receivedAt).toISOString() : new Date().toISOString(),
+                            _embedded: image ? {'wp:featuredmedia': [{source_url: image}]} : undefined,
+                            link: `https://www.postinfo.rs/?p=${idNum}`,
+                            category: categoryToSave,
+                        };
+
+                favorites.push(toSave);
+                await AsyncStorage.setItem('favorites', JSON.stringify(favorites));
+                setIsBookmarked(true);
+                Alert.alert('Obaveštenje', 'Post dodat u omiljene', [{text: 'OK'}], {
+                    cancelable: true,
+                });
             }
-
-            await AsyncStorage.setItem('favorites', JSON.stringify(favorites));
-            setIsBookmarked(!isBookmarked);
-
-            Alert.alert('Obaveštenje', toastMessage, [{ text: 'OK' }], { cancelable: true });
         } catch (e) {
             console.error('Greška pri čuvanju omiljenih:', e);
         }
     };
 
     const handleShare = async (platform: string) => {
-        const linkToShare = postData.link || `https://www.postinfo.rs/?p=${postData.id}`;
-        const postTitle = postData.title?.rendered || '';
+        const idRaw = Array.isArray(postId) ? postId[0] : postId;
+        const idNum = parseInt(String(idRaw || ''), 10);
+        if (!idNum) return;
+
+        const linkToShare = postData?.link || `https://www.postinfo.rs/?p=${idNum}`;
+        const postTitle = (postData?.title?.rendered as string) || preview?.title || '';
 
         if (!linkToShare) {
             Alert.alert('Greška', 'Nema linka za deljenje.');
@@ -160,11 +261,15 @@ const PostDetails = () => {
                     return;
 
                 case 'linkedin':
-                    url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(linkToShare)}`;
+                    url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(
+                        linkToShare
+                    )}`;
                     break;
 
                 case 'mail':
-                    url = `mailto:?subject=${encodeURIComponent(postTitle)}&body=${encodeURIComponent(linkToShare)}`;
+                    url = `mailto:?subject=${encodeURIComponent(postTitle)}&body=${encodeURIComponent(
+                        linkToShare
+                    )}`;
                     break;
 
                 case 'whatsapp':
@@ -189,70 +294,191 @@ const PostDetails = () => {
             Alert.alert('Greška', 'Nije moguće izvršiti deljenje.');
         }
     };
-    const handleCategorySelected = (category: string) => {
-        setActiveCategory(category);
-        router.replace({ pathname: '/', params: { selectedCategory: category } });
+
+    const handleCategorySelected = (cat: string) => {
+        setActiveCategory(cat);
+        router.replace({pathname: '/', params: {selectedCategory: cat}});
     };
 
+    // Loading
+    if (loadingPost) {
+        return (
+            <SafeAreaView
+                className="flex-1 items-center justify-center"
+                style={{backgroundColor: isDark ? '#000' : '#fff'}}
+            >
+                <ActivityIndicator size="large" color={isDark ? '#fff' : '#000'}/>
+                <Text className="mt-4" style={{color: isDark ? '#fff' : '#000'}}>
+                    Učitavanje objave...
+                </Text>
+            </SafeAreaView>
+        );
+    }
+
+    // Error (only when neither cache nor preview nor fetch provided data)
+    if ((error && !preview && !postData) || (!preview && !postData)) {
+        return (
+            <SafeAreaView
+                className="flex-1 items-center justify-center px-6"
+                style={{backgroundColor: isDark ? '#000' : '#fff'}}
+            >
+                <Text className="text-center" style={{color: isDark ? '#fff' : '#000'}}>
+                    {error || 'Objava nije pronađena.'}
+                </Text>
+            </SafeAreaView>
+        );
+    }
+
+    // --- PREVIEW MODE (from notification only; no HTML) ---
+    if (preview && !postData) {
+        return (
+            <SafeAreaView
+                className="flex-1"
+                style={{backgroundColor: isDark ? '#000000' : 'white'}}
+            >
+                <CustomHeader
+                    onMenuToggle={(visible) => setMenuOpen(visible)}
+                    onCategorySelected={handleCategorySelected}
+                    activeCategory={activeCategory || preview.categoryName || 'Naslovna'}
+                    showMenu={false}
+                />
+
+                <ScrollView contentContainerStyle={{paddingBottom: 120}} className="px-4 py-4">
+                    {preview.imageUrl && (
+                        <Image
+                            source={{uri: preview.imageUrl}}
+                            className="w-full h-60 rounded-md mb-4"
+                            resizeMode="cover"
+                        />
+                    )}
+
+                    <View className="flex-row justify-between items-center mb-2">
+                        <Text
+                            className="text-xl font-bold flex-1 pr-4"
+                            style={{color: isDark ? '#fff' : '#000000'}}
+                            numberOfLines={3}
+                        >
+                            {preview.title || 'Objava'}
+                        </Text>
+                        <TouchableOpacity onPress={toggleBookmark}>
+                            <Image
+                                source={icons.bookmark}
+                                style={{
+                                    width: 24,
+                                    height: 24,
+                                    tintColor: isBookmarked ? 'red' : isDark ? 'white' : 'black',
+                                }}
+                            />
+                        </TouchableOpacity>
+                    </View>
+
+                    <Text className="text-gray-400 text-sm mb-3">
+                        {preview.receivedAt
+                            ? new Date(preview.receivedAt).toLocaleDateString('sr-RS', {
+                                year: 'numeric',
+                                month: 'numeric',
+                                day: 'numeric',
+                            })
+                            : '-'}
+                    </Text>
+
+                    <View className="flex-row justify-around items-center mt-5 mb-5 px-4">
+                        {[
+                            {icon: icons.facebook, platform: 'facebook'},
+                            {icon: icons.twitter, platform: 'x'},
+                            {icon: icons.linkedin, platform: 'linkedin'},
+                            {icon: icons.mail, platform: 'mail'},
+                            {icon: icons.whatsapp, platform: 'whatsapp'},
+                        ].map(({icon, platform}, index) => (
+                            <TouchableOpacity
+                                key={index}
+                                onPress={() => handleShare(platform)}
+                                className="p-3 mx-1 rounded-full border border-gray-300 bg-white shadow-sm"
+                            >
+                                <Image source={icon} style={{width: 20, height: 20}}/>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+
+                    {!!preview.message && (
+                        <Text style={{color: isDark ? '#fff' : '#000', fontSize: 16, lineHeight: 22}}>
+                            {preview.message}
+                        </Text>
+                    )}
+                </ScrollView>
+                <CustomFooter/>
+            </SafeAreaView>
+        );
+    }
+
+    // --- NORMAL MODE (cache or fetched WP post with HTML) ---
+    const titleRendered = postData?.title?.rendered ?? '';
+    const contentRendered = postData?.content?.rendered ?? '';
+
     return (
-        <SafeAreaView className="flex-1"
-                      style={{ backgroundColor: isDark ? '#000000' : 'white' }}>
+        <SafeAreaView
+            className="flex-1"
+            style={{backgroundColor: isDark ? '#000000' : 'white'}}
+        >
             <CustomHeader
                 onMenuToggle={(visible) => setMenuOpen(visible)}
                 onCategorySelected={handleCategorySelected}
-                activeCategory={activeCategory}
+                activeCategory={activeCategory || 'Naslovna'}
                 showMenu={false}
             />
 
-            <ScrollView contentContainerStyle={{ paddingBottom: 120 }} className="px-4 py-4">
+            <ScrollView contentContainerStyle={{paddingBottom: 120}} className="px-4 py-4">
                 {image && (
                     <Image
-                        source={{ uri: image }}
+                        source={{uri: image}}
                         className="w-full h-60 rounded-md mb-4"
                         resizeMode="cover"
                     />
                 )}
 
                 <View className="flex-row justify-between items-center mb-2">
-                    <Text className="text-xl font-bold flex-1 pr-4"
-                          style={{ color: isDark ? '#fff' : '#000000' }}>{title?.rendered}</Text>
+                    <Text
+                        className="text-xl font-bold flex-1 pr-4"
+                        style={{color: isDark ? '#fff' : '#000000'}}
+                        numberOfLines={3}
+                    >
+                        {titleRendered}
+                    </Text>
                     <TouchableOpacity onPress={toggleBookmark}>
                         <Image
                             source={icons.bookmark}
                             style={{
-                                width: 24, height: 24, tintColor: isBookmarked
-                                    ? 'red'
-                                    : isDark
-                                        ? 'white'
-                                        : 'black',
+                                width: 24,
+                                height: 24,
+                                tintColor: isBookmarked ? 'red' : isDark ? 'white' : 'black',
                             }}
                         />
                     </TouchableOpacity>
                 </View>
 
-                <Text className="text-gray-400 text-sm mb-3">{formattedDate}</Text>
+                <Text className="text-gray-400 text-sm mb-3">{formattedDate || '-'}</Text>
 
                 <View className="flex-row justify-around items-center mt-5 mb-5 px-4">
                     {[
-                        { icon: icons.facebook, platform: 'facebook' },
-                        { icon: icons.twitter, platform: 'x' },
-                        { icon: icons.linkedin, platform: 'linkedin' },
-                        { icon: icons.mail, platform: 'mail' },
-                        { icon: icons.whatsapp, platform: 'whatsapp' },
-                    ].map(({ icon, platform }, index) => (
+                        {icon: icons.facebook, platform: 'facebook'},
+                        {icon: icons.twitter, platform: 'x'},
+                        {icon: icons.linkedin, platform: 'linkedin'},
+                        {icon: icons.mail, platform: 'mail'},
+                        {icon: icons.whatsapp, platform: 'whatsapp'},
+                    ].map(({icon, platform}, index) => (
                         <TouchableOpacity
                             key={index}
                             onPress={() => handleShare(platform)}
                             className="p-3 mx-1 rounded-full border border-gray-300 bg-white shadow-sm"
                         >
-                            <Image source={icon} style={{ width: 20, height: 20 }} />
+                            <Image source={icon} style={{width: 20, height: 20}}/>
                         </TouchableOpacity>
                     ))}
                 </View>
 
-                <RenderHTML contentWidth={contentWidth} source={{ html: content?.rendered }} tagsStyles={tagsStyles} />
-
+                <RenderHTML contentWidth={contentWidth} source={{html: contentRendered}} tagsStyles={tagsStyles}/>
             </ScrollView>
+            <CustomFooter onSearchPress={() => router.push(globalSearch())} />
         </SafeAreaView>
     );
 };

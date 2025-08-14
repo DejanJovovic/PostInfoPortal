@@ -34,7 +34,8 @@ const Index = () => {
     const {theme} = useTheme();
     const isDark = theme === 'dark';
 
-    const {selectedCategory} = useLocalSearchParams();
+    const { selectedCategory, openSearch } = useLocalSearchParams<{ selectedCategory?: string; openSearch?: string }>();
+
     const {
         posts,
         loading,
@@ -69,6 +70,16 @@ const Index = () => {
         }
     }, [selectedCategory, activeCategory, initialized]);
 
+    useEffect(() => {
+        // If openSearch=1 came from any screen: open search UI right away
+        if (openSearch === '1') {
+            setSearchQuery('');
+            setIsSearchActive(true);
+            setNoSearchResults(true);    // same copy as your footer search handler
+            setSearchAttemptCount(0);
+            setTriggerSearchOpen(true);  // tells CustomHeader to focus input
+        }
+    }, [openSearch]);
 
     const handleCategorySelect = (categoryName: string) => {
         if (categoryName === 'Latin | Ćirilica') return;
