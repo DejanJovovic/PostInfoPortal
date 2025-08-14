@@ -1,43 +1,34 @@
-import {enableScreens} from 'react-native-screens';
-import {SplashScreen as ExpoSplashScreen, Stack, useRouter} from 'expo-router';
+import { enableScreens } from "react-native-screens";
+import { SplashScreen as ExpoSplashScreen, Stack, useRouter } from "expo-router";
 import "./global.css";
-import {Platform, StatusBar} from "react-native";
-import {useEffect, useState} from "react";
-import SplashScreen from '@/components/SplashScreen';
-import {ThemeProvider} from "@/components/ThemeContext";
-import {LogLevel, NotificationClickEvent, OneSignal} from "react-native-onesignal";
+import {StatusBar } from "react-native";
+import React from "react";
+import SplashScreen from "@/components/SplashScreen";
+import { ThemeProvider } from "@/components/ThemeContext";
+import { useOneSignalDeepLinks } from "@/hooks/useOneSignalDeepLinks";
+import { RouteTarget } from "@/types/routeDeepLink";
 
 enableScreens();
 
 export default function RootLayout() {
-
-    const [showCustomSplash, setShowCustomSplash] = useState(true);
-
     const router = useRouter();
+    const [showCustomSplash, setShowCustomSplash] = React.useState(true);
 
-    useEffect(() => {
-        if (Platform.OS !== "android") return; // avoid web/ios until configured
+    // hides splash when openning the notification
+    const fastRoute = (to: RouteTarget) => {
+        setShowCustomSplash(false);
+        try {
+            ExpoSplashScreen.hideAsync();
+        } catch {}
+        requestAnimationFrame(() => router.push(to as any));
+    };
 
-        OneSignal.Debug.setLogLevel(LogLevel.Verbose); // remove in prod
-        OneSignal.initialize("9f87ae6e-83b5-4f3b-b49f-1f293096109d");
-        OneSignal.Notifications.requestPermission(true);
-
-        const onClick = (event: NotificationClickEvent) => {
-            const data = event.notification?.additionalData as { postId?: string; route?: string } | undefined;
-            if (data?.postId) {
-                router.push({ pathname: "/post-details", params: { postId: String(data.postId) } });
-            } else if (data?.route) {
-                router.push(data.route as any);
-            }
-        };
-
-        // ✅ Typed and supported across 5.x
-        OneSignal.Notifications.addEventListener("click", onClick);
-
-        return () => {
-            OneSignal.Notifications.removeEventListener("click", onClick);
-        };
-    }, []);
+    // OneSignal + deep links (Android-only for now)
+    useOneSignalDeepLinks({
+        navigate: fastRoute,
+        onesignalAppId: "9f87ae6e-83b5-4f3b-b49f-1f293096109d",
+        debug: true, // set false in production
+    });
 
     if (showCustomSplash) {
         return (
@@ -50,17 +41,16 @@ export default function RootLayout() {
         );
     }
 
-
     return (
         <ThemeProvider>
-            <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} animated={true}/>
+            <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent animated />
             <Stack>
-                <Stack.Screen name="index" options={{headerShown: false}}/>
-                <Stack.Screen name="favorites" options={{headerShown: false}}/>
-                <Stack.Screen name="categories" options={{headerShown: false}}/>
-                <Stack.Screen name="post-details" options={{headerShown: false}}/>
+                <Stack.Screen name="index" options={{ headerShown: false }} />
+                <Stack.Screen name="favorites" options={{ headerShown: false }} />
+                <Stack.Screen name="categories" options={{ headerShown: false }} />
+                <Stack.Screen name="post-details" options={{ headerShown: false }} />
+                <Stack.Screen name="notifications" options={{ headerShown: false }} />
             </Stack>
         </ThemeProvider>
-    )
-
+    );
 }

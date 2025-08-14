@@ -18,7 +18,9 @@
       },
       "package": "com.gosmartdevelopment.postinfoportal",
       "googleServicesFile": "./google-services.json",
-      "permissions": ["POST_NOTIFICATIONS"],
+      "permissions": [
+        "POST_NOTIFICATIONS"
+      ],
       "intentFilters": [
         {
           "action": "VIEW",
@@ -59,7 +61,12 @@
       "favicon": "./assets/icons/favicon.png"
     },
     "plugins": [
-      ["onesignal-expo-plugin", { "mode": "development" }],
+      [
+        "onesignal-expo-plugin",
+        {
+          "mode": "development"
+        }
+      ],
       "expo-router",
       [
         "expo-splash-screen",
@@ -79,7 +86,24 @@
         "origin": false
       },
       "eas": {
-        "projectId": "a7036cc2-2a04-413e-90a3-ad4316979e51"
+        "build": {
+          "experimental": {
+            "ios": {
+              "appExtensions": [
+                {
+                  "targetName": "OneSignalNotificationServiceExtension",
+                  "bundleIdentifier": "com.gosmartdevelopment.postinfoportal.OneSignalNotificationServiceExtension",
+                  "entitlements": {
+                    "com.apple.security.application-groups": [
+                      "group.com.gosmartdevelopment.postinfoportal.onesignal"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "projectId": "daa5a3c5-c62c-4786-96e2-d92ce4ead19e"
       }
     }
   }
