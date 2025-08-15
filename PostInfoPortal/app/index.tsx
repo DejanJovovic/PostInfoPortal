@@ -305,7 +305,7 @@ const Index = () => {
                         <CustomPostsSection
                             key="Beograd"
                             categoryName="Beograd"
-                            posts={lokalGroupedPosts["Beograd"] || []} // Ako ima zbirne
+                            posts={lokalGroupedPosts["Beograd"] || []}
                         />
                     )}
                     {Object.entries(beogradGroupedPosts).map(([categoryName, categoryPosts]) => (

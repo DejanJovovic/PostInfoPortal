@@ -1,6 +1,5 @@
 export const nameToSlugMap: Record<string, string> = {
     Naslovna: '', // display all posts
-    Danas: 'danas',
     Politika: 'politika',
     Energetika: 'energetika',
     Privreda: 'privreda',
