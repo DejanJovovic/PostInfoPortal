@@ -19,7 +19,6 @@ import {usePostsByCategory} from '@/hooks/usePostsByCategory';
 import CustomSearchBar from "@/components/CustomSearchBar";
 import CustomPostsSection from "@/components/CustomPostsSection";
 import {useTheme} from "@/components/ThemeContext";
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const Index = () => {
     const [menuOpen, setMenuOpen] = useState(false);
@@ -34,7 +33,7 @@ const Index = () => {
     const {theme} = useTheme();
     const isDark = theme === 'dark';
 
-    const { selectedCategory, openSearch } = useLocalSearchParams<{ selectedCategory?: string; openSearch?: string }>();
+    const {selectedCategory, openSearch} = useLocalSearchParams<{ selectedCategory?: string; openSearch?: string }>();
 
     const {
         posts,
@@ -186,7 +185,7 @@ const Index = () => {
                     onPress={() =>
                         router.push({
                             pathname: '/post-details',
-                            params: { postId: item.id.toString(), category: activeCategory }
+                            params: {postId: item.id.toString(), category: activeCategory}
                         })
                     }
                 >
@@ -297,6 +296,7 @@ const Index = () => {
                             key={categoryName}
                             categoryName={categoryName}
                             posts={categoryPosts}
+                            showFeaturedFirst
                         />
                     ))}
 
@@ -305,7 +305,8 @@ const Index = () => {
                         <CustomPostsSection
                             key="Beograd"
                             categoryName="Beograd"
-                            posts={lokalGroupedPosts["Beograd"] || []}
+                            posts={lokalGroupedPosts['Beograd'] || []}
+                            showFeaturedFirst
                         />
                     )}
                     {Object.entries(beogradGroupedPosts).map(([categoryName, categoryPosts]) => (
@@ -313,12 +314,15 @@ const Index = () => {
                             key={categoryName}
                             categoryName={categoryName}
                             posts={categoryPosts}
+                            showFeaturedFirst
                         />
                     ))}
+
                     <CustomPostsSection
                         key="Gradovi"
                         categoryName="Gradovi"
-                        posts={lokalGroupedPosts["Gradovi"] || []}
+                        posts={lokalGroupedPosts['Gradovi'] || []}
+                        showFeaturedFirst
                     />
 
                     {/* Okruzi section */}
@@ -326,7 +330,8 @@ const Index = () => {
                         <CustomPostsSection
                             key="Okruzi"
                             categoryName="Okruzi"
-                            posts={lokalGroupedPosts["Okruzi"] || []}
+                            posts={lokalGroupedPosts['Okruzi'] || []}
+                            showFeaturedFirst
                         />
                     )}
                     {Object.entries(okruziGroupedPosts).map(([categoryName, categoryPosts]) => (
@@ -334,19 +339,15 @@ const Index = () => {
                             key={categoryName}
                             categoryName={categoryName}
                             posts={categoryPosts}
+                            showFeaturedFirst
                         />
                     ))}
                 </ScrollView>
             ) : (
-                <FlatList
-                    data={posts}
-                    renderItem={renderItem}
-                    keyExtractor={(item) => item.id.toString()}
-                    contentContainerStyle={{paddingBottom: 100}}
-                    className="flex-1"
-                    refreshControl={
-                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh}/>
-                    }
+                <CustomPostsSection
+                    categoryName={activeCategory}
+                    posts={posts}
+                    gridAfterFirst
                 />
             )}
 
