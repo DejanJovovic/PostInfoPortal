@@ -72,7 +72,6 @@ const CustomCategoryFilter: React.FC<Props> = ({
     const [expanded, setExpanded] = useState(true);
     const [showDateModal, setShowDateModal] = useState(false);
     const [tempDate, setTempDate] = useState(selectedDate);
-    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
     const {theme} = useTheme();
     const isDark = theme === 'dark';
 
@@ -91,59 +90,51 @@ const CustomCategoryFilter: React.FC<Props> = ({
             onCategorySelect('');
         } else {
             onCategorySelect(cat);
-            setShowDateModal(true);
         }
+        // reduce the category list automatically
+        setExpanded(false);
+
+        setIsFilterApplied(false);
+        setFilteredPosts([]);
+        setSelectedDate({});
     };
 
     const resetFilter = () => {
-        onCategorySelect('');
         setSelectedDate({});
         setIsFilterApplied(false);
         setFilteredPosts([]);
     };
 
+    const getYear = (iso: string) => {
+        const m = (iso || '').match(/^(\d{4})/);
+        return m ? Number(m[1]) : NaN;
+    };
+    const getMonth = (iso: string) => {
+        const m = (iso || '').match(/^\d{4}-(\d{2})/);
+        return m ? Number(m[1]) : NaN; // 1..12
+    };
+
     const applyFilter = () => {
         if (typeof tempDate.month !== 'number' || typeof tempDate.year !== 'number') return;
 
-        let posts: WPPost[] = [];
-
-        const selectedCatSlug = nameToSlugMap[selectedCategory] || selectedCategory.toLowerCase().replace(/\s+/g, '-');
-
+        let base: WPPost[] = [];
         if (selectedCategory && groupedPostsCache[selectedCategory]) {
-            posts = groupedPostsCache[selectedCategory];
+            base = groupedPostsCache[selectedCategory];
         } else {
-            const all = Object.values(groupedPostsCache || {}).filter(Boolean).flat();
-            posts = Array.isArray(all) ? all : [];
+            base = Object.values(groupedPostsCache || {}).filter(Boolean).flat();
         }
 
-        const filtered = posts
-            .filter(post => {
-                const date = new Date(post.date);
-                return (
-                    date.getMonth() + 1 === tempDate.month &&
-                    date.getFullYear() === tempDate.year
-                );
-            })
-            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        const filtered = base.filter((post) => {
+            const y = getYear(post.date);
+            const m = getMonth(post.date);
+            return y === tempDate.year && m === tempDate.month;
+        });
 
         setSelectedDate(tempDate);
         setFilteredPosts(filtered);
-        setSortOrder('desc');
         setIsFilterApplied(true);
         setShowDateModal(false);
 
-        console.log(">>> APPLY FILTER");
-        console.log("SelectedCategory:", selectedCategory);
-        console.log("Slug:", selectedCatSlug);
-        console.log("Grouped Cache Keys:", Object.keys(groupedPostsCache));
-        console.log("Temp Date:", tempDate);
-        console.log("Filtered count:", filtered.length);
-    };
-
-    const toggleSortOrder = () => {
-        const reversed = [...filteredPosts].reverse();
-        setFilteredPosts(reversed);
-        setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
     };
 
     return (
@@ -207,21 +198,6 @@ const CustomCategoryFilter: React.FC<Props> = ({
                 </TouchableOpacity>
             )}
 
-            {filteredPosts.length > 0 && (
-                <View className="flex-row justify-end items-center mb-3 pr-2">
-                    <TouchableOpacity onPress={toggleSortOrder} className="flex-row items-center">
-                        <Text className="text-sm font-semibold mr-1" style={{color: isDark ? '#fff' : '#000'}}>
-                            {sortOrder === 'desc' ? 'Najnoviji' : 'Najstariji'}
-                        </Text>
-                        {sortOrder === 'desc' ? (
-                            <ChevronDown size={18} color={isDark ? '#fff' : '#000'}/>
-                        ) : (
-                            <ChevronUp size={18} color={isDark ? '#fff' : '#000'}/>
-                        )}
-                    </TouchableOpacity>
-                </View>
-            )}
-
             {isFilterApplied && selectedDate.month && selectedDate.year && (
                 <View className="mb-3 mt-5">
                     <Text
@@ -245,8 +221,7 @@ const CustomCategoryFilter: React.FC<Props> = ({
                                 datum</Text>
                             <View className="flex-row justify-between mb-6">
                                 <View className="w-[48%]">
-                                    <Text
-                                        className={`mb-2 font-medium ${isDark ? 'text-white' : 'text-black'}`}>Mesec</Text>
+                                    <Text className={`mb-2 font-medium ${isDark ? 'text-white' : 'text-black'}`}>Mesec</Text>
                                     <ScrollView className="h-48 rounded-xl p-2" style={{
                                         backgroundColor: isDark ? '#1f2937' : colors.grey,
                                         maxHeight: 200
@@ -257,28 +232,24 @@ const CustomCategoryFilter: React.FC<Props> = ({
                                                 onPress={() => setTempDate((prev) => ({...prev, month: i + 1}))}
                                                 className={`py-2 px-3 rounded-md mb-2 ${tempDate.month === i + 1 ? 'bg-[#201F5B]' : 'bg-transparent'}`}
                                             >
-                                                <Text
-                                                    className={`${tempDate.month === i + 1 ? 'text-white' : isDark ? 'text-white' : 'text-black'}`}>{month}</Text>
+                                                <Text className={`${tempDate.month === i + 1 ? 'text-white' : isDark ? 'text-white' : 'text-black'}`}>{month}</Text>
                                             </TouchableOpacity>
                                         ))}
                                     </ScrollView>
                                 </View>
                                 <View className="w-[48%]">
-                                    <Text
-                                        className={`mb-2 font-medium ${isDark ? 'text-white' : 'text-black'}`}>Godina</Text>
-                                    <ScrollView className="h-48 rounded-xl p-2"
-                                                style={{
-                                                    backgroundColor: isDark ? '#1f2937' : colors.grey,
-                                                    maxHeight: 200
-                                                }}>
+                                    <Text className={`mb-2 font-medium ${isDark ? 'text-white' : 'text-black'}`}>Godina</Text>
+                                    <ScrollView className="h-48 rounded-xl p-2" style={{
+                                        backgroundColor: isDark ? '#1f2937' : colors.grey,
+                                        maxHeight: 200
+                                    }}>
                                         {years.map((year) => (
                                             <TouchableOpacity
                                                 key={year}
                                                 onPress={() => setTempDate((prev) => ({...prev, year}))}
                                                 className={`py-2 px-3 rounded-md mb-1 ${tempDate.year === year ? 'bg-[#201F5B]' : 'bg-transparent'}`}
                                             >
-                                                <Text
-                                                    className={`${tempDate.year === year ? 'text-white' : isDark ? 'text-white' : 'text-black'}`}>{year}</Text>
+                                                <Text className={`${tempDate.year === year ? 'text-white' : isDark ? 'text-white' : 'text-black'}`}>{year}</Text>
                                             </TouchableOpacity>
                                         ))}
                                     </ScrollView>
@@ -289,7 +260,6 @@ const CustomCategoryFilter: React.FC<Props> = ({
                                 <TouchableOpacity
                                     onPress={() => {
                                         setTempDate(selectedDate);
-                                        onCategorySelect('');
                                         setShowDateModal(false);
                                     }}
                                 >
