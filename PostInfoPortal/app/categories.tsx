@@ -5,7 +5,7 @@ import {
     FlatList,
     Animated,
     RefreshControl,
-    TouchableOpacity,
+    TouchableOpacity, StyleSheet, ActivityIndicator,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import CustomHeader from '@/components/CustomHeader';
@@ -15,7 +15,7 @@ import CustomCategoryFilter from '@/components/CustomCategoryFilter';
 import CustomSearchBar from '@/components/CustomSearchBar';
 import {usePostsByCategory} from '@/hooks/usePostsByCategory';
 import {WPPost} from '@/types/wp';
-import {router} from 'expo-router';
+import {router, useNavigation} from 'expo-router';
 import {ChevronDown, ChevronUp} from 'lucide-react-native';
 
 const PAGE_SIZE = 5;
@@ -36,6 +36,8 @@ const Categories = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearchActive, setIsSearchActive] = useState(false);
     const [triggerSearchOpen, setTriggerSearchOpen] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const navigation = useNavigation();
 
     const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
     // global sorting state
@@ -77,15 +79,22 @@ const Categories = () => {
         return arr.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     }, [activeDataset, globalSort]);
 
-    // "Vidljivi" deo liste (paginacija)
+    // visible part
     const visibleData = useMemo(() => {
         return sortedActiveDataset.slice(0, visibleCount);
     }, [sortedActiveDataset, visibleCount]);
 
-    // reset paginacije kad se promeni kategorija ili datum filter
+    // pagination reset whenever the filter is applied
     useEffect(() => {
         setVisibleCount(PAGE_SIZE);
     }, [selectedCategory, isFilterApplied, selectedDate.month, selectedDate.year, groupedPosts]);
+
+    // turn of for the loader when the next screens mounts
+    useEffect(() => {
+        const unsub = navigation.addListener('blur', () => setIsLoading(false));
+        return unsub;
+    }, [navigation]);
+
 
     const toggleGlobalSort = () => {
         setGlobalSort(prev => (prev === 'desc' ? 'asc' : 'desc'));
@@ -142,6 +151,26 @@ const Categories = () => {
         setTriggerSearchOpen(true);
     };
 
+    // back with loader (CustomHeader handler)
+    const handleBackWithLoading = () => {
+        if (isLoading) return;
+        setIsLoading(true);
+        requestAnimationFrame(() => {
+            router.back();
+        });
+    };
+
+    const goToPost = (postId: number) => {
+        if (isLoading) return;
+        setIsLoading(true);
+        requestAnimationFrame(() => {
+            router.push({
+                pathname: '/post-details',
+                params: {postId: String(postId), category: selectedCategory || ''},
+            });
+        });
+    };
+
     const highlightSearchTerm = (text: string, term: string) => {
         if (!term)
             return (
@@ -187,12 +216,7 @@ const Categories = () => {
             return (
                 <Animated.View style={animStyle}>
                     <TouchableOpacity
-                        onPress={() =>
-                            router.push({
-                                pathname: '/post-details',
-                                params: {postId: item.id.toString(), category: selectedCategory || ''},
-                            })
-                        }
+                        onPress={() => goToPost(item.id)} disabled={isLoading}
                     >
                         <View
                             className="rounded-2xl shadow-md mb-6 mx-3 p-4 border"
@@ -237,6 +261,8 @@ const Categories = () => {
                 }}
                 onSearchQuery={setSearchQuery}
                 triggerSearchOpen={triggerSearchOpen}
+                onBackPress={handleBackWithLoading}
+                loadingNav={isLoading}
             />
 
             {isSearchActive && (
@@ -379,6 +405,33 @@ const Categories = () => {
                     maxToRenderPerBatch={8}
                     windowSize={7}
                 />
+            )}
+            {isLoading && (
+                <View
+                    style={[
+                        StyleSheet.absoluteFillObject,
+                        {
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            backgroundColor: isDark ? 'rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.7)',
+                            zIndex: 9999,
+                            elevation: 9999,
+                        },
+                    ]}
+                    pointerEvents="auto"
+                >
+                    <ActivityIndicator size="large" color={isDark ? '#fff' : '#000'} />
+                    <Text
+                        style={{
+                            marginTop: 10,
+                            fontWeight: '600',
+                            color: isDark ? '#fff' : '#000',
+                            textAlign: 'center',
+                        }}
+                    >
+                        Učitavanje...
+                    </Text>
+                </View>
             )}
 
             <CustomFooter onSearchPress={handleFooterSearch} />

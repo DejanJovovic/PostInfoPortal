@@ -1,4 +1,4 @@
-import React, {useState, useCallback} from 'react';
+import React, {useState, useCallback, useEffect} from 'react';
 import {
     View,
     Text,
@@ -7,17 +7,19 @@ import {
     Image,
     ScrollView,
     RefreshControl,
-    Alert
+    Alert,
+    ActivityIndicator,
+    StyleSheet,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {useFocusEffect, useRouter} from 'expo-router';
+import {useFocusEffect, useRouter, useNavigation} from 'expo-router';
 import {WPPost} from '@/types/wp';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import CustomHeader from '@/components/CustomHeader';
 import CustomFooter from '@/components/CustomFooter';
 import CustomSearchBar from '@/components/CustomSearchBar';
 import icons from '@/constants/icons';
-import {useTheme} from "@/components/ThemeContext";
+import {useTheme} from '@/components/ThemeContext';
 
 type FavoritePost = WPPost & { category: string };
 
@@ -30,28 +32,39 @@ const Favorites = () => {
     const [isSearchActive, setIsSearchActive] = useState(false);
     const [triggerSearchOpen, setTriggerSearchOpen] = useState(false);
 
+    const [isLoading, setIsLoading] = useState(false);
+
     const router = useRouter();
+    const navigation = useNavigation();
     const {theme} = useTheme();
     const isDark = theme === 'dark';
 
     const loadFavorites = async () => {
         const saved = await AsyncStorage.getItem('favorites');
-        if (!saved) return;
+        if (!saved) {
+            setGroupedFavorites({});
+            return;
+        }
 
         const parsed: FavoritePost[] = JSON.parse(saved);
         const grouped: Record<string, WPPost[]> = {};
-
         for (const post of parsed) {
             if (!grouped[post.category]) grouped[post.category] = [];
             grouped[post.category].push(post);
         }
-
         setGroupedFavorites(grouped);
     };
 
-    useFocusEffect(useCallback(() => {
-        loadFavorites();
-    }, []));
+    useFocusEffect(
+        useCallback(() => {
+            loadFavorites();
+        }, [])
+    );
+
+    useEffect(() => {
+        const unsub = navigation.addListener('blur', () => setIsLoading(false));
+        return unsub;
+    }, [navigation]);
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
@@ -72,82 +85,76 @@ const Favorites = () => {
             );
             return;
         }
-
         setSearchQuery('');
         setIsSearchActive(true);
         setTriggerSearchOpen(true);
     };
 
+    const handleBackWithLoading = () => {
+        if (isLoading) return;
+        setIsLoading(true);
+        requestAnimationFrame(() => {
+            router.back();
+        });
+    };
+
+    const goToPost = (postId: number) => {
+        if (isLoading) return;
+        setIsLoading(true);
+        requestAnimationFrame(() => {
+            router.push({
+                pathname: '/post-details',
+                params: {postId: String(postId), category: activeCategory},
+            });
+        });
+    };
+
     const getFilteredFavorites = (): Record<string, WPPost[]> => {
         if (!searchQuery.trim()) return groupedFavorites;
-
         const result: Record<string, WPPost[]> = {};
         const lower = searchQuery.toLowerCase();
-
         for (const [category, posts] of Object.entries(groupedFavorites)) {
-            const filtered = posts.filter(p =>
-                p.title.rendered.toLowerCase().includes(lower)
-            );
-            if (filtered.length > 0) {
-                result[category] = filtered;
-            }
+            const filtered = posts.filter(p => p.title.rendered.toLowerCase().includes(lower));
+            if (filtered.length > 0) result[category] = filtered;
         }
-
         return result;
     };
 
     const removePost = (postId: number) => {
-        Alert.alert(
-            'Brisanje objave',
-            'Da li ste sigurni da želite da obrišete ovu objavu iz omiljenih?',
-            [
-                {
-                    text: 'Ne',
-                    style: 'cancel',
+        Alert.alert('Brisanje objave', 'Da li ste sigurni da želite da obrišete ovu objavu iz omiljenih?', [
+            {text: 'Ne', style: 'cancel'},
+            {
+                text: 'Da',
+                style: 'destructive',
+                onPress: async () => {
+                    const saved = await AsyncStorage.getItem('favorites');
+                    if (!saved) return;
+                    let parsed: FavoritePost[] = JSON.parse(saved);
+                    parsed = parsed.filter(p => p.id !== postId);
+                    await AsyncStorage.setItem('favorites', JSON.stringify(parsed));
+                    loadFavorites();
                 },
-                {
-                    text: 'Da',
-                    onPress: async () => {
-                        const saved = await AsyncStorage.getItem('favorites');
-                        if (!saved) return;
-
-                        let parsed: FavoritePost[] = JSON.parse(saved);
-                        parsed = parsed.filter((p) => p.id !== postId);
-                        await AsyncStorage.setItem('favorites', JSON.stringify(parsed));
-                        loadFavorites();
-                    },
-                    style: 'destructive',
-                },
-            ]
-        );
+            },
+        ]);
     };
 
     const removeCategory = (category: string) => {
-        Alert.alert(
-            'Brisanje kategorije',
-            'Da li ste sigurni da želite da obrišete ovu kategoriju iz omiljenih?',
-            [
-                {
-                    text: 'Ne',
-                    style: 'cancel',
+        Alert.alert('Brisanje kategorije', 'Da li ste sigurni da želite da obrišete ovu kategoriju iz omiljenih?', [
+            {text: 'Ne', style: 'cancel'},
+            {
+                text: 'Da',
+                style: 'destructive',
+                onPress: async () => {
+                    const saved = await AsyncStorage.getItem('favorites');
+                    if (!saved) return;
+                    let parsed: FavoritePost[] = JSON.parse(saved);
+                    parsed = parsed.filter(p => p.category !== category);
+                    await AsyncStorage.setItem('favorites', JSON.stringify(parsed));
+                    loadFavorites();
                 },
-                {
-                    text: 'Da',
-                    onPress: async () => {
-                        const saved = await AsyncStorage.getItem('favorites');
-                        if (!saved) return;
-
-                        let parsed: FavoritePost[] = JSON.parse(saved);
-                        parsed = parsed.filter((p) => p.category !== category);
-                        await AsyncStorage.setItem('favorites', JSON.stringify(parsed));
-                        loadFavorites();
-                    },
-                    style: 'destructive',
-                },
-            ]
-        );
+            },
+        ]);
     };
-
 
     const highlightSearchTerm = (text: string, term: string) => {
         if (!term) {
@@ -157,16 +164,11 @@ const Favorites = () => {
                 </Text>
             );
         }
-
         const parts = text.split(new RegExp(`(${term})`, 'gi'));
-
         return (
             <Text className="text-base font-semibold mb-1" style={{color: isDark ? 'white' : 'black'}}>
                 {parts.map((part, i) => (
-                    <Text
-                        key={i}
-                        className={part.toLowerCase() === term.toLowerCase() ? 'font-bold text-[#FA0A0F]' : ''}
-                    >
+                    <Text key={i} className={part.toLowerCase() === term.toLowerCase() ? 'font-bold text-[#FA0A0F]' : ''}>
                         {part}
                     </Text>
                 ))}
@@ -186,23 +188,12 @@ const Favorites = () => {
                     style={{
                         backgroundColor: isDark ? '#1b1b1b' : 'white',
                         borderColor: isDark ? '#333' : '#e5e7eb',
-                        height: isSearchActive ? undefined : 250, // its fixed height if search is not active
+                        height: isSearchActive ? undefined : 250,
                     }}
                 >
-                    <TouchableOpacity
-                        onPress={() =>
-                            router.push({
-                                pathname: '/post-details',
-                                params: {postId: item.id.toString(), category: activeCategory}
-                            })
-                        }
-                    >
+                    <TouchableOpacity onPress={() => goToPost(item.id)} disabled={isLoading}>
                         {image && (
-                            <Image
-                                source={{uri: image}}
-                                className="w-full h-[110px] rounded-xl mb-2"
-                                resizeMode="cover"
-                            />
+                            <Image source={{uri: image}} className="w-full h-[110px] rounded-xl mb-2" resizeMode="cover" />
                         )}
                         <View>
                             {isSearchActive ? (
@@ -222,16 +213,12 @@ const Favorites = () => {
                             <Text className="text-xs" style={{color: isDark ? '#9ca3af' : '#6b7280'}}>
                                 {date}
                             </Text>
-                            <TouchableOpacity onPress={() => removePost(item.id)}>
-                                <Image
-                                    source={icons.close}
-                                    style={{width: 20, height: 20, tintColor: isDark ? 'white' : 'black'}}
-                                />
+                            <TouchableOpacity onPress={() => removePost(item.id)} disabled={isLoading}>
+                                <Image source={icons.close} style={{width: 20, height: 20, tintColor: isDark ? 'white' : 'black'}} />
                             </TouchableOpacity>
                         </View>
 
-                        <Text className="text-sm" numberOfLines={2}
-                              style={{color: isDark ? '#686c75' : '#b9babe'}}>
+                        <Text className="text-sm" numberOfLines={2} style={{color: isDark ? '#686c75' : '#b9babe'}}>
                             {excerpt}
                         </Text>
                     </TouchableOpacity>
@@ -243,14 +230,14 @@ const Favorites = () => {
     return (
         <SafeAreaView className="flex-1" style={{backgroundColor: isDark ? '#000' : '#fff'}}>
             <CustomHeader
-                onCategorySelected={() => {
-                }}
+                onCategorySelected={() => {}}
                 activeCategory={activeCategory}
                 triggerSearchOpen={triggerSearchOpen}
                 onSearchQuery={setSearchQuery}
                 showMenu={false}
-                onMenuToggle={() => {
-                }}
+                onMenuToggle={() => {}}
+                onBackPress={handleBackWithLoading}
+                loadingNav={isLoading}
             />
 
             {isSearchActive && (
@@ -294,25 +281,21 @@ const Favorites = () => {
             <ScrollView
                 contentContainerStyle={{paddingBottom: 100}}
                 className="px-4 pt-4"
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh}/>}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
             >
                 {Object.entries(getFilteredFavorites()).length === 0 ? (
-                    <Text className="text-center mt-10" style={{color: isDark ? "white" : "black"}}>
+                    <Text className="text-center mt-10" style={{color: isDark ? 'white' : 'black'}}>
                         Nema sačuvanih omiljenih objava.
                     </Text>
                 ) : (
                     Object.entries(getFilteredFavorites()).map(([category, posts]) => (
                         <View key={category} className="mb-6">
                             <View className="flex-row items-center justify-between mt-5 mb-3">
-                                <Text className="text-xl font-bold"
-                                      style={{color: isDark ? '#FFFFFF' : '#000000'}}>
+                                <Text className="text-xl font-bold" style={{color: isDark ? '#FFFFFF' : '#000000'}}>
                                     {category}
                                 </Text>
-                                <TouchableOpacity onPress={() => removeCategory(category)}>
-                                    <Image
-                                        source={icons.close}
-                                        style={{width: 20, height: 20, tintColor: isDark ? 'white' : 'black'}}
-                                    />
+                                <TouchableOpacity onPress={() => removeCategory(category)} disabled={isLoading}>
+                                    <Image source={icons.close} style={{width: 20, height: 20, tintColor: isDark ? 'white' : 'black'}} />
                                 </TouchableOpacity>
                             </View>
 
@@ -322,15 +305,44 @@ const Favorites = () => {
                                 showsHorizontalScrollIndicator={false}
                                 keyExtractor={(item) => item.id.toString()}
                                 renderItem={renderPost}
+                                scrollEnabled={!isLoading}
                             />
-                            <View className="h-[1px] mt-5"
-                                  style={{backgroundColor: isDark ? '#FFFFFF' : '#1a1a1a'}}/>
+
+                            <View className="h-[1px] mt-5" style={{backgroundColor: isDark ? '#FFFFFF' : '#1a1a1a'}} />
                         </View>
                     ))
                 )}
             </ScrollView>
 
-            <CustomFooter onSearchPress={handleFooterSearch}/>
+            {isLoading && (
+                <View
+                    style={[
+                        StyleSheet.absoluteFillObject,
+                        {
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            backgroundColor: isDark ? 'rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.7)',
+                            zIndex: 9999,
+                            elevation: 9999,
+                        },
+                    ]}
+                    pointerEvents="auto"
+                >
+                    <ActivityIndicator size="large" color={isDark ? '#fff' : '#000'} />
+                    <Text
+                        style={{
+                            marginTop: 10,
+                            fontWeight: '600',
+                            color: isDark ? '#fff' : '#000',
+                            textAlign: 'center',
+                        }}
+                    >
+                        Učitavanje...
+                    </Text>
+                </View>
+            )}
+
+            <CustomFooter onSearchPress={handleFooterSearch} />
         </SafeAreaView>
     );
 };

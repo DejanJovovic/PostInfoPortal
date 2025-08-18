@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
     View,
     Text,
@@ -9,9 +9,10 @@ import {
     Image,
     Alert,
     Linking,
+    StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useRouter, useNavigation } from 'expo-router';
 import CustomHeader from '@/components/CustomHeader';
 import CustomFooter from '@/components/CustomFooter';
 import CustomSearchBar from '@/components/CustomSearchBar';
@@ -26,6 +27,7 @@ import icons from '@/constants/icons';
 
 const Notifications = () => {
     const router = useRouter();
+    const navigation = useNavigation();
     const { theme } = useTheme();
     const isDark = theme === 'dark';
 
@@ -36,10 +38,11 @@ const Notifications = () => {
     const [isSearchActive, setIsSearchActive] = useState(false);
     const [triggerSearchOpen, setTriggerSearchOpen] = useState(false);
 
+    const [isLoading, setIsLoading] = useState(false);
+
     const load = async () => {
         try {
             const data = await getInbox();
-            // newest first (optional, helps search UX)
             const sorted = [...data].sort((a, b) => (b.receivedAt || 0) - (a.receivedAt || 0));
             setItems(sorted);
         } catch (e) {
@@ -54,9 +57,13 @@ const Notifications = () => {
         }, [])
     );
 
+    useEffect(() => {
+        const unsub = navigation.addListener('blur', () => setIsLoading(false));
+        return unsub;
+    }, [navigation]);
+
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
-        // reset search on pull-to-refresh
         setSearchQuery('');
         setIsSearchActive(false);
         setTriggerSearchOpen(false);
@@ -142,6 +149,14 @@ const Notifications = () => {
         });
     };
 
+    const handleBackWithLoading = () => {
+        if (isLoading) return;
+        setIsLoading(true);
+        requestAnimationFrame(() => {
+            router.back();
+        });
+    };
+
     const onOpenItem = async (item: InboxItem) => {
         if (item.postId) {
             try {
@@ -150,12 +165,17 @@ const Notifications = () => {
             setItems((prev) =>
                 (prev ?? []).map((i) => (i.oneSignalId === item.oneSignalId ? { ...i, read: true } : i))
             );
-            router.push({
-                pathname: '/post-details',
-                params: {
-                    postId: String(item.postId),
-                    ...(item as any).categoryName ? { category: (item as any).categoryName } : {},
-                },
+
+            if (isLoading) return;
+            setIsLoading(true);
+            requestAnimationFrame(() => {
+                router.push({
+                    pathname: '/post-details',
+                    params: {
+                        postId: String(item.postId),
+                        ...(item as any).categoryName ? { category: (item as any).categoryName } : {},
+                    },
+                });
             });
             return;
         }
@@ -177,6 +197,7 @@ const Notifications = () => {
     const renderItem = ({ item }: { item: InboxItem }) => (
         <TouchableOpacity
             onPress={() => onOpenItem(item)}
+            disabled={isLoading}
             className="px-4 py-3 border-b"
             style={{
                 borderColor: isDark ? '#333' : '#e5e7eb',
@@ -189,7 +210,6 @@ const Notifications = () => {
                     style={{ backgroundColor: item.read ? 'transparent' : '#FA0A0F' }}
                 />
                 <View className="flex-1">
-                    {/* Title with highlight when searching */}
                     {isSearchActive
                         ? highlightSearchTerm(item.title || 'Nova objava', searchQuery)
                         : (
@@ -210,7 +230,6 @@ const Notifications = () => {
                             style={{ color: isDark ? '#9ca3af' : '#6b7280' }}
                         >
                             {isSearchActive ? (
-                                // lightweight highlight for body too
                                 <Text>
                                     {item.message.split(new RegExp(`(${searchQuery})`, 'gi')).map((part, i) => (
                                         <Text
@@ -250,7 +269,7 @@ const Notifications = () => {
                 Obaveštenja
             </Text>
 
-            <TouchableOpacity onPress={confirmClearAll} className="py-1 pl-3">
+            <TouchableOpacity onPress={confirmClearAll} className="py-1 pl-3" disabled={isLoading}>
                 <Image source={icons.close} style={{ width: 20, height: 20 }} tintColor={'#FA0A0F'} />
             </TouchableOpacity>
         </View>
@@ -270,6 +289,9 @@ const Notifications = () => {
                 showMenu={false}
                 triggerSearchOpen={triggerSearchOpen}
                 onSearchQuery={setSearchQuery}
+                // ⬅️ back sa loaderom
+                onBackPress={handleBackWithLoading}
+                loadingNav={isLoading}
             />
 
             {/* Search header area */}
@@ -298,7 +320,7 @@ const Notifications = () => {
                     </View>
 
                     <CustomSearchBar
-                        key={searchQuery} // to reset input on clear
+                        key={searchQuery}
                         query={searchQuery}
                         onSearch={setSearchQuery}
                         onReset={() => {
@@ -333,7 +355,35 @@ const Notifications = () => {
                             </Text>
                         </View>
                     }
+                    scrollEnabled={!isLoading}
                 />
+            )}
+            {isLoading && (
+                <View
+                    style={[
+                        StyleSheet.absoluteFillObject,
+                        {
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            backgroundColor: isDark ? 'rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.7)',
+                            zIndex: 9999,
+                            elevation: 9999,
+                        },
+                    ]}
+                    pointerEvents="auto"
+                >
+                    <ActivityIndicator size="large" color={isDark ? '#fff' : '#000'} />
+                    <Text
+                        style={{
+                            marginTop: 10,
+                            fontWeight: '600',
+                            color: isDark ? '#fff' : '#000',
+                            textAlign: 'center',
+                        }}
+                    >
+                        Učitavanje...
+                    </Text>
+                </View>
             )}
 
             <CustomFooter onSearchPress={handleFooterSearch} />

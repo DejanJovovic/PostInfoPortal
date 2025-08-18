@@ -41,6 +41,5 @@ export const menuData = [
             ]
         },
     "Region",
-    "Planeta",
-    "Latin | Ćirilica",
+    "Planeta"
 ];

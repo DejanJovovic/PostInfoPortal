@@ -352,7 +352,9 @@ export const usePostsByCategory = () => {
     // then it tries to load groupedPosts from cache, or if timed it out calls fetchAllPosts().
     useEffect(() => {
         const init = async () => {
-            // 1) cache (offline first)
+            let hydratedFromCache = false;
+
+            // 1) Offline-first: try cache
             try {
                 const cacheRaw = await AsyncStorage.getItem('groupedPostsCache');
                 if (cacheRaw) {
@@ -362,6 +364,9 @@ export const usePostsByCategory = () => {
                     if (danas.length > 0) updated[DANAS_KEY] = danas; else delete updated[DANAS_KEY];
                     setGroupedPosts(updated);
                     try { await saveGroupedPostsToCache(updated); } catch {}
+                    hydratedFromCache = true;
+
+                    setInitialized(true);
                 }
             } catch (e) {
                 console.warn('Failed to read groupedPostsCache:', e);
@@ -369,15 +374,17 @@ export const usePostsByCategory = () => {
 
             await fetchCategories();
 
-            // if its not in cache prefetch
+            // if no cache, try to fetch
             try {
-                const hasCache = await AsyncStorage.getItem('groupedPostsCache');
-                if (!hasCache) await fetchAllPosts();
+                if (!hydratedFromCache) {
+                    await fetchAllPosts();
+                    // initialize cache
+                    setInitialized(true);
+                }
             } catch (e) {
                 console.warn('Prefetch skipped:', e);
+                if (!hydratedFromCache) setInitialized(true);
             }
-
-            setInitialized(true);
         };
 
         init();

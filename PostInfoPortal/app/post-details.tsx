@@ -9,10 +9,10 @@ import {
     Alert,
     Linking,
     Share,
-    ActivityIndicator,
+    ActivityIndicator, StyleSheet,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import {useLocalSearchParams, useRouter} from 'expo-router';
+import {useLocalSearchParams, useNavigation, useRouter} from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import RenderHTML from 'react-native-render-html';
 
@@ -58,6 +58,8 @@ const PostDetails = () => {
     const [postData, setPostData] = useState<WPPost | any | null>(null);
     const [loadingPost, setLoadingPost] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const navigation = useNavigation();
 
     // 🔸 if we’re showing a notification-only preview (no network/cache)
     const [preview, setPreview] = useState<PreviewFromNotification | null>(null);
@@ -79,6 +81,11 @@ const PostDetails = () => {
         }),
         [htmlTextColor]
     );
+
+    useEffect(() => {
+        const unsub = navigation.addListener('blur', () => setIsLoading(false));
+        return unsub;
+    }, [navigation]);
 
     useEffect(() => {
         const loadPost = async () => {
@@ -165,6 +172,15 @@ const PostDetails = () => {
         };
         check();
     }, [postData, preview, postId]);
+
+    const handleBackWithLoading = () => {
+        if (isLoading) return;
+        setIsLoading(true);
+        requestAnimationFrame(() => {
+            router.back();
+        });
+    };
+
 
     const formattedDate =
         preview?.receivedAt
@@ -341,6 +357,8 @@ const PostDetails = () => {
                     onCategorySelected={handleCategorySelected}
                     activeCategory={activeCategory || preview.categoryName || 'Naslovna'}
                     showMenu={false}
+                    onBackPress={handleBackWithLoading}
+                    loadingNav={isLoading}
                 />
 
                 <ScrollView contentContainerStyle={{paddingBottom: 120}} className="px-4 py-4">
@@ -425,6 +443,8 @@ const PostDetails = () => {
                 onCategorySelected={handleCategorySelected}
                 activeCategory={activeCategory || 'Naslovna'}
                 showMenu={false}
+                onBackPress={handleBackWithLoading}
+                loadingNav={isLoading}
             />
 
             <ScrollView contentContainerStyle={{paddingBottom: 120}} className="px-4 py-4">
@@ -478,6 +498,33 @@ const PostDetails = () => {
 
                 <RenderHTML contentWidth={contentWidth} source={{html: contentRendered}} tagsStyles={tagsStyles}/>
             </ScrollView>
+            {isLoading && (
+                <View
+                    style={[
+                        StyleSheet.absoluteFillObject,
+                        {
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            backgroundColor: isDark ? 'rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.7)',
+                            zIndex: 9999,
+                            elevation: 9999,
+                        },
+                    ]}
+                    pointerEvents="auto"
+                >
+                    <ActivityIndicator size="large" color={isDark ? '#fff' : '#000'} />
+                    <Text
+                        style={{
+                            marginTop: 10,
+                            fontWeight: '600',
+                            color: isDark ? '#fff' : '#000',
+                            textAlign: 'center',
+                        }}
+                    >
+                        Učitavanje...
+                    </Text>
+                </View>
+            )}
             <CustomFooter onSearchPress={() => router.push(globalSearch())} />
         </SafeAreaView>
     );

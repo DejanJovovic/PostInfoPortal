@@ -8,9 +8,8 @@ import {
     ScrollView,
     RefreshControl,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useTheme } from './ThemeContext';
-import { WPPost } from '@/types/wp';
+import {useTheme} from './ThemeContext';
+import {WPPost} from '@/types/wp';
 
 interface Props {
     categoryName: string;
@@ -21,6 +20,8 @@ interface Props {
     gridAfterFirst?: boolean;
     refreshing?: boolean;
     onRefresh?: () => void;
+    onPostPress: (postId: number, categoryName: string) => void; // 👈 NEW
+    loadingNav?: boolean;
 }
 
 const CustomPostsSection: React.FC<Props> = ({
@@ -30,18 +31,13 @@ const CustomPostsSection: React.FC<Props> = ({
                                                  gridAfterFirst = false,
                                                  refreshing,
                                                  onRefresh,
+                                                 onPostPress,
+                                                 loadingNav
                                              }) => {
-    const router = useRouter();
-    const { theme } = useTheme();
+    const {theme} = useTheme();
     const isDark = theme === 'dark';
 
-    const goToPost = (postId: number) =>
-        router.push({
-            pathname: '/post-details',
-            params: { postId: postId.toString(), category: categoryName },
-        });
-
-    const Card = ({ item }: { item: WPPost }) => {
+    const Card = ({item}: { item: WPPost }) => {
         const image = item._embedded?.['wp:featuredmedia']?.[0]?.source_url;
         const date = new Date(item.date).toLocaleDateString('sr-RS');
         const excerpt = item.excerpt?.rendered?.replace(/<[^>]+>/g, '') || '';
@@ -56,26 +52,26 @@ const CustomPostsSection: React.FC<Props> = ({
                 }}
             >
                 {image && (
-                    <Image source={{ uri: image }} className="w-full h-[110px] rounded-xl mb-2" resizeMode="cover" />
+                    <Image source={{uri: image}} className="w-full h-[110px] rounded-xl mb-2" resizeMode="cover"/>
                 )}
                 <Text
                     className="text-base font-semibold mb-1"
-                    style={{ color: isDark ? 'white' : 'black' }}
+                    style={{color: isDark ? 'white' : 'black'}}
                     numberOfLines={2}
                 >
                     {postTitle}
                 </Text>
-                <Text className="text-xs mb-1" style={{ color: isDark ? '#9ca3af' : '#6b7280' }}>
+                <Text className="text-xs mb-1" style={{color: isDark ? '#9ca3af' : '#6b7280'}}>
                     {date}
                 </Text>
-                <Text className="text-sm" numberOfLines={2} style={{ color: isDark ? '#959898' : '#999a9b' }}>
+                <Text className="text-sm" numberOfLines={2} style={{color: isDark ? '#959898' : '#999a9b'}}>
                     {excerpt}
                 </Text>
             </View>
         );
     };
 
-    const FeaturedCard = ({ item }: { item: WPPost }) => {
+    const FeaturedCard = ({item}: { item: WPPost }) => {
         const image = item._embedded?.['wp:featuredmedia']?.[0]?.source_url;
         const date = new Date(item.date).toLocaleDateString('sr-RS');
         const excerpt = item.excerpt?.rendered?.replace(/<[^>]+>/g, '') || '';
@@ -89,14 +85,14 @@ const CustomPostsSection: React.FC<Props> = ({
                     borderColor: isDark ? '#333' : '#e5e7eb',
                 }}
             >
-                {image && <Image source={{ uri: image }} className="w-full h-48 rounded-xl mb-3" resizeMode="cover" />}
-                <Text className="font-bold text-base" style={{ color: isDark ? '#fff' : '#000000' }} numberOfLines={2}>
+                {image && <Image source={{uri: image}} className="w-full h-48 rounded-xl mb-3" resizeMode="cover"/>}
+                <Text className="font-bold text-base" style={{color: isDark ? '#fff' : '#000000'}} numberOfLines={2}>
                     {postTitle}
                 </Text>
-                <Text className="text-xs mb-1" style={{ color: isDark ? '#9ca3af' : '#6b7280' }}>
+                <Text className="text-xs mb-1" style={{color: isDark ? '#9ca3af' : '#6b7280'}}>
                     {date}
                 </Text>
-                <Text className="text-sm" numberOfLines={3} style={{ color: isDark ? '#959898' : '#999a9b' }}>
+                <Text className="text-sm" numberOfLines={3} style={{color: isDark ? '#959898' : '#999a9b'}}>
                     {excerpt}
                 </Text>
             </View>
@@ -108,22 +104,24 @@ const CustomPostsSection: React.FC<Props> = ({
 
         return (
             <ScrollView
-                contentContainerStyle={{ paddingBottom: 8 }}
+                contentContainerStyle={{paddingBottom: 8}}
                 showsVerticalScrollIndicator={false}
                 refreshControl={
                     refreshing !== undefined && onRefresh
-                        ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                        ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh}/>
                         : undefined
                 }
             >
                 {posts.length > 0 && (
-                    <TouchableOpacity onPress={() => goToPost(posts[0].id)}>
-                        <FeaturedCard item={posts[0]} />
+                    <TouchableOpacity onPress={() => onPostPress(posts[0].id, categoryName)}
+                                      disabled={loadingNav}
+                                      activeOpacity={0.8}>
+                        <FeaturedCard item={posts[0]}/>
                     </TouchableOpacity>
                 )}
 
                 {rest.length > 0 && (
-                    <View style={{ paddingHorizontal: 12 }}>
+                    <View style={{paddingHorizontal: 12}}>
                         <View
                             style={{
                                 flexDirection: 'row',
@@ -132,9 +130,11 @@ const CustomPostsSection: React.FC<Props> = ({
                             }}
                         >
                             {rest.map((item) => (
-                                <View key={item.id} style={{ width: '48%', marginBottom: 12 }}>
-                                    <TouchableOpacity onPress={() => goToPost(item.id)}>
-                                        <Card item={item} />
+                                <View key={item.id} style={{width: '48%', marginBottom: 12}}>
+                                    <TouchableOpacity onPress={() => onPostPress(posts[0].id, categoryName)}
+                                                      disabled={loadingNav}
+                                                      activeOpacity={0.8}>
+                                        <Card item={item}/>
                                     </TouchableOpacity>
                                 </View>
                             ))}
@@ -149,28 +149,33 @@ const CustomPostsSection: React.FC<Props> = ({
 
     return (
         <View className="mb-6">
-            <Text className="text-xl font-extrabold px-4 mb-3" style={{ color: isDark ? '#fff' : '#000' }}>
+            <Text className="text-xl font-extrabold px-4 mb-3" style={{color: isDark ? '#fff' : '#000'}}>
                 {categoryName}
             </Text>
 
             {showFeaturedFirst && posts.length > 0 && (
-                <TouchableOpacity onPress={() => goToPost(posts[0].id)}>
-                    <FeaturedCard item={posts[0]} />
+                <TouchableOpacity onPress={() => onPostPress(posts[0].id, categoryName)}
+                                  disabled={loadingNav}
+                                  activeOpacity={0.8}>
+                    <FeaturedCard item={posts[0]}/>
                 </TouchableOpacity>
             )}
 
             {horizontalData.length > 0 && (
                 <FlatList
                     data={horizontalData}
-                    renderItem={({ item }) => (
-                        <TouchableOpacity className="w-[240px] mr-3" onPress={() => goToPost(item.id)}>
-                            <Card item={item} />
+                    renderItem={({item}) => (
+                        <TouchableOpacity className="w-[240px] mr-3"
+                                          onPress={() => onPostPress(posts[0].id, categoryName)}
+                                          disabled={loadingNav}
+                                          activeOpacity={0.8}>
+                            <Card item={item}/>
                         </TouchableOpacity>
                     )}
                     keyExtractor={(item) => item.id.toString()}
                     horizontal
                     showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ paddingHorizontal: 16 }}
+                    contentContainerStyle={{paddingHorizontal: 16}}
                     removeClippedSubviews
                     initialNumToRender={3}
                     maxToRenderPerBatch={4}

@@ -6,13 +6,12 @@ import {
     Dimensions,
 } from 'react-native';
 import React, {useEffect, useRef, useState} from 'react';
-import { usePathname, useRouter } from 'expo-router';
+import {usePathname, useRouter} from 'expo-router';
 import images from '@/constants/images';
 import icons from '@/constants/icons';
 import colors from '@/constants/colors';
 import MenuDrawer from './MenuDrawer';
 import CustomSearchBar from "@/components/CustomSearchBar";
-
 
 type CustomHeaderProps = {
     onMenuToggle?: (visible: boolean) => void;
@@ -21,9 +20,20 @@ type CustomHeaderProps = {
     onSearchQuery?: (query: string) => void;
     triggerSearchOpen?: boolean;
     showMenu?: boolean;
+    onBackPress?: () => void;
+    loadingNav?: boolean;
 };
 
-const CustomHeader: React.FC<CustomHeaderProps> = ({ onMenuToggle, onCategorySelected, activeCategory, onSearchQuery, triggerSearchOpen, showMenu }) => {
+const CustomHeader: React.FC<CustomHeaderProps> = ({
+                                                       onMenuToggle,
+                                                       onCategorySelected,
+                                                       activeCategory,
+                                                       onSearchQuery,
+                                                       triggerSearchOpen,
+                                                       showMenu,
+                                                       onBackPress,
+                                                       loadingNav = false,
+                                                   }) => {
     const router = useRouter();
     const pathname = usePathname();
     const isRoot = pathname === '/';
@@ -88,15 +98,20 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({ onMenuToggle, onCategorySel
             <TouchableOpacity
                 onPress={() => router.replace('/')}
                 className="absolute top-0 bottom-0 left-1/3 right-1/3 z-10"
+                activeOpacity={0.8}
             >
-                <View className="w-full h-full" />
+                <View className="w-full h-full"/>
             </TouchableOpacity>
 
-            {/* Back Arrow only shows when not on index.tsx */}
+            {/* Back arrow only works when not on root screen */}
             {!isRoot && (
                 <TouchableOpacity
-                    onPress={() => router.back()}
+                    onPress={onBackPress ?? (() => router.back())}
+                    disabled={loadingNav}
                     className="absolute left-4 top-11 -translate-y-1/2 z-10"
+                    activeOpacity={0.8}
+                    style={{opacity: loadingNav ? 0.5 : 1}}
+                    hitSlop={{top: 15, bottom: 15, left: 15, right: 15}}
                 >
                     <Image
                         source={icons.backArrow}
@@ -108,7 +123,9 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({ onMenuToggle, onCategorySel
             )}
 
             {showMenu !== false && (
-                <TouchableOpacity onPress={openMenu} className="absolute right-4 top-11 -translate-y-1/2 z-10">
+                <TouchableOpacity onPress={openMenu} className="absolute right-4 top-11 -translate-y-1/2 z-10"
+                                  activeOpacity={0.8}
+                                  hitSlop={{top: 15, bottom: 15, left: 15, right: 15}}>
                     <Image
                         source={icons.menu}
                         className="w-6 h-6"
@@ -127,24 +144,24 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({ onMenuToggle, onCategorySel
                             width: '80%',
                             height: '100%',
                             backgroundColor: colors.black,
-                            transform: [{ translateX: slideAnim }],
+                            transform: [{translateX: slideAnim}],
                         }}
                     >
                         {/* Search Bar */}
                         <CustomSearchBar
                             onSearch={(query: string) => {
                                 if (onCategorySelected) onCategorySelected('');
-                                if (onSearchQuery) onSearchQuery(query);
+                                onSearchQuery?.(query);
                                 closeMenu();
                             }}
                             autoFocus={triggerSearchOpen}
                         />
 
-                        <View className="h-[1px] bg-gray-700 mt-4 mb-2 mx-2" />
+                        <View className="h-[1px] bg-gray-700 mt-4 mb-2 mx-2"/>
                         <MenuDrawer
                             onCategorySelect={(category) => {
                                 onCategorySelected?.(category);
-                                closeMenu(); // close the drawer when a new category is selected
+                                closeMenu();
                             }}
                             activeCategory={activeCategory}
                         />
@@ -158,13 +175,13 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({ onMenuToggle, onCategorySel
                     >
                         <Animated.View
                             style={{
-                                transform: [{ rotate: spin }],
+                                transform: [{rotate: spin}],
                                 position: 'absolute',
                                 top: 40,
                                 right: 24,
                             }}
                         >
-                            <Image source={icons.close} className="w-5 h-5" tintColor="black" />
+                            <Image source={icons.close} className="w-5 h-5" tintColor="black"/>
                         </Animated.View>
                     </TouchableOpacity>
                 </View>

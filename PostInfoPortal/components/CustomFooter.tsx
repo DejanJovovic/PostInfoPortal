@@ -1,8 +1,15 @@
-import React, {useCallback, useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, Image } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+    View,
+    Text,
+    TouchableOpacity,
+    Image,
+    ActivityIndicator,
+    StyleSheet,
+} from 'react-native';
 import icons from '@/constants/icons';
 import { router, useFocusEffect, usePathname } from 'expo-router';
-import {getUnreadCount, inboxSubscribe} from '@/types/notificationInbox';
+import { getUnreadCount, inboxSubscribe } from '@/types/notificationInbox';
 
 const navItems = [
     { key: 'home', label: 'Naslovna', icon: icons.home },
@@ -16,11 +23,20 @@ type CustomFooterProps = {
     onSearchPress?: () => void;
 };
 
+// for router.push
+type RouteTarget = '/' | '/notifications' | '/favorites' | '/categories';
+
 const CustomFooter: React.FC<CustomFooterProps> = ({ onSearchPress }) => {
     const pathname = usePathname();
     const [unread, setUnread] = useState<number>(0);
 
-    // Load unread count on focus + subscribe to inbox changes
+    const [isLoading, setIsLoading] = useState(false);
+
+    // when the route changes, hide the loader
+    useEffect(() => {
+        if (isLoading) setIsLoading(false);
+    }, [pathname, isLoading]);
+
     useFocusEffect(
         useCallback(() => {
             let mounted = true;
@@ -51,24 +67,32 @@ const CustomFooter: React.FC<CustomFooterProps> = ({ onSearchPress }) => {
         return '';
     }, [pathname]);
 
+    const navigateWithLoader = (target: RouteTarget) => {
+        if (isLoading) return;
+        setIsLoading(true);
+        requestAnimationFrame(() => {
+            router.push(target);
+        });
+    };
+
     const handlePress = (key: string) => {
         if (key === active) return;
 
         switch (key) {
             case 'home':
-                router.push('/');
+                navigateWithLoader('/');
                 break;
             case 'notifications':
-                router.push('/notifications');
+                navigateWithLoader('/notifications');
                 break;
             case 'favorites':
-                router.push('/favorites');
+                navigateWithLoader('/favorites');
                 break;
             case 'categories':
-                router.push('/categories');
+                navigateWithLoader('/categories');
                 break;
             case 'search':
-                if (onSearchPress) onSearchPress();
+                onSearchPress?.();
                 break;
         }
     };
@@ -97,35 +121,57 @@ const CustomFooter: React.FC<CustomFooterProps> = ({ onSearchPress }) => {
     };
 
     return (
-        <View className="absolute bottom-0 w-full mb-5 bg-[#201F5B] rounded-3xl flex-row justify-between items-center px-2 py-3 z-50">
-            {navItems.map((item) => {
-                const isActive = active === item.key;
-                const tintColor = isActive ? '#FA0A0F' : '#FFFFFF';
+        <>
+            <View className="absolute bottom-0 w-full mb-5 bg-[#201F5B] rounded-3xl flex-row justify-between items-center px-2 py-3 z-50">
+                {navItems.map((item) => {
+                    const isActive = active === item.key;
+                    const tintColor = isActive ? '#FA0A0F' : '#FFFFFF';
 
-                const iconWithBadge =
-                    item.key === 'notifications' ? (
-                        <View style={{ position: 'relative' }}>
+                    const iconWithBadge =
+                        item.key === 'notifications' ? (
+                            <View style={{ position: 'relative' }}>
+                                <Image source={item.icon} style={{ width: 24, height: 24, tintColor }} />
+                                {renderCount(unread)}
+                            </View>
+                        ) : (
                             <Image source={item.icon} style={{ width: 24, height: 24, tintColor }} />
-                            {renderCount(unread)}
-                        </View>
-                    ) : (
-                        <Image source={item.icon} style={{ width: 24, height: 24, tintColor }} />
-                    );
+                        );
 
-                return (
-                    <TouchableOpacity
-                        key={item.key}
-                        onPress={() => handlePress(item.key)}
-                        className="flex-1 items-center"
-                    >
-                        {iconWithBadge}
-                        <Text style={{ color: tintColor }} className="text-[8px] mt-1">
-                            {item.label}
-                        </Text>
-                    </TouchableOpacity>
-                );
-            })}
-        </View>
+                    return (
+                        <TouchableOpacity
+                            key={item.key}
+                            onPress={() => handlePress(item.key)}
+                            className="flex-1 items-center"
+                            disabled={isLoading}
+                            activeOpacity={0.8}
+                        >
+                            {iconWithBadge}
+                            <Text style={{ color: tintColor }} className="text-[8px] mt-1">
+                                {item.label}
+                            </Text>
+                        </TouchableOpacity>
+                    );
+                })}
+            </View>
+            {isLoading && (
+                <View
+                    style={[
+                        StyleSheet.absoluteFillObject,
+                        {
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            backgroundColor: 'rgba(0,0,0,0.35)', // blagi dim
+                            zIndex: 9999,
+                            elevation: 9999,
+                        },
+                    ]}
+                    pointerEvents="auto"
+                >
+                    <ActivityIndicator size="large" color="#fff" />
+                    <Text style={{ marginTop: 10, color: '#fff', fontWeight: '600' }}>Učitavanje...</Text>
+                </View>
+            )}
+        </>
     );
 };
 
