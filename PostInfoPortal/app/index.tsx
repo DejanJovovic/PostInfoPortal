@@ -21,6 +21,34 @@ import CustomSearchBar from '@/components/CustomSearchBar';
 import CustomPostsSection from '@/components/CustomPostsSection';
 import {useTheme} from '@/components/ThemeContext';
 
+const LoadingOverlay = ({ isDark, message }: { isDark: boolean; message: string }) => (
+    <View
+        style={[
+            StyleSheet.absoluteFillObject,
+            {
+                justifyContent: 'center',
+                alignItems: 'center',
+                backgroundColor: isDark ? 'rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.7)',
+                zIndex: 9999,
+                elevation: 9999,
+            },
+        ]}
+        pointerEvents="auto"
+    >
+        <ActivityIndicator size="large" color={isDark ? '#fff' : '#000'} />
+        <Text
+            style={{
+                marginTop: 10,
+                fontWeight: '600',
+                color: isDark ? '#fff' : '#000',
+                textAlign: 'center',
+            }}
+        >
+            {message}
+        </Text>
+    </View>
+);
+
 const Index = () => {
     const [menuOpen, setMenuOpen] = useState(false);
     const [triggerSearchOpen, setTriggerSearchOpen] = useState(false);
@@ -87,6 +115,14 @@ const Index = () => {
             setTriggerSearchOpen(true);
         }
     }, [openSearch]);
+
+    const uniqById = (arr: WPPost[]) => {
+        const map = new Map<number, WPPost>();
+        for (const p of arr || []) map.set(p.id, p);
+        return Array.from(map.values());
+    };
+
+    const uniquePosts = React.useMemo(() => uniqById(posts), [posts]);
 
     const goToPost = (postId: number) => {
         if (isLoading) return;
@@ -254,7 +290,7 @@ const Index = () => {
 
             {(loading || searchLoading) ? (
                 <View className="flex-1 items-center justify-center">
-                    <ActivityIndicator size="large" color="#201F5B" />
+                    <LoadingOverlay isDark={isDark} message="Učitavanje..." />
                 </View>
             ) : isSearchActive ? (
                 posts.length === 0 && noSearchResults ? (
@@ -265,7 +301,7 @@ const Index = () => {
                     </View>
                 ) : (
                     <FlatList
-                        data={posts}
+                        data={uniquePosts}
                         renderItem={renderItem}
                         keyExtractor={(item) => item.id.toString()}
                         contentContainerStyle={{ paddingBottom: 90 }}
@@ -283,7 +319,7 @@ const Index = () => {
                 )
             ) : activeCategory === 'Naslovna' && (!initialized || Object.keys(groupedPosts).length === 0) ? (
                 <View className="flex-1 items-center justify-center">
-                    <ActivityIndicator size="large" color="#201F5B" />
+                    <LoadingOverlay isDark={isDark} message="Učitavanje objava..." />
                 </View>
             ) : activeCategory === 'Naslovna' && Object.keys(groupedPosts).length > 0 ? (
                 <ScrollView
