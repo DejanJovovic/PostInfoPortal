@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, {useEffect, useRef} from 'react';
 import {
     View,
     ScrollView,
@@ -7,15 +7,16 @@ import {
     findNodeHandle,
     View as RNView, UIManager,
 } from 'react-native';
-import { menuData } from '@/types/menuData';
+import {menuData} from '@/types/menuData';
 import {useTheme} from "@/components/ThemeContext";
+import colors from "@/constants/colors";
 
 type Props = {
     onSelectCategory: (categoryName: string) => void;
     activeCategory: string;
 };
 
-const CustomMenuCategories: React.FC<Props> = ({ onSelectCategory, activeCategory }) => {
+const CustomMenuCategories: React.FC<Props> = ({onSelectCategory, activeCategory}) => {
     const categories = menuData
         .map((item) => (typeof item === 'string' ? item : item.title))
         .filter((category) => category !== 'Latin | Ćirilica');
@@ -23,7 +24,7 @@ const CustomMenuCategories: React.FC<Props> = ({ onSelectCategory, activeCategor
     const scrollViewRef = useRef<ScrollView>(null);
     const categoryRefs = useRef<Record<string, RNView | null>>({});
 
-    const { theme } = useTheme();
+    const {theme} = useTheme();
     const isDark = theme === 'dark';
 
     useEffect(() => {
@@ -40,7 +41,7 @@ const CustomMenuCategories: React.FC<Props> = ({ onSelectCategory, activeCategor
                     scrollHandle,
                     () => console.warn('Greška pri pomeranju na kategoriju.'),
                     (x: number) => {
-                        scrollNode.scrollTo({ x: x - 16, animated: true });
+                        scrollNode.scrollTo({x: x - 16, animated: true});
                     }
                 );
             }
@@ -49,12 +50,12 @@ const CustomMenuCategories: React.FC<Props> = ({ onSelectCategory, activeCategor
 
     return (
         <View className="h-[60px] w-full"
-              style={{ backgroundColor: isDark ? '#000000' : 'white' }}>
+              style={{backgroundColor: isDark ? colors.black : colors.grey}}>
             <ScrollView
                 ref={scrollViewRef}
                 horizontal
                 showsHorizontalScrollIndicator={true}
-                contentContainerStyle={{ paddingHorizontal: 16, alignItems: 'center' }}
+                contentContainerStyle={{paddingHorizontal: 16, alignItems: 'center'}}
                 className="flex-row"
             >
                 {categories.map((category) => (
@@ -67,13 +68,14 @@ const CustomMenuCategories: React.FC<Props> = ({ onSelectCategory, activeCategor
                         }}
                     >
                         <Text
-                            className={`uppercase font-bold ${
+                            className={`uppercase ${
                                 activeCategory === category
                                     ? 'text-[#FA0A0F]'
                                     : isDark
-                                        ? 'text-white'
+                                        ? 'text-[#F9F9F9]'
                                         : 'text-black'
                             }`}
+                            style={{fontFamily: 'YesevaOne-Regular'}}
                         >
                             {category}
                         </Text>

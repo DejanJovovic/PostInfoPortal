@@ -1,5 +1,5 @@
 import {useEffect, useRef} from 'react';
-import {View, Animated, Dimensions} from 'react-native';
+import {Animated, Dimensions} from 'react-native';
 import {Image} from 'expo-image';
 import {StatusBar} from 'expo-status-bar';
 import colors from "@/constants/colors";

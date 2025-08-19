@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {
     View,
     Text,
@@ -8,15 +8,17 @@ import {
     StyleSheet,
 } from 'react-native';
 import icons from '@/constants/icons';
-import { router, useFocusEffect, usePathname } from 'expo-router';
-import { getUnreadCount, inboxSubscribe } from '@/types/notificationInbox';
+import {router, useFocusEffect, usePathname} from 'expo-router';
+import {getUnreadCount, inboxSubscribe} from '@/types/notificationInbox';
+import colors from "@/constants/colors";
+import {useTheme} from "@/components/ThemeContext";
 
 const navItems = [
-    { key: 'home', label: 'Naslovna', icon: icons.home },
-    { key: 'notifications', label: 'Najnovije', icon: icons.bell },
-    { key: 'favorites', label: 'Moje kategorije', icon: icons.add },
-    { key: 'categories', label: 'Sve kategorije', icon: icons.allCategories },
-    { key: 'search', label: 'Pretraga', icon: icons.search },
+    {key: 'home', label: 'Naslovna', icon: icons.home},
+    {key: 'notifications', label: 'Najnovije', icon: icons.bell},
+    {key: 'favorites', label: 'Moje kategorije', icon: icons.add},
+    {key: 'categories', label: 'Sve kategorije', icon: icons.allCategories},
+    {key: 'search', label: 'Pretraga', icon: icons.search},
 ];
 
 type CustomFooterProps = {
@@ -26,9 +28,11 @@ type CustomFooterProps = {
 // for router.push
 type RouteTarget = '/' | '/notifications' | '/favorites' | '/categories';
 
-const CustomFooter: React.FC<CustomFooterProps> = ({ onSearchPress }) => {
+const CustomFooter: React.FC<CustomFooterProps> = ({onSearchPress}) => {
     const pathname = usePathname();
     const [unread, setUnread] = useState<number>(0);
+    const {theme} = useTheme();
+    const isDark = theme === 'dark';
 
     const [isLoading, setIsLoading] = useState(false);
 
@@ -110,31 +114,37 @@ const CustomFooter: React.FC<CustomFooterProps> = ({ onSearchPress }) => {
                     height: 16,
                     paddingHorizontal: 4,
                     borderRadius: 8,
-                    backgroundColor: '#FA0A0F',
+                    backgroundColor: colors.red,
                     alignItems: 'center',
                     justifyContent: 'center',
                 }}
             >
-                <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>{text}</Text>
+                <Text style={{
+                    color: colors.grey,
+                    fontSize: 10,
+                    fontWeight: '700',
+                    fontFamily: 'YesevaOne-Regular'
+                }}>{text}</Text>
             </View>
         );
     };
 
     return (
         <>
-            <View className="absolute bottom-0 w-full mb-5 bg-[#201F5B] rounded-3xl flex-row justify-between items-center px-2 py-3 z-50">
+            <View
+                className="absolute bottom-0 w-full mb-5 bg-[#201F5B] rounded-3xl flex-row justify-between items-center px-2 py-3 z-50">
                 {navItems.map((item) => {
                     const isActive = active === item.key;
-                    const tintColor = isActive ? '#FA0A0F' : '#FFFFFF';
+                    const tintColor = isActive ? colors.red : colors.grey;
 
                     const iconWithBadge =
                         item.key === 'notifications' ? (
-                            <View style={{ position: 'relative' }}>
-                                <Image source={item.icon} style={{ width: 24, height: 24, tintColor }} />
+                            <View style={{position: 'relative'}}>
+                                <Image source={item.icon} style={{width: 24, height: 24, tintColor}}/>
                                 {renderCount(unread)}
                             </View>
                         ) : (
-                            <Image source={item.icon} style={{ width: 24, height: 24, tintColor }} />
+                            <Image source={item.icon} style={{width: 24, height: 24, tintColor}}/>
                         );
 
                     return (
@@ -146,7 +156,8 @@ const CustomFooter: React.FC<CustomFooterProps> = ({ onSearchPress }) => {
                             activeOpacity={0.8}
                         >
                             {iconWithBadge}
-                            <Text style={{ color: tintColor }} className="text-[8px] mt-1">
+                            <Text style={{color: tintColor, fontFamily: 'YesevaOne-Regular'}}
+                                  className="text-[8px] mt-1">
                                 {item.label}
                             </Text>
                         </TouchableOpacity>
@@ -160,15 +171,20 @@ const CustomFooter: React.FC<CustomFooterProps> = ({ onSearchPress }) => {
                         {
                             justifyContent: 'center',
                             alignItems: 'center',
-                            backgroundColor: 'rgba(0,0,0,0.35)', // blagi dim
+                            backgroundColor: 'rgba(0,0,0,0.35)',
                             zIndex: 9999,
                             elevation: 9999,
                         },
                     ]}
                     pointerEvents="auto"
                 >
-                    <ActivityIndicator size="large" color="#fff" />
-                    <Text style={{ marginTop: 10, color: '#fff', fontWeight: '600' }}>Učitavanje...</Text>
+                    <ActivityIndicator size="large" color={isDark ? colors.grey : colors.black}/>
+                    <Text style={{
+                        marginTop: 10,
+                        color: isDark ? colors.grey : colors.black,
+                        fontWeight: '600',
+                        fontFamily: 'Roboto-Regular'
+                    }}>Učitavanje...</Text>
                 </View>
             )}
         </>

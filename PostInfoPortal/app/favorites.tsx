@@ -20,6 +20,7 @@ import CustomFooter from '@/components/CustomFooter';
 import CustomSearchBar from '@/components/CustomSearchBar';
 import icons from '@/constants/icons';
 import {useTheme} from '@/components/ThemeContext';
+import colors from "@/constants/colors";
 
 type FavoritePost = WPPost & { category: string };
 
@@ -159,16 +160,23 @@ const Favorites = () => {
     const highlightSearchTerm = (text: string, term: string) => {
         if (!term) {
             return (
-                <Text className="text-base font-semibold mb-1" style={{color: isDark ? 'white' : 'black'}}>
+                <Text style={{
+                    color: isDark ? colors.grey : colors.black,
+                    fontFamily: 'Roboto-Bold'
+                }}>
                     {text}
                 </Text>
             );
         }
         const parts = text.split(new RegExp(`(${term})`, 'gi'));
         return (
-            <Text className="text-base font-semibold mb-1" style={{color: isDark ? 'white' : 'black'}}>
+            <Text className="mb-1" style={{
+                color: isDark ? '#fff' : '#000000',
+                fontFamily: 'Roboto-ExtraBold'
+            }}>
                 {parts.map((part, i) => (
-                    <Text key={i} className={part.toLowerCase() === term.toLowerCase() ? 'font-bold text-[#FA0A0F]' : ''}>
+                    <Text key={i}
+                          className={part.toLowerCase() === term.toLowerCase() ? 'font-bold text-[#FA0A0F]' : ''}>
                         {part}
                     </Text>
                 ))}
@@ -186,14 +194,15 @@ const Favorites = () => {
                 <View
                     className="rounded-2xl shadow-md p-3 border"
                     style={{
-                        backgroundColor: isDark ? '#1b1b1b' : 'white',
-                        borderColor: isDark ? '#333' : '#e5e7eb',
+                        backgroundColor: isDark ? colors.black : colors.grey,
+                        borderColor: isDark ? '#525050' : '#e5e7eb',
                         height: isSearchActive ? undefined : 250,
                     }}
                 >
                     <TouchableOpacity onPress={() => goToPost(item.id)} disabled={isLoading}>
                         {image && (
-                            <Image source={{uri: image}} className="w-full h-[110px] rounded-xl mb-2" resizeMode="cover" />
+                            <Image source={{uri: image}} className="w-full h-[110px] rounded-xl mb-2"
+                                   resizeMode="cover"/>
                         )}
                         <View>
                             {isSearchActive ? (
@@ -201,8 +210,11 @@ const Favorites = () => {
                             ) : (
                                 <Text
                                     numberOfLines={2}
-                                    className="text-base font-semibold mb-1"
-                                    style={{color: isDark ? 'white' : 'black'}}
+                                    className="mb-1"
+                                    style={{
+                                        color: isDark ? colors.grey : colors.black,
+                                        fontFamily: 'Roboto-ExtraBold',
+                                    }}
                                 >
                                     {item.title.rendered.replace(/<[^>]+>/g, '')}
                                 </Text>
@@ -210,15 +222,22 @@ const Favorites = () => {
                         </View>
 
                         <View className="flex-row justify-between items-center mb-1">
-                            <Text className="text-xs" style={{color: isDark ? '#9ca3af' : '#6b7280'}}>
+                            <Text className="text-xs mt-1 mb-1" style={{
+                                color: isDark ? colors.grey : colors.black,
+                                fontFamily: 'YesevaOne-Regular'
+                            }}>
                                 {date}
                             </Text>
                             <TouchableOpacity onPress={() => removePost(item.id)} disabled={isLoading}>
-                                <Image source={icons.close} style={{width: 20, height: 20, tintColor: isDark ? 'white' : 'black'}} />
+                                <Image source={icons.close}
+                                       style={{width: 20, height: 20, tintColor: isDark ? colors.grey : colors.black}}/>
                             </TouchableOpacity>
                         </View>
 
-                        <Text className="text-sm" numberOfLines={2} style={{color: isDark ? '#686c75' : '#b9babe'}}>
+                        <Text className="text-sm" numberOfLines={3} style={{
+                            color: isDark ? colors.grey : colors.black,
+                            fontFamily: 'Roboto-Light'
+                        }}>
                             {excerpt}
                         </Text>
                     </TouchableOpacity>
@@ -228,14 +247,16 @@ const Favorites = () => {
     };
 
     return (
-        <SafeAreaView className="flex-1" style={{backgroundColor: isDark ? '#000' : '#fff'}}>
+        <SafeAreaView className="flex-1" style={{backgroundColor: isDark ? colors.black : colors.grey}}>
             <CustomHeader
-                onCategorySelected={() => {}}
+                onCategorySelected={() => {
+                }}
                 activeCategory={activeCategory}
                 triggerSearchOpen={triggerSearchOpen}
                 onSearchQuery={setSearchQuery}
                 showMenu={false}
-                onMenuToggle={() => {}}
+                onMenuToggle={() => {
+                }}
                 onBackPress={handleBackWithLoading}
                 loadingNav={isLoading}
             />
@@ -243,10 +264,28 @@ const Favorites = () => {
             {isSearchActive && (
                 <View className="px-2 py-4">
                     <View className="flex-row items-center justify-between px-2 mt-2">
-                        <Text className="text-base font-bold flex-1" style={{color: isDark ? '#F9F9F9' : '#1f2937'}}>
-                            {searchQuery.trim().length > 0
-                                ? `Rezultati pretrage "${searchQuery}"`
-                                : 'Unesite željenu reč za pretragu ispod'}
+                        <Text
+                            className="mt-2 px-2"
+                            style={{
+                                color: isDark ? colors.grey : colors.black,
+                                fontFamily: 'Roboto-Medium',
+                            }}
+                        >
+                            {searchQuery.trim().length > 0 ? (
+                                <>
+                                    Rezultati pretrage{" "}
+                                    <Text
+                                        style={{
+                                            color: colors.red,
+                                            fontFamily: "Roboto-Bold",
+                                        }}
+                                    >
+                                        &#34;{searchQuery}&#34;
+                                    </Text>
+                                </>
+                            ) : (
+                                "Unesite željenu reč za pretragu ispod"
+                            )}
                         </Text>
 
                         {searchQuery.trim().length > 0 && (
@@ -256,8 +295,8 @@ const Favorites = () => {
                                     setIsSearchActive(false);
                                     setTriggerSearchOpen(false);
                                 }}
-                                className="ml-3 text-lg font-bold"
-                                style={{color: '#FA0A0F'}}
+                                className="mr-3"
+                                style={{color: colors.red}}
                             >
                                 ✕
                             </Text>
@@ -273,7 +312,7 @@ const Favorites = () => {
                             setIsSearchActive(false);
                             setTriggerSearchOpen(false);
                         }}
-                        backgroundColor="#201F5B"
+                        backgroundColor={colors.blue}
                     />
                 </View>
             )}
@@ -281,21 +320,27 @@ const Favorites = () => {
             <ScrollView
                 contentContainerStyle={{paddingBottom: 100}}
                 className="px-4 pt-4"
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh}/>}
             >
                 {Object.entries(getFilteredFavorites()).length === 0 ? (
-                    <Text className="text-center mt-10" style={{color: isDark ? 'white' : 'black'}}>
+                    <Text className="text-center mt-10" style={{
+                        color: isDark ? colors.grey : colors.black,
+                        fontFamily: 'Roboto-Regular'
+                    }}>
                         Nema sačuvanih omiljenih objava.
                     </Text>
                 ) : (
                     Object.entries(getFilteredFavorites()).map(([category, posts]) => (
                         <View key={category} className="mb-6">
                             <View className="flex-row items-center justify-between mt-5 mb-3">
-                                <Text className="text-xl font-bold" style={{color: isDark ? '#FFFFFF' : '#000000'}}>
+                                <Text className="text-xl" style={{
+                                    color: isDark ? colors.grey : colors.black,
+                                fontFamily: "YesevaOne-Regular"}}>
                                     {category}
                                 </Text>
                                 <TouchableOpacity onPress={() => removeCategory(category)} disabled={isLoading}>
-                                    <Image source={icons.close} style={{width: 20, height: 20, tintColor: isDark ? 'white' : 'black'}} />
+                                    <Image source={icons.close}
+                                           style={{width: 20, height: 20, tintColor: isDark ? colors.grey : colors.black}}/>
                                 </TouchableOpacity>
                             </View>
 
@@ -308,7 +353,7 @@ const Favorites = () => {
                                 scrollEnabled={!isLoading}
                             />
 
-                            <View className="h-[1px] mt-5" style={{backgroundColor: isDark ? '#FFFFFF' : '#1a1a1a'}} />
+                            <View className="h-[1px] mt-5" style={{backgroundColor: isDark ? colors.grey : colors.black}}/>
                         </View>
                     ))
                 )}
@@ -328,12 +373,13 @@ const Favorites = () => {
                     ]}
                     pointerEvents="auto"
                 >
-                    <ActivityIndicator size="large" color={isDark ? '#fff' : '#000'} />
+                    <ActivityIndicator size="large" color={isDark ? colors.grey : colors.black}/>
                     <Text
                         style={{
                             marginTop: 10,
                             fontWeight: '600',
-                            color: isDark ? '#fff' : '#000',
+                            fontFamily: 'Roboto-Regular',
+                            color: isDark ? colors.grey : colors.black,
                             textAlign: 'center',
                         }}
                     >
@@ -342,7 +388,7 @@ const Favorites = () => {
                 </View>
             )}
 
-            <CustomFooter onSearchPress={handleFooterSearch} />
+            <CustomFooter onSearchPress={handleFooterSearch}/>
         </SafeAreaView>
     );
 };

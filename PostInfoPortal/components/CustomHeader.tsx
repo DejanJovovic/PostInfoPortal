@@ -116,7 +116,7 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({
                     <Image
                         source={icons.backArrow}
                         className="w-5 h-5"
-                        tintColor="white"
+                        tintColor={colors.grey}
                         resizeMode="contain"
                     />
                 </TouchableOpacity>
@@ -129,7 +129,7 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({
                     <Image
                         source={icons.menu}
                         className="w-6 h-6"
-                        tintColor="white"
+                        tintColor={colors.grey}
                         resizeMode="contain"
                     />
                 </TouchableOpacity>
@@ -157,7 +157,7 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({
                             autoFocus={triggerSearchOpen}
                         />
 
-                        <View className="h-[1px] bg-gray-700 mt-4 mb-2 mx-2"/>
+                        <View className="h-[1px] bg-[#F9F9F9] mt-4 mb-2 mx-2"/>
                         <MenuDrawer
                             onCategorySelect={(category) => {
                                 onCategorySelected?.(category);

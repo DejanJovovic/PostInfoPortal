@@ -1,6 +1,7 @@
 import React, {useState, useEffect} from 'react';
 import {View, Text, TouchableOpacity, Image} from 'react-native';
 import icons from '@/constants/icons';
+import colors from "@/constants/colors";
 
 type CategoryItem = {
     title: string;
@@ -71,11 +72,14 @@ const MenuCategoryItem: React.FC<MenuCategoryItemProps> = ({
                     className="flex-1"
                 >
                     <Text
-                        className={`text-base font-bold ${
+                        className={`${
                             isActive ? 'text-[#FA0A0F]' : level === 0
-                                ? 'text-white'
-                                : 'text-gray-400'}`}
-                        style={{marginLeft: level * 12}}
+                                ? 'text-[#F9F9F9]'
+                                : 'text-[#9ca3af]'}`}
+                        style={{
+                            fontFamily: 'YesevaOne-Regular',
+                            marginLeft: level * 12
+                        }}
                     >{title}</Text>
                 </TouchableOpacity>
 
@@ -85,7 +89,7 @@ const MenuCategoryItem: React.FC<MenuCategoryItemProps> = ({
                         <Image
                             source={expanded ? icons.downArrow : icons.rightArrow}
                             className="w-4 h-4"
-                            tintColor="gray"
+                            tintColor="#9ca3af"
                         />
                     </TouchableOpacity>
                 )}
@@ -107,7 +111,7 @@ const MenuCategoryItem: React.FC<MenuCategoryItemProps> = ({
                                 activeCategory={activeCategory}
                                 rootParent={title === 'Lokal' ? 'Lokal' : rootParent}
                             />
-                            {isFromLokal && <View className="h-[1px] bg-gray-700 mx-4"/>}
+                            {isFromLokal && <View className="h-[1px] bg-[#9ca3af] mx-4"/>}
                         </View>
                     );
                 })}

@@ -10,17 +10,18 @@ import {
 } from 'react-native';
 import {useTheme} from './ThemeContext';
 import {WPPost} from '@/types/wp';
+import colors from "@/constants/colors";
 
 interface Props {
     categoryName: string;
     posts: WPPost[];
     /** Naslovna posts UI */
     showFeaturedFirst?: boolean;
-    /** posts UI for other categories */
+    /** posts UI for other kategorije */
     gridAfterFirst?: boolean;
     refreshing?: boolean;
     onRefresh?: () => void;
-    onPostPress: (postId: number, categoryName: string) => void; // 👈 NEW
+    onPostPress: (postId: number, categoryName: string) => void;
     loadingNav?: boolean;
 }
 
@@ -32,7 +33,7 @@ const CustomPostsSection: React.FC<Props> = ({
                                                  refreshing,
                                                  onRefresh,
                                                  onPostPress,
-                                                 loadingNav
+                                                 loadingNav,
                                              }) => {
     const {theme} = useTheme();
     const isDark = theme === 'dark';
@@ -47,24 +48,37 @@ const CustomPostsSection: React.FC<Props> = ({
             <View
                 className="rounded-2xl shadow-md p-3 border"
                 style={{
-                    backgroundColor: isDark ? '#1b1b1b' : 'white',
-                    borderColor: isDark ? '#333' : '#e5e7eb',
+                    backgroundColor: isDark ? colors.black : colors.grey,
+                    borderColor: isDark ? '#525050' : '#e5e7eb',
                 }}
             >
                 {image && (
-                    <Image source={{uri: image}} className="w-full h-[110px] rounded-xl mb-2" resizeMode="cover"/>
+                    <Image
+                        source={{uri: image}}
+                        className="w-full h-[110px] rounded-xl mb-2"
+                        resizeMode="cover"
+                    />
                 )}
                 <Text
-                    className="text-base font-semibold mb-1"
-                    style={{color: isDark ? 'white' : 'black'}}
+                    className="mb-1"
+                    style={{
+                        color: isDark ? colors.grey : colors.black,
+                        fontFamily: 'Roboto-ExtraBold'
+                    }}
                     numberOfLines={2}
                 >
                     {postTitle}
                 </Text>
-                <Text className="text-xs mb-1" style={{color: isDark ? '#9ca3af' : '#6b7280'}}>
+                <Text className="text-xs mt-1 mb-1" style={{
+                    color: isDark ? colors.grey : colors.black,
+                    fontFamily: 'YesevaOne-Regular'
+                }}>
                     {date}
                 </Text>
-                <Text className="text-sm" numberOfLines={2} style={{color: isDark ? '#959898' : '#999a9b'}}>
+                <Text className="text-sm" numberOfLines={3} style={{
+                    color: isDark ? colors.grey : colors.black,
+                    fontFamily: 'Roboto-Light'
+                }}>
                     {excerpt}
                 </Text>
             </View>
@@ -81,18 +95,31 @@ const CustomPostsSection: React.FC<Props> = ({
             <View
                 className="rounded-2xl shadow-md mb-4 mx-4 p-4 border"
                 style={{
-                    backgroundColor: isDark ? '#1b1b1b' : 'white',
-                    borderColor: isDark ? '#333' : '#e5e7eb',
+                    backgroundColor: isDark ? colors.black : colors.grey,
+                    borderColor: isDark ? '#525050' : '#e5e7eb',
                 }}
             >
                 {image && <Image source={{uri: image}} className="w-full h-48 rounded-xl mb-3" resizeMode="cover"/>}
-                <Text className="font-bold text-base" style={{color: isDark ? '#fff' : '#000000'}} numberOfLines={2}>
+                <Text
+                    className="mb-1"
+                    style={{
+                        color: isDark ? colors.grey : colors.black,
+                        fontFamily: 'Roboto-ExtraBold'
+                    }}
+                    numberOfLines={2}
+                >
                     {postTitle}
                 </Text>
-                <Text className="text-xs mb-1" style={{color: isDark ? '#9ca3af' : '#6b7280'}}>
+                <Text className="text-xs mt-1 mb-1" style={{
+                    color: isDark ? colors.grey : colors.black,
+                    fontFamily: 'YesevaOne-Regular'
+                }}>
                     {date}
                 </Text>
-                <Text className="text-sm" numberOfLines={3} style={{color: isDark ? '#959898' : '#999a9b'}}>
+                <Text className="text-sm" numberOfLines={3} style={{
+                    color: isDark ? colors.grey : colors.black,
+                    fontFamily: 'Roboto-Light'
+                }}>
                     {excerpt}
                 </Text>
             </View>
@@ -107,15 +134,17 @@ const CustomPostsSection: React.FC<Props> = ({
                 contentContainerStyle={{paddingBottom: 8}}
                 showsVerticalScrollIndicator={false}
                 refreshControl={
-                    refreshing !== undefined && onRefresh
-                        ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh}/>
-                        : undefined
+                    refreshing !== undefined && onRefresh ? (
+                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh}/>
+                    ) : undefined
                 }
             >
                 {posts.length > 0 && (
-                    <TouchableOpacity onPress={() => onPostPress(posts[0].id, categoryName)}
-                                      disabled={loadingNav}
-                                      activeOpacity={0.8}>
+                    <TouchableOpacity
+                        onPress={() => onPostPress(posts[0].id, categoryName)}
+                        disabled={loadingNav}
+                        activeOpacity={0.8}
+                    >
                         <FeaturedCard item={posts[0]}/>
                     </TouchableOpacity>
                 )}
@@ -131,9 +160,11 @@ const CustomPostsSection: React.FC<Props> = ({
                         >
                             {rest.map((item) => (
                                 <View key={item.id} style={{width: '48%', marginBottom: 12}}>
-                                    <TouchableOpacity onPress={() => onPostPress(posts[0].id, categoryName)}
-                                                      disabled={loadingNav}
-                                                      activeOpacity={0.8}>
+                                    <TouchableOpacity
+                                        onPress={() => onPostPress(item.id, categoryName)}
+                                        disabled={loadingNav}
+                                        activeOpacity={0.8}
+                                    >
                                         <Card item={item}/>
                                     </TouchableOpacity>
                                 </View>
@@ -149,14 +180,21 @@ const CustomPostsSection: React.FC<Props> = ({
 
     return (
         <View className="mb-6">
-            <Text className="text-xl font-extrabold px-4 mb-3" style={{color: isDark ? '#fff' : '#000'}}>
+            <Text className="text-xl px-4 mb-3"
+                  style={{
+                      color: isDark ? colors.grey : colors.black,
+                      fontFamily: 'YesevaOne-Regular',
+                      marginTop: 35
+                  }}>
                 {categoryName}
             </Text>
 
             {showFeaturedFirst && posts.length > 0 && (
-                <TouchableOpacity onPress={() => onPostPress(posts[0].id, categoryName)}
-                                  disabled={loadingNav}
-                                  activeOpacity={0.8}>
+                <TouchableOpacity
+                    onPress={() => onPostPress(posts[0].id, categoryName)}
+                    disabled={loadingNav}
+                    activeOpacity={0.8}
+                >
                     <FeaturedCard item={posts[0]}/>
                 </TouchableOpacity>
             )}
@@ -165,10 +203,12 @@ const CustomPostsSection: React.FC<Props> = ({
                 <FlatList
                     data={horizontalData}
                     renderItem={({item}) => (
-                        <TouchableOpacity className="w-[240px] mr-3"
-                                          onPress={() => onPostPress(posts[0].id, categoryName)}
-                                          disabled={loadingNav}
-                                          activeOpacity={0.8}>
+                        <TouchableOpacity
+                            className="w-[240px] mr-3"
+                            onPress={() => onPostPress(item.id, categoryName)}
+                            disabled={loadingNav}
+                            activeOpacity={0.8}
+                        >
                             <Card item={item}/>
                         </TouchableOpacity>
                     )}

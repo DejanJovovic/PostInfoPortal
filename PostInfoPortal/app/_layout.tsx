@@ -7,12 +7,24 @@ import SplashScreen from "@/components/SplashScreen";
 import { ThemeProvider } from "@/components/ThemeContext";
 import { useOneSignalDeepLinks } from "@/hooks/useOneSignalDeepLinks";
 import { RouteTarget } from "@/types/routeDeepLink";
+import {useFonts} from "expo-font";
 
 enableScreens();
 
 export default function RootLayout() {
     const router = useRouter();
     const [showCustomSplash, setShowCustomSplash] = React.useState(true);
+
+    const [fontsLoaded] = useFonts({
+        'Roboto-Bold': require('../assets/fonts/Roboto-Bold.ttf'),
+        'Roboto-ExtraBold': require('../assets/fonts/Roboto-ExtraBold.ttf'),
+        'Roboto-Light': require('../assets/fonts/Roboto-Light.ttf'),
+        'Roboto-Medium': require('../assets/fonts/Roboto-Medium.ttf'),
+        'Roboto-Regular': require('../assets/fonts/Roboto-Regular.ttf'),
+        'Roboto-SemiBold': require('../assets/fonts/Roboto-SemiBold.ttf'),
+        'YesevaOne-Regular': require('../assets/fonts/YesevaOne-Regular.ttf'),
+
+    });
 
     // hides splash when openning the notification
     const fastRoute = (to: RouteTarget) => {
