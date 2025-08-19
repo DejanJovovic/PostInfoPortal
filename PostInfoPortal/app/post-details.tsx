@@ -21,10 +21,11 @@ import {useTheme} from '@/components/ThemeContext';
 import icons from '@/constants/icons';
 import {WPPost} from '@/types/wp';
 
-// 🔹 notifications inbox helpers (read only for preview mode)
+// notifications inbox helpers (read only for preview mode)
 import {getInbox, type InboxItem} from '@/types/notificationInbox';
 import CustomFooter from "@/components/CustomFooter";
 import {globalSearch} from "@/utils/searchNavigation";
+import colors from "@/constants/colors";
 
 const deriveCategoryName = (post: any): string | undefined => {
     const groups = post?._embedded?.['wp:term'];
@@ -61,7 +62,7 @@ const PostDetails = () => {
     const [isLoading, setIsLoading] = useState(false);
     const navigation = useNavigation();
 
-    // 🔸 if we’re showing a notification-only preview (no network/cache)
+    // if showing a notification-only preview (no network/cache)
     const [preview, setPreview] = useState<PreviewFromNotification | null>(null);
 
     const {theme} = useTheme();
@@ -108,9 +109,10 @@ const PostDetails = () => {
                     const cached = allPosts.find((p) => p.id === idNum);
                     if (cached) {
                         setPostData(cached);
-                        if (!activeCategory) {
-                            const derived = deriveCategoryName(cached);
-                            if (derived) setActiveCategory(derived);
+
+                        const derived = deriveCategoryName(cached);
+                        if (derived && (!activeCategory || activeCategory === 'Naslovna')) {
+                            setActiveCategory(derived);
                         }
                         return;
                     }
@@ -144,9 +146,10 @@ const PostDetails = () => {
                 if (!json || !json.id) throw new Error('Objava nije pronađena');
 
                 setPostData(json);
-                if (!activeCategory) {
-                    const derived = deriveCategoryName(json);
-                    if (derived) setActiveCategory(derived);
+
+                const derived = deriveCategoryName(json);
+                if (derived && (!activeCategory || activeCategory === 'Naslovna')) {
+                    setActiveCategory(derived);
                 }
             } catch (e: any) {
                 console.warn('Greška pri učitavanju objave:', e?.message ?? e);
@@ -217,9 +220,9 @@ const PostDetails = () => {
                 });
             } else {
                 const categoryToSave =
-                    activeCategory ||
+                    (postData ? deriveCategoryName(postData) : undefined) ||
                     preview?.categoryName ||
-                    (postData ? deriveCategoryName(postData) : '') ||
+                    (activeCategory && activeCategory !== 'Naslovna' ? activeCategory : undefined) ||
                     'Naslovna';
 
                 // Save either the full WP post (if we have it) or a minimal object from preview
@@ -321,10 +324,12 @@ const PostDetails = () => {
         return (
             <SafeAreaView
                 className="flex-1 items-center justify-center"
-                style={{backgroundColor: isDark ? '#000' : '#fff'}}
+                style={{backgroundColor: isDark ? colors.black : colors.grey}}
             >
-                <ActivityIndicator size="large" color={isDark ? '#fff' : '#000'}/>
-                <Text className="mt-4" style={{color: isDark ? '#fff' : '#000'}}>
+                <ActivityIndicator size="large" color={isDark ? colors.grey : colors.black}/>
+                <Text className="mt-4" style={{
+                    color: isDark ? colors.grey : colors.black,
+                fontFamily: 'Roboto-Regular'}}>
                     Učitavanje objave...
                 </Text>
             </SafeAreaView>
@@ -336,9 +341,11 @@ const PostDetails = () => {
         return (
             <SafeAreaView
                 className="flex-1 items-center justify-center px-6"
-                style={{backgroundColor: isDark ? '#000' : '#fff'}}
+                style={{backgroundColor: isDark ? colors.black : colors.grey}}
             >
-                <Text className="text-center" style={{color: isDark ? '#fff' : '#000'}}>
+                <Text className="text-center" style={{
+                    color: isDark ? colors.grey : colors.black,
+                fontFamily: 'Roboto-Regular'}}>
                     {error || 'Objava nije pronađena.'}
                 </Text>
             </SafeAreaView>
@@ -350,7 +357,7 @@ const PostDetails = () => {
         return (
             <SafeAreaView
                 className="flex-1"
-                style={{backgroundColor: isDark ? '#000000' : 'white'}}
+                style={{backgroundColor: isDark ? colors.black : colors.grey}}
             >
                 <CustomHeader
                     onMenuToggle={(visible) => setMenuOpen(visible)}
@@ -372,8 +379,10 @@ const PostDetails = () => {
 
                     <View className="flex-row justify-between items-center mb-2">
                         <Text
-                            className="text-xl font-bold flex-1 pr-4"
-                            style={{color: isDark ? '#fff' : '#000000'}}
+                            className="text-xl flex-1 pr-4"
+                            style={{
+                                color: isDark ? colors.grey : colors.black,
+                            fontFamily: 'Roboto-ExtraBold'}}
                             numberOfLines={3}
                         >
                             {preview.title || 'Objava'}
@@ -384,13 +393,16 @@ const PostDetails = () => {
                                 style={{
                                     width: 24,
                                     height: 24,
-                                    tintColor: isBookmarked ? 'red' : isDark ? 'white' : 'black',
+                                    tintColor: isBookmarked ? colors.red : isDark ? colors.grey : colors.black,
                                 }}
                             />
                         </TouchableOpacity>
                     </View>
 
-                    <Text className="text-gray-400 text-sm mb-3">
+                    <Text className="text-sm mt-1 mb-1" style={{
+                        color: isDark ? colors.grey : colors.black,
+                        fontFamily: 'YesevaOne-Regular'
+                    }}>
                         {preview.receivedAt
                             ? new Date(preview.receivedAt).toLocaleDateString('sr-RS', {
                                 year: 'numeric',
@@ -419,12 +431,16 @@ const PostDetails = () => {
                     </View>
 
                     {!!preview.message && (
-                        <Text style={{color: isDark ? '#fff' : '#000', fontSize: 16, lineHeight: 22}}>
+                        <Text style={{
+                            color: isDark ? colors.grey : colors.black,
+                            fontFamily: 'Roboto-Regular',
+                            fontSize: 16,
+                            lineHeight: 22}}>
                             {preview.message}
                         </Text>
                     )}
                 </ScrollView>
-                <CustomFooter/>
+                <CustomFooter onSearchPress={() => router.push(globalSearch())}/>
             </SafeAreaView>
         );
     }
@@ -436,7 +452,7 @@ const PostDetails = () => {
     return (
         <SafeAreaView
             className="flex-1"
-            style={{backgroundColor: isDark ? '#000000' : 'white'}}
+            style={{backgroundColor: isDark ? colors.black : colors.grey}}
         >
             <CustomHeader
                 onMenuToggle={(visible) => setMenuOpen(visible)}
@@ -458,8 +474,10 @@ const PostDetails = () => {
 
                 <View className="flex-row justify-between items-center mb-2">
                     <Text
-                        className="text-xl font-bold flex-1 pr-4"
-                        style={{color: isDark ? '#fff' : '#000000'}}
+                        className="text-xl flex-1 pr-4"
+                        style={{
+                            color: isDark ? colors.grey: colors.black,
+                        fontFamily: 'Roboto-ExtraBold'}}
                         numberOfLines={3}
                     >
                         {titleRendered}
@@ -470,13 +488,17 @@ const PostDetails = () => {
                             style={{
                                 width: 24,
                                 height: 24,
-                                tintColor: isBookmarked ? 'red' : isDark ? 'white' : 'black',
+                                tintColor: isBookmarked ? colors.red : isDark ? colors.grey : colors.black,
                             }}
                         />
                     </TouchableOpacity>
                 </View>
 
-                <Text className="text-gray-400 text-sm mb-3">{formattedDate || '-'}</Text>
+                <Text className="text-sm mb-3" style={{
+                    color: isDark ? colors.grey : colors.black,
+                    fontFamily: 'YesevaOne-Regular'
+                }}>{formattedDate || '-'}
+                </Text>
 
                 <View className="flex-row justify-around items-center mt-5 mb-5 px-4">
                     {[
@@ -512,12 +534,12 @@ const PostDetails = () => {
                     ]}
                     pointerEvents="auto"
                 >
-                    <ActivityIndicator size="large" color={isDark ? '#fff' : '#000'} />
+                    <ActivityIndicator size="large" color={isDark ? colors.grey : colors.black} />
                     <Text
                         style={{
                             marginTop: 10,
                             fontWeight: '600',
-                            color: isDark ? '#fff' : '#000',
+                            color: isDark ? colors.grey : colors.black,
                             textAlign: 'center',
                         }}
                     >

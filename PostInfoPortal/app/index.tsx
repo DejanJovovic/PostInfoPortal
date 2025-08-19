@@ -9,7 +9,7 @@ import {
     RefreshControl,
     StyleSheet,
 } from 'react-native';
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import CustomHeader from '@/components/CustomHeader';
 import CustomMenuCategories from '@/components/CustomMenuCategories';
@@ -20,8 +20,9 @@ import {usePostsByCategory} from '@/hooks/usePostsByCategory';
 import CustomSearchBar from '@/components/CustomSearchBar';
 import CustomPostsSection from '@/components/CustomPostsSection';
 import {useTheme} from '@/components/ThemeContext';
+import colors from "@/constants/colors";
 
-const LoadingOverlay = ({ isDark, message }: { isDark: boolean; message: string }) => (
+const LoadingOverlay = ({isDark, message}: { isDark: boolean; message: string }) => (
     <View
         style={[
             StyleSheet.absoluteFillObject,
@@ -35,12 +36,12 @@ const LoadingOverlay = ({ isDark, message }: { isDark: boolean; message: string 
         ]}
         pointerEvents="auto"
     >
-        <ActivityIndicator size="large" color={isDark ? '#fff' : '#000'} />
+        <ActivityIndicator size="large" color={isDark ? '#F9F9F9' : '#000'}/>
         <Text
             style={{
                 marginTop: 10,
-                fontWeight: '600',
-                color: isDark ? '#fff' : '#000',
+                fontFamily: 'Roboto-SemiBold',
+                color: isDark ? colors.grey : colors.black,
                 textAlign: 'center',
             }}
         >
@@ -116,6 +117,16 @@ const Index = () => {
         }
     }, [openSearch]);
 
+    const deriveCategoryName = (post: any): string | undefined => {
+        const groups = post?._embedded?.['wp:term'];
+        if (Array.isArray(groups)) {
+            const flat = groups.flat().filter(Boolean);
+            const cat = flat.find((t: any) => t?.taxonomy === 'category' && t?.name);
+            if (cat?.name) return String(cat.name);
+        }
+        return undefined;
+    };
+
     const uniqById = (arr: WPPost[]) => {
         const map = new Map<number, WPPost>();
         for (const p of arr || []) map.set(p.id, p);
@@ -124,14 +135,19 @@ const Index = () => {
 
     const uniquePosts = React.useMemo(() => uniqById(posts), [posts]);
 
-    const goToPost = (postId: number) => {
+    const goToPost = (postId: number, categoryName?: string) => {
         if (isLoading) return;
         setIsLoading(true);
+
+        const finalCategory =
+            categoryName && categoryName.length > 0
+                ? categoryName
+                : activeCategory; // fallback
 
         requestAnimationFrame(() => {
             router.push({
                 pathname: '/post-details',
-                params: { postId: postId.toString(), category: activeCategory },
+                params: { postId: postId.toString(), category: finalCategory },
             });
         });
     };
@@ -145,6 +161,7 @@ const Index = () => {
     };
 
     const handleCategorySelect = (categoryName: string) => {
+        // this does nothing for now because i removed latin and cir
         if (categoryName === 'Latin | Ćirilica') return;
         setSearchQuery('');
         setIsSearchActive(false);
@@ -159,11 +176,14 @@ const Index = () => {
         setSearchQuery(query);
         setIsSearchActive(true);
         setNoSearchResults(false);
-        setSearchAttemptCount((prev) => prev + 1);
         setPosts([]);
+
+        const nextAttempt = searchAttemptCount + 1;
+        setSearchAttemptCount(nextAttempt);
+
         const found = await searchPostsFromCache(query);
         if (found.length === 0) {
-            if (searchAttemptCount === 0) {
+            if (nextAttempt === 1) {
                 setNoSearchResults(true);
                 await fetchPostsForCategory('Naslovna');
             } else {
@@ -203,21 +223,30 @@ const Index = () => {
         }
 
         setRefreshing(false);
-    }, [isSearchActive, activeCategory]);
+    }, [isSearchActive, activeCategory, fetchPostsForCategory, setPosts]);
 
     const highlightSearchTerm = (text: string, term: string) => {
         if (!term)
             return (
-                <Text className="font-bold text-base" style={{ color: isDark ? '#fff' : '#000000' }}>
+                <Text style={{
+                    color: isDark ? colors.grey : colors.black,
+                    fontFamily: 'Roboto-Bold'
+                }}>
                     {text}
                 </Text>
             );
 
         const parts = text.split(new RegExp(`(${term})`, 'gi'));
         return (
-            <Text className="font-bold text-base" style={{ color: isDark ? '#fff' : '#000000' }} numberOfLines={2}>
+            <Text style={{
+                color: isDark ? '#fff' : '#000000',
+                fontFamily: 'Roboto-ExtraBold'
+            }}
+                  numberOfLines={2}
+            >
                 {parts.map((part, i) => (
-                    <Text key={i} className={part.toLowerCase() === term.toLowerCase() ? 'font-bold text-[#FA0A0F]' : ''}>
+                    <Text key={i}
+                          className={part.toLowerCase() === term.toLowerCase() ? 'font-bold text-[#FA0A0F]' : ''}>
                         {part}
                     </Text>
                 ))}
@@ -225,7 +254,7 @@ const Index = () => {
         );
     };
 
-    const renderItem = ({ item }: { item: WPPost; index: number }) => {
+    const renderItem = ({item}: { item: WPPost; index: number }) => {
         const image = item._embedded?.['wp:featuredmedia']?.[0]?.source_url;
         const date = new Date(item.date).toLocaleDateString('sr-RS');
         const excerpt = item.excerpt.rendered.replace(/<[^>]+>/g, '');
@@ -234,19 +263,25 @@ const Index = () => {
             <View
                 className="rounded-2xl shadow-md mb-6 mx-3 p-4 border"
                 style={{
-                    backgroundColor: isDark ? '#1b1b1b' : 'white',
-                    borderColor: isDark ? '#333' : '#e5e7eb',
+                    backgroundColor: isDark ? colors.black : colors.grey,
+                    borderColor: isDark ? '#525050' : '#e5e7eb',
                 }}
             >
-                <TouchableOpacity onPress={() => goToPost(item.id)} disabled={isLoading}>
+                <TouchableOpacity onPress={() => goToPost(item.id, deriveCategoryName(item) || activeCategory)} disabled={isLoading}>
                     {image && (
-                        <Image source={{ uri: image }} className="w-full h-48 rounded-xl mb-3" resizeMode="cover" />
+                        <Image source={{uri: image}} className="w-full h-48 rounded-xl mb-3" resizeMode="cover"/>
                     )}
                     {highlightSearchTerm(item.title.rendered, searchQuery)}
-                    <Text className="text-xs mb-1" style={{ color: isDark ? '#9ca3af' : '#6b7280' }}>
+                    <Text className="text-xs mt-1 mb-1" style={{
+                        color: isDark ? colors.grey : colors.black,
+                        fontFamily: 'YesevaOne-Regular'
+                    }}>
                         {date}
                     </Text>
-                    <Text className="text-sm" numberOfLines={3} style={{ color: isDark ? '#959898' : '#999a9b' }}>
+                    <Text className="text-sm" numberOfLines={3} style={{
+                        color: isDark ? colors.grey : colors.black,
+                        fontFamily: 'Roboto-Light'
+                    }}>
                         {excerpt}
                     </Text>
                 </TouchableOpacity>
@@ -255,7 +290,7 @@ const Index = () => {
     };
 
     return (
-        <SafeAreaView className="flex-1" style={{ backgroundColor: isDark ? '#000000' : 'white' }}>
+        <SafeAreaView className="flex-1" style={{backgroundColor: isDark ? colors.black : colors.grey}}>
             <CustomHeader
                 onMenuToggle={(visible) => {
                     setMenuOpen(visible);
@@ -269,33 +304,54 @@ const Index = () => {
                 loadingNav={isLoading}
             />
 
-            <CustomMenuCategories onSelectCategory={handleCategorySelect} activeCategory={activeCategory} />
+            <CustomMenuCategories onSelectCategory={handleCategorySelect} activeCategory={activeCategory}/>
 
             {isSearchActive && (
                 <View className="px-2 py-4">
-                    <Text className="text-base font-bold mt-2 px-4" style={{ color: isDark ? '#F9F9F9' : '#1f2937' }}>
-                        {searchQuery.trim().length > 0
-                            ? `Rezultati pretrage "${searchQuery}"`
-                            : 'Unesite željenu reč za pretragu ispod'}
+                    <Text
+                        className="mt-2 px-4"
+                        style={{
+                            color: isDark ? colors.grey : colors.black,
+                            fontFamily: 'Roboto-Medium',
+                        }}
+                    >
+                        {searchQuery.trim().length > 0 ? (
+                            <>
+                                Rezultati pretrage{" "}
+                                <Text
+                                    style={{
+                                        color: colors.red,
+                                        fontFamily: "Roboto-Bold",
+                                    }}
+                                >
+                                    &#34;{searchQuery}&#34;
+                                </Text>
+                            </>
+                        ) : (
+                            "Unesite željenu reč za pretragu ispod"
+                        )}
                     </Text>
                     <CustomSearchBar
                         key={searchQuery + searchAttemptCount}
                         query={searchQuery}
                         onSearch={handleSearch}
                         onReset={resetSearch}
-                        backgroundColor="#201F5B"
+                        backgroundColor={colors.blue}
                     />
                 </View>
             )}
 
             {(loading || searchLoading) ? (
                 <View className="flex-1 items-center justify-center">
-                    <LoadingOverlay isDark={isDark} message="Učitavanje..." />
+                    <LoadingOverlay isDark={isDark} message="Učitavanje..."/>
                 </View>
             ) : isSearchActive ? (
                 posts.length === 0 && noSearchResults ? (
                     <View className="flex-1 items-center justify-center px-4">
-                        <Text className="text-center text-base" style={{ color: isDark ? '#F9F9F9' : '#1f2937' }}>
+                        <Text className="text-center" style={{
+                            color: isDark ? colors.grey : colors.black,
+                            fontFamily: 'Roboto-Regular'
+                        }}>
                             Nema rezultata za prikaz.
                         </Text>
                     </View>
@@ -304,12 +360,16 @@ const Index = () => {
                         data={uniquePosts}
                         renderItem={renderItem}
                         keyExtractor={(item) => item.id.toString()}
-                        contentContainerStyle={{ paddingBottom: 90 }}
-                        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+                        contentContainerStyle={{paddingBottom: 90}}
+                        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh}/>}
                         ListHeaderComponent={
                             isSearchActive && noSearchResults ? (
                                 <View className="px-4 mt-6 mb-10">
-                                    <Text className="text-center font-bold" style={{ color: isDark ? '#F9F9F9' : 'white' }}>
+                                    <Text className="text-center"
+                                          style={{
+                                              color: isDark ? colors.grey : colors.black,
+                                              fontFamily: 'Roboto-Regular'
+                                          }}>
                                         Nema rezultata pretrage. Pogledajte neke od ovih objava.
                                     </Text>
                                 </View>
@@ -319,17 +379,18 @@ const Index = () => {
                 )
             ) : activeCategory === 'Naslovna' && (!initialized || Object.keys(groupedPosts).length === 0) ? (
                 <View className="flex-1 items-center justify-center">
-                    <LoadingOverlay isDark={isDark} message="Učitavanje objava..." />
+                    <LoadingOverlay isDark={isDark} message="Učitavanje objava..."/>
                 </View>
             ) : activeCategory === 'Naslovna' && Object.keys(groupedPosts).length > 0 ? (
                 <ScrollView
                     className="flex-1"
-                    contentContainerStyle={{ paddingBottom: 100 }}
-                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+                    contentContainerStyle={{paddingBottom: 100}}
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh}/>}
                 >
                     {Object.entries(generalGroupedPosts).map(([categoryName, categoryPosts]) => (
-                        <CustomPostsSection key={categoryName} categoryName={categoryName} posts={categoryPosts} showFeaturedFirst
-                                            onPostPress={goToPost}
+                        <CustomPostsSection key={categoryName} categoryName={categoryName} posts={categoryPosts}
+                                            showFeaturedFirst
+                                            onPostPress={(id) => goToPost(id, categoryName)}
                                             loadingNav={isLoading}/>
                     ))}
 
@@ -339,18 +400,20 @@ const Index = () => {
                             categoryName="Beograd"
                             posts={lokalGroupedPosts['Beograd'] || []}
                             showFeaturedFirst
-                            onPostPress={goToPost}
+                            onPostPress={(id) => goToPost(id, 'Beograd')}
                             loadingNav={isLoading}
                         />
                     )}
                     {Object.entries(beogradGroupedPosts).map(([categoryName, categoryPosts]) => (
-                        <CustomPostsSection key={categoryName} categoryName={categoryName} posts={categoryPosts} showFeaturedFirst
-                                            onPostPress={goToPost}
+                        <CustomPostsSection key={categoryName} categoryName={categoryName} posts={categoryPosts}
+                                            showFeaturedFirst
+                                            onPostPress={(id) => goToPost(id, categoryName)}
                                             loadingNav={isLoading}/>
                     ))}
 
-                    <CustomPostsSection key="Gradovi" categoryName="Gradovi" posts={lokalGroupedPosts['Gradovi'] || []} showFeaturedFirst
-                                        onPostPress={goToPost}
+                    <CustomPostsSection key="Gradovi" categoryName="Gradovi" posts={lokalGroupedPosts['Gradovi'] || []}
+                                        showFeaturedFirst
+                                        onPostPress={(id) => goToPost(id, 'Gradovi')}
                                         loadingNav={isLoading}/>
 
                     {Object.keys(okruziGroupedPosts).length > 0 && (
@@ -359,20 +422,23 @@ const Index = () => {
                             categoryName="Okruzi"
                             posts={lokalGroupedPosts['Okruzi'] || []}
                             showFeaturedFirst
-                            onPostPress={goToPost}
+                            onPostPress={(id) => goToPost(id, 'Okruzi')}
                             loadingNav={isLoading}
                         />
                     )}
                     {Object.entries(okruziGroupedPosts).map(([categoryName, categoryPosts]) => (
-                        <CustomPostsSection key={categoryName} categoryName={categoryName} posts={categoryPosts} showFeaturedFirst
-                                            onPostPress={goToPost}
+                        <CustomPostsSection key={categoryName} categoryName={categoryName} posts={categoryPosts}
+                                            showFeaturedFirst
+                                            onPostPress={(id) => goToPost(id, categoryName)}
                                             loadingNav={isLoading}/>
                     ))}
                 </ScrollView>
             ) : (
                 <CustomPostsSection categoryName={activeCategory} posts={posts} gridAfterFirst
-                                    onPostPress={goToPost}
-                                    loadingNav={isLoading}/>
+                                    onPostPress={(id) => goToPost(id, activeCategory)}
+                                    loadingNav={isLoading}
+                                    refreshing={refreshing}
+                                    onRefresh={onRefresh}/>
             )}
 
             {isLoading && (
@@ -389,12 +455,13 @@ const Index = () => {
                     ]}
                     pointerEvents="auto"
                 >
-                    <ActivityIndicator size="large" color={isDark ? '#fff' : '#000'} />
+                    <ActivityIndicator size="large" color={isDark ? colors.grey : colors.black}/>
                     <Text
                         style={{
                             marginTop: 10,
                             fontWeight: '600',
-                            color: isDark ? '#fff' : '#000',
+                            fontFamily: 'Roboto-Regular',
+                            color: isDark ? colors.grey : colors.black,
                             textAlign: 'center',
                         }}
                     >
@@ -403,7 +470,7 @@ const Index = () => {
                 </View>
             )}
 
-            {!menuOpen && <CustomFooter onSearchPress={handleFooterSearch} />}
+            {!menuOpen && <CustomFooter onSearchPress={handleFooterSearch}/>}
         </SafeAreaView>
     );
 };

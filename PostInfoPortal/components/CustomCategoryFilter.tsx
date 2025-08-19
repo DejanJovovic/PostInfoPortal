@@ -140,9 +140,12 @@ const CustomCategoryFilter: React.FC<Props> = ({
     return (
         <View className="px-4">
             <TouchableOpacity onPress={() => setExpanded(!expanded)} className="flex-row items-center mt-4 mb-4">
-                <Text className="text-lg font-bold mr-2" style={{color: isDark ? 'white' : 'black'}}>Kategorije</Text>
-                {expanded ? <ChevronUp color={isDark ? 'white' : 'black'} size={20}/> :
-                    <ChevronDown color={isDark ? 'white' : 'black'} size={20}/>}
+                <Text className="text-lg mr-1" style={{
+                    color: isDark ? colors.grey : colors.black,
+                    fontFamily: 'YesevaOne-Regular'
+                }}>Kategorije</Text>
+                {expanded ? <ChevronUp color={isDark ? colors.grey : colors.black} size={20}/> :
+                    <ChevronDown color={isDark ? colors.grey : colors.black} size={20}/>}
             </TouchableOpacity>
 
             {expanded && (
@@ -163,7 +166,8 @@ const CustomCategoryFilter: React.FC<Props> = ({
                                     }`}
                                 >
                                     <Text
-                                        className={`text-center text-base font-semibold ${isActive ? 'text-white' : isDark ? 'text-white' : 'text-black'}`}>
+                                        className={`text-center ${isActive ? 'text-[#F9F9F9]' : isDark ? 'text-[#F9F9F9]' : 'text-black'}`}
+                                        style={{fontFamily: 'Roboto-Bold'}}>
                                         {cat.title}
                                     </Text>
                                 </TouchableOpacity>
@@ -177,9 +181,9 @@ const CustomCategoryFilter: React.FC<Props> = ({
                             className="mb-4 self-center flex-row items-center"
                         >
                             {showAll ? (
-                                <ChevronUp color={isDark ? 'white' : 'black'} size={20}/>
+                                <ChevronUp color={isDark ? colors.grey : colors.black} size={20}/>
                             ) : (
-                                <ChevronDown color={isDark ? 'white' : 'black'} size={20}/>
+                                <ChevronDown color={isDark ? colors.grey : colors.black} size={20}/>
                             )}
                         </TouchableOpacity>
                     )}
@@ -188,42 +192,40 @@ const CustomCategoryFilter: React.FC<Props> = ({
 
             <TouchableOpacity onPress={() => setShowDateModal(true)} className="rounded-xl px-4 py-3 mb-5"
                               style={{backgroundColor: colors.blue}}>
-                <Text className="text-white text-center font-semibold">Filtriraj po datumu</Text>
+                <Text className="text-center"
+                      style={{
+                          color: colors.grey,
+                          fontFamily: 'Roboto-Bold'
+                      }}>Filtriraj po datumu</Text>
             </TouchableOpacity>
 
             {filteredPosts.length > 0 && (
                 <TouchableOpacity onPress={resetFilter} className="rounded-xl px-4 py-3 mb-3"
                                   style={{backgroundColor: colors.red}}>
-                    <Text className="text-white text-center font-semibold">Resetuj filter</Text>
+                    <Text className="text-center"
+                          style={{
+                              color: colors.grey,
+                              fontFamily: 'Roboto-Bold'
+                          }}>Resetuj filter</Text>
                 </TouchableOpacity>
-            )}
-
-            {isFilterApplied && selectedDate.month && selectedDate.year && (
-                <View className="mb-3 mt-5">
-                    <Text
-                        className="text-center font-medium text-base"
-                        style={{color: isDark ? '#ffffff' : '#1f2937'}}
-                    >
-                        {filteredPosts.length > 0
-                            ? `Rezultati pretrage za ${selectedCategory || 'sve kategorije'} za ${months[selectedDate.month - 1].toLowerCase()} ${selectedDate.year}.`
-                            : 'Nema rezultata za izabrane filtere.'}
-                    </Text>
-                </View>
             )}
 
             {showDateModal && (
                 <Modal visible transparent animationType="fade">
                     <View style={{flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)'}}>
                         <View className="rounded-t-3xl px-5 pt-5 pb-8"
-                              style={{backgroundColor: isDark ? 'black' : 'white'}}>
+                              style={{backgroundColor: isDark ? colors.black : colors.grey}}>
                             <Text
-                                className={`text-center text-lg font-bold mb-5 ${isDark ? 'text-white' : 'text-black'}`}>Izaberite
+                                className={`text-center text-lg mb-5 ${isDark ? 'text-[#F9F9F9]' : 'text-black'}`}
+                                style={{fontFamily: 'Roboto-Bold'}}>Izaberite
                                 datum</Text>
                             <View className="flex-row justify-between mb-6">
                                 <View className="w-[48%]">
-                                    <Text className={`mb-2 font-medium ${isDark ? 'text-white' : 'text-black'}`}>Mesec</Text>
+                                    <Text
+                                        className={`mb-2 ${isDark ? 'text-[#F9F9F9]' : 'text-black'}`}
+                                        style={{fontFamily: 'Roboto-Medium'}}>Mesec</Text>
                                     <ScrollView className="h-48 rounded-xl p-2" style={{
-                                        backgroundColor: isDark ? '#1f2937' : colors.grey,
+                                        backgroundColor: isDark ? "#222" : colors.grey,
                                         maxHeight: 200
                                     }}>
                                         {months.map((month, i) => (
@@ -232,15 +234,19 @@ const CustomCategoryFilter: React.FC<Props> = ({
                                                 onPress={() => setTempDate((prev) => ({...prev, month: i + 1}))}
                                                 className={`py-2 px-3 rounded-md mb-2 ${tempDate.month === i + 1 ? 'bg-[#201F5B]' : 'bg-transparent'}`}
                                             >
-                                                <Text className={`${tempDate.month === i + 1 ? 'text-white' : isDark ? 'text-white' : 'text-black'}`}>{month}</Text>
+                                                <Text
+                                                    className={`${tempDate.month === i + 1 ? 'text-[#F9F9F9]' : isDark ? 'text-[#F9F9F9]' : 'text-black'}`}
+                                                    style={{fontFamily: 'Roboto-Regular'}}>{month}</Text>
                                             </TouchableOpacity>
                                         ))}
                                     </ScrollView>
                                 </View>
                                 <View className="w-[48%]">
-                                    <Text className={`mb-2 font-medium ${isDark ? 'text-white' : 'text-black'}`}>Godina</Text>
+                                    <Text
+                                        className={`mb-2 ${isDark ? 'text-[#F9F9F9]' : 'text-black'}`}
+                                        style={{fontFamily: 'Roboto-Medium'}}>Godina</Text>
                                     <ScrollView className="h-48 rounded-xl p-2" style={{
-                                        backgroundColor: isDark ? '#1f2937' : colors.grey,
+                                        backgroundColor: isDark ? '#222' : colors.grey,
                                         maxHeight: 200
                                     }}>
                                         {years.map((year) => (
@@ -249,7 +255,9 @@ const CustomCategoryFilter: React.FC<Props> = ({
                                                 onPress={() => setTempDate((prev) => ({...prev, year}))}
                                                 className={`py-2 px-3 rounded-md mb-1 ${tempDate.year === year ? 'bg-[#201F5B]' : 'bg-transparent'}`}
                                             >
-                                                <Text className={`${tempDate.year === year ? 'text-white' : isDark ? 'text-white' : 'text-black'}`}>{year}</Text>
+                                                <Text
+                                                    className={`${tempDate.year === year ? 'text-[#F9F9F9]' : isDark ? 'text-[#F9F9F9]' : 'text-black'}`}
+                                                    style={{fontFamily: 'Roboto-Regular'}}>{year}</Text>
                                             </TouchableOpacity>
                                         ))}
                                     </ScrollView>
@@ -263,11 +271,15 @@ const CustomCategoryFilter: React.FC<Props> = ({
                                         setShowDateModal(false);
                                     }}
                                 >
-                                    <Text className="font-bold text-base" style={{color: colors.red}}>Otkaži</Text>
+                                    <Text style={{
+                                        color: colors.red,
+                                        fontFamily: 'Roboto-Bold'
+                                    }}>Otkaži</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity onPress={applyFilter} disabled={!(tempDate.month && tempDate.year)}>
                                     <Text
-                                        className={`font-bold text-base ${tempDate.month && tempDate.year ? (isDark ? 'text-white' : 'text-black') : 'text-gray-700'}`}>Primeni</Text>
+                                        className={`${tempDate.month && tempDate.year ? (isDark ? 'text-[#F9F9F9]' : 'text-black') : 'text-gray-700'}`}
+                                        style={{fontFamily: 'Roboto-Bold'}}>Primeni</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>

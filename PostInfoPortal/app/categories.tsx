@@ -17,9 +17,12 @@ import {usePostsByCategory} from '@/hooks/usePostsByCategory';
 import {WPPost} from '@/types/wp';
 import {router, useNavigation} from 'expo-router';
 import {ChevronDown, ChevronUp} from 'lucide-react-native';
+import colors from "@/constants/colors";
 
 const PAGE_SIZE = 5;
 const ALL_EXCLUDE = new Set(['Naslovna', 'Danas']);
+const months = ['Januar','Februar','Mart','April','Maj','Jun','Jul','Avgust','Septembar','Oktobar','Novembar','Decembar'];
+
 
 const Categories = () => {
     const {theme} = useTheme();
@@ -98,7 +101,7 @@ const Categories = () => {
 
     const toggleGlobalSort = () => {
         setGlobalSort(prev => (prev === 'desc' ? 'asc' : 'desc'));
-        setVisibleCount(PAGE_SIZE); // reset na početak novog poretka
+        setVisibleCount(PAGE_SIZE); // reset
     };
 
     // search works for everything
@@ -174,13 +177,19 @@ const Categories = () => {
     const highlightSearchTerm = (text: string, term: string) => {
         if (!term)
             return (
-                <Text className="text-xl font-semibold mb-1" style={{color: isDark ? 'white' : 'black'}}>
+                <Text className="mb-1" style={{
+                    color: isDark ? colors.grey : colors.black,
+                    fontFamily: 'Roboto-ExtraBold'
+                }}>
                     {text}
                 </Text>
             );
         const parts = text.split(new RegExp(`(${term})`, 'gi'));
         return (
-            <Text className="text-xl font-semibold mb-1" style={{color: isDark ? 'white' : 'black'}}>
+            <Text className="mb-1" style={{
+                color: isDark ? colors.grey : colors.black,
+                fontFamily: 'Roboto-ExtraBold'
+            }}>
                 {parts.map((part, i) => (
                     <Text
                         key={`${part}-${i}`}
@@ -221,21 +230,27 @@ const Categories = () => {
                         <View
                             className="rounded-2xl shadow-md mb-6 mx-3 p-4 border"
                             style={{
-                                backgroundColor: isDark ? '#1b1b1b' : 'white',
-                                borderColor: isDark ? '#333' : '#e5e7eb',
+                                backgroundColor: isDark ? colors.black : colors.grey,
+                                borderColor: isDark ? '#525050' : '#e5e7eb',
                             }}
                         >
                             {image && (
                                 <View className="mb-3">
-                                    <Animated.Image source={{uri: image}} className="w-full h-48 rounded-xl" resizeMode="cover" />
+                                    <Animated.Image source={{uri: image}} className="w-full h-48 rounded-xl"
+                                                    resizeMode="cover"/>
                                 </View>
                             )}
                             {highlightSearchTerm(item.title.rendered, searchQuery)}
-                            <Text className="text-xs mb-1" style={{color: isDark ? '#9ca3af' : '#6b7280'}}>
+                            <Text className="text-xs mt-1 mb-1" style={{
+                                color: isDark ? colors.grey : colors.black,
+                                fontFamily: 'YesevaOne-Regular'
+                            }}>
                                 {date}
                             </Text>
-                            <Text className="text-sm" numberOfLines={3} style={{color: isDark ? '#8f939a' : '#999ea1'}}>
-                                {excerpt}
+                            <Text className="text-sm" numberOfLines={3} style={{
+                                color: isDark ? colors.grey : colors.black,
+                                fontFamily: 'Roboto-Light'
+                            }}>{excerpt}
                             </Text>
                         </View>
                     </TouchableOpacity>
@@ -250,11 +265,12 @@ const Categories = () => {
     };
 
     return (
-        <SafeAreaView className="flex-1" style={{backgroundColor: isDark ? '#000' : '#fff'}}>
+        <SafeAreaView className="flex-1" style={{backgroundColor: isDark ? colors.black : colors.grey}}>
             <CustomHeader
                 showMenu={false}
                 activeCategory=""
-                onCategorySelected={() => {}}
+                onCategorySelected={() => {
+                }}
                 onMenuToggle={(visible) => {
                     setTriggerSearchOpen(visible);
                     if (!visible) setTriggerSearchOpen(false);
@@ -268,10 +284,28 @@ const Categories = () => {
             {isSearchActive && (
                 <View className="px-2 py-4">
                     <View className="flex-row items-center justify-between px-2 mt-2">
-                        <Text className="text-base font-bold flex-1" style={{color: isDark ? '#F9F9F9' : '#1f2937'}}>
-                            {searchQuery.trim().length > 0
-                                ? `Rezultati pretrage "${searchQuery}"`
-                                : 'Unesite željenu reč za pretragu ispod'}
+                        <Text
+                            className="mt-2 px-2"
+                            style={{
+                                color: isDark ? colors.grey : colors.black,
+                                fontFamily: 'Roboto-Medium',
+                            }}
+                        >
+                            {searchQuery.trim().length > 0 ? (
+                                <>
+                                    Rezultati pretrage{" "}
+                                    <Text
+                                        style={{
+                                            color: colors.red,
+                                            fontFamily: "Roboto-Bold",
+                                        }}
+                                    >
+                                        &#34;{searchQuery}&#34;
+                                    </Text>
+                                </>
+                            ) : (
+                                "Unesite željenu reč za pretragu ispod"
+                            )}
                         </Text>
 
                         {searchQuery.trim().length > 0 && (
@@ -280,8 +314,8 @@ const Categories = () => {
                                     setSearchQuery('');
                                     setIsSearchActive(false);
                                 }}
-                                className="ml-3 text-lg font-bold"
-                                style={{color: '#FA0A0F'}}
+                                className="mr-3"
+                                style={{color: colors.red}}
                             >
                                 ✕
                             </Text>
@@ -296,7 +330,7 @@ const Categories = () => {
                             setSearchQuery('');
                             setIsSearchActive(false);
                         }}
-                        backgroundColor="#201F5B"
+                        backgroundColor={colors.blue}
                     />
                 </View>
             )}
@@ -306,11 +340,14 @@ const Categories = () => {
                     data={searchResults}
                     renderItem={renderItem}
                     keyExtractor={(item) => String(item.id)}
-                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh}/>}
                     contentContainerStyle={{paddingBottom: 100}}
                     ListEmptyComponent={
                         <View className="px-4 mt-10">
-                            <Text className="text-base text-center font-semibold" style={{color: isDark ? '#fff' : '#000'}}>
+                            <Text className="text-center" style={{
+                                color: isDark ? colors.grey : colors.black,
+                                fontFamily: 'Roboto-Regular'
+                            }}>
                                 Nema rezultata za prikaz.
                             </Text>
                         </View>
@@ -343,27 +380,60 @@ const Categories = () => {
                                 }}
                             />
 
-                            {/* Globalni sort (always visible) */}
+                            {/* Global sort - always visible */}
                             <View className="flex-row justify-end items-center mb-3 pr-4">
                                 <TouchableOpacity onPress={toggleGlobalSort} className="flex-row items-center">
-                                    <Text className="text-sm font-semibold mr-6" style={{ color: isDark ? '#fff' : '#000' }}>
+                                    <Text
+                                        className="mr-1"
+                                        style={{ color: isDark ? colors.grey : colors.black, fontFamily: 'YesevaOne-Regular' }}
+                                    >
                                         {globalSort === 'desc' ? 'Najnoviji' : 'Najstariji'}
                                     </Text>
-                                    {globalSort === 'desc' ? (
-                                        <ChevronDown size={18} color={isDark ? '#fff' : '#000'} />
-                                    ) : (
-                                        <ChevronUp size={18} color={isDark ? '#fff' : '#000'} />
-                                    )}
+                                    {globalSort === 'desc'
+                                        ? <ChevronDown size={18} color={isDark ? colors.grey : colors.black} />
+                                        : <ChevronUp   size={18} color={isDark ? colors.grey : colors.black} />
+                                    }
                                 </TouchableOpacity>
                             </View>
 
-                            {selectedCategory && !isFilterApplied && (
-                                <View className="px-4 mb-2">
+                            {isFilterApplied && selectedDate.month && selectedDate.year && (
+                                <View className="px-4 mb-3">
                                     <Text
-                                        className="text-center font-medium text-base"
-                                        style={{ color: isDark ? '#ffffff' : '#1f2937' }}
+                                        className="text-center"
+                                        style={{ color: isDark ? colors.grey : colors.black, fontFamily: 'Roboto-Medium' }}
                                     >
-                                        Prikazuju se postovi za kategoriju: <Text className="font-bold">{selectedCategory}</Text>
+                                        {filteredPosts.length > 0 ? (
+                                            <>
+                                                Rezultati pretrage za{" "}
+                                                <Text style={{ color: colors.red, fontFamily: "Roboto-Bold" }}>
+                                                    {selectedCategory || "sve kategorije"}
+                                                </Text>{" "}
+                                                za{" "}
+                                                <Text style={{ color: colors.red, fontFamily: "Roboto-Bold" }}>
+                                                    {(months?.[selectedDate?.month - 1] ?? "").toLowerCase()}
+                                                </Text>{" "}
+                                                <Text style={{ color: colors.red, fontFamily: "Roboto-Bold" }}>
+                                                    {selectedDate?.year}
+                                                </Text>
+                                                .
+                                            </>
+                                        ) : (
+                                            "Nema rezultata za izabrane filtere."
+                                        )}
+                                    </Text>
+                                </View>
+                            )}
+
+                            {selectedCategory && !isFilterApplied && (
+                                <View className="px-4 mb-3">
+                                    <Text
+                                        className="text-center"
+                                        style={{ color: isDark ? colors.grey : colors.black, fontFamily: 'Roboto-Medium' }}
+                                    >
+                                        Prikazuju se objave za kategoriju:{" "}
+                                        <Text style={{ fontFamily: 'Roboto-Bold', color: colors.red }}>
+                                            {selectedCategory}
+                                        </Text>
                                     </Text>
                                 </View>
                             )}
@@ -375,13 +445,17 @@ const Categories = () => {
                                 <TouchableOpacity
                                     onPress={loadMore}
                                     className="rounded-xl py-3"
-                                    style={{backgroundColor: '#201F5B'}}
+                                    style={{backgroundColor: colors.blue}}
                                 >
                                     <View className="flex-row items-center justify-center">
-                                        <Text className="text-center text-white font-semibold mr-2">
+                                        <Text className="mr-2 text-center"
+                                              style={{
+                                                  color: isDark ? colors.grey : colors.black,
+                                                  fontFamily: 'Roboto-Bold'
+                                              }}>
                                             Prikaži još
                                         </Text>
-                                        <ChevronDown color="white" size={18} />
+                                        <ChevronDown color={isDark ? colors.grey : colors.black} size={18}/>
                                     </View>
                                 </TouchableOpacity>
                             </View>
@@ -389,12 +463,16 @@ const Categories = () => {
                     }
                     renderItem={renderItem}
                     keyExtractor={(item) => String(item.id)}
-                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh}/>}
                     contentContainerStyle={{paddingBottom: 100}}
                     ListEmptyComponent={
                         sortedActiveDataset.length === 0 ? (
                             <View className="px-4 mt-10">
-                                <Text className="text-base text-center font-semibold" style={{color: isDark ? '#fff' : '#000'}}>
+                                <Text className="text-base text-center"
+                                      style={{
+                                          color: isDark ? colors.grey : colors.black,
+                                          fontFamily: 'Roboto-Regular'
+                                      }}>
                                     Nema rezultata za prikaz.
                                 </Text>
                             </View>
@@ -420,12 +498,13 @@ const Categories = () => {
                     ]}
                     pointerEvents="auto"
                 >
-                    <ActivityIndicator size="large" color={isDark ? '#fff' : '#000'} />
+                    <ActivityIndicator size="large" color={isDark ? colors.grey : colors.black}/>
                     <Text
                         style={{
                             marginTop: 10,
                             fontWeight: '600',
-                            color: isDark ? '#fff' : '#000',
+                            fontFamily: 'Roboto-Regular',
+                            color: isDark ? colors.grey : colors.black,
                             textAlign: 'center',
                         }}
                     >
@@ -434,7 +513,7 @@ const Categories = () => {
                 </View>
             )}
 
-            <CustomFooter onSearchPress={handleFooterSearch} />
+            <CustomFooter onSearchPress={handleFooterSearch}/>
         </SafeAreaView>
     );
 };
