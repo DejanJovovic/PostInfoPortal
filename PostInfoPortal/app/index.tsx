@@ -7,7 +7,7 @@ import {
     ActivityIndicator,
     ScrollView,
     RefreshControl,
-    StyleSheet,
+    StyleSheet, Platform,
 } from 'react-native';
 import React, {useCallback, useEffect, useState} from 'react';
 import {SafeAreaView} from 'react-native-safe-area-context';
@@ -21,6 +21,7 @@ import CustomSearchBar from '@/components/CustomSearchBar';
 import CustomPostsSection from '@/components/CustomPostsSection';
 import {useTheme} from '@/components/ThemeContext';
 import colors from "@/constants/colors";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const LoadingOverlay = ({isDark, message}: { isDark: boolean; message: string }) => (
     <View
@@ -66,7 +67,6 @@ const Index = () => {
 
     const {selectedCategory, openSearch} =
         useLocalSearchParams<{ selectedCategory?: string; openSearch?: string }>();
-
     const {
         posts,
         loading,
@@ -239,14 +239,14 @@ const Index = () => {
         const parts = text.split(new RegExp(`(${term})`, 'gi'));
         return (
             <Text style={{
-                color: isDark ? '#fff' : '#000000',
+                color: isDark ? colors.grey : colors.black,
                 fontFamily: 'Roboto-ExtraBold'
             }}
                   numberOfLines={2}
             >
                 {parts.map((part, i) => (
                     <Text key={i}
-                          className={part.toLowerCase() === term.toLowerCase() ? 'font-bold text-[#FA0A0F]' : ''}>
+                          className={part.toLowerCase() === term.toLowerCase() ? ' text-[#FA0A0F]' : ''}>
                         {part}
                     </Text>
                 ))}
@@ -261,10 +261,21 @@ const Index = () => {
 
         return (
             <View
-                className="rounded-2xl shadow-md mb-6 mx-3 p-4 border"
+                className="rounded-2xl mb-6 mx-3 p-4 border"
                 style={{
                     backgroundColor: isDark ? colors.black : colors.grey,
                     borderColor: isDark ? '#525050' : '#e5e7eb',
+                    overflow: 'hidden',
+                    ...(Platform.OS === 'ios'
+                        ? {
+                            shadowColor: 'transparent',
+                            shadowOpacity: 0,
+                            shadowRadius: 0,
+                            shadowOffset: { width: 0, height: 0 },
+                        }
+                        : {
+                            elevation: 0,
+                        }),
                 }}
             >
                 <TouchableOpacity onPress={() => goToPost(item.id, deriveCategoryName(item) || activeCategory)} disabled={isLoading}>
@@ -384,17 +395,49 @@ const Index = () => {
             ) : activeCategory === 'Naslovna' && Object.keys(groupedPosts).length > 0 ? (
                 <ScrollView
                     className="flex-1"
-                    contentContainerStyle={{paddingBottom: 100}}
-                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh}/>}
+                    contentContainerStyle={{ paddingBottom: 100 }}
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
                 >
-                    {Object.entries(generalGroupedPosts).map(([categoryName, categoryPosts]) => (
-                        <CustomPostsSection key={categoryName} categoryName={categoryName} posts={categoryPosts}
-                                            showFeaturedFirst
-                                            onPostPress={(id) => goToPost(id, categoryName)}
-                                            loadingNav={isLoading}/>
-                    ))}
+                    {/* 1) General categories except Događaji/Lokal/Region/Planeta */}
+                    {Object.entries(generalGroupedPosts)
+                        .filter(([name]) => !['Događaji', 'Lokal', 'Region', 'Planeta'].includes(name))
+                        .map(([categoryName, categoryPosts]) => (
+                            <CustomPostsSection
+                                key={categoryName}
+                                categoryName={categoryName}
+                                posts={categoryPosts}
+                                showFeaturedFirst
+                                onPostPress={(id) => goToPost(id, categoryName)}
+                                loadingNav={isLoading}
+                            />
+                        ))}
 
-                    {Object.keys(beogradGroupedPosts).length > 0 && (
+                    {/* 2) Događaji  */}
+                    {(generalGroupedPosts['Događaji']?.length ?? 0) > 0 && (
+                        <CustomPostsSection
+                            key="Događaji"
+                            categoryName="Događaji"
+                            posts={generalGroupedPosts['Događaji'] || []}
+                            showFeaturedFirst
+                            onPostPress={(id) => goToPost(id, 'Događaji')}
+                            loadingNav={isLoading}
+                        />
+                    )}
+
+                    {/* 3) Lokal */}
+                    {(generalGroupedPosts['Lokal']?.length ?? 0) > 0 && (
+                        <CustomPostsSection
+                            key="Lokal"
+                            categoryName="Lokal"
+                            posts={generalGroupedPosts['Lokal'] || []}
+                            showFeaturedFirst
+                            onPostPress={(id) => goToPost(id, 'Lokal')}
+                            loadingNav={isLoading}
+                        />
+                    )}
+
+                    {/* 4) Beograd*/}
+                    {(lokalGroupedPosts['Beograd']?.length ?? 0) > 0 && (
                         <CustomPostsSection
                             key="Beograd"
                             categoryName="Beograd"
@@ -404,19 +447,35 @@ const Index = () => {
                             loadingNav={isLoading}
                         />
                     )}
-                    {Object.entries(beogradGroupedPosts).map(([categoryName, categoryPosts]) => (
-                        <CustomPostsSection key={categoryName} categoryName={categoryName} posts={categoryPosts}
-                                            showFeaturedFirst
-                                            onPostPress={(id) => goToPost(id, categoryName)}
-                                            loadingNav={isLoading}/>
-                    ))}
 
-                    <CustomPostsSection key="Gradovi" categoryName="Gradovi" posts={lokalGroupedPosts['Gradovi'] || []}
-                                        showFeaturedFirst
-                                        onPostPress={(id) => goToPost(id, 'Gradovi')}
-                                        loadingNav={isLoading}/>
+                    {/* 5) Opštine Beograda*/}
+                    {Object.entries(beogradGroupedPosts)
+                        .filter(([, arr]) => (arr?.length ?? 0) > 0)
+                        .map(([categoryName, categoryPosts]) => (
+                            <CustomPostsSection
+                                key={categoryName}
+                                categoryName={categoryName}
+                                posts={categoryPosts}
+                                showFeaturedFirst
+                                onPostPress={(id) => goToPost(id, categoryName)}
+                                loadingNav={isLoading}
+                            />
+                        ))}
 
-                    {Object.keys(okruziGroupedPosts).length > 0 && (
+                    {/* 6) Gradovi  */}
+                    {(lokalGroupedPosts['Gradovi']?.length ?? 0) > 0 && (
+                        <CustomPostsSection
+                            key="Gradovi"
+                            categoryName="Gradovi"
+                            posts={lokalGroupedPosts['Gradovi'] || []}
+                            showFeaturedFirst
+                            onPostPress={(id) => goToPost(id, 'Gradovi')}
+                            loadingNav={isLoading}
+                        />
+                    )}
+
+                    {/* 7) Okruzi*/}
+                    {(lokalGroupedPosts['Okruzi']?.length ?? 0) > 0 && (
                         <CustomPostsSection
                             key="Okruzi"
                             categoryName="Okruzi"
@@ -426,21 +485,60 @@ const Index = () => {
                             loadingNav={isLoading}
                         />
                     )}
-                    {Object.entries(okruziGroupedPosts).map(([categoryName, categoryPosts]) => (
-                        <CustomPostsSection key={categoryName} categoryName={categoryName} posts={categoryPosts}
-                                            showFeaturedFirst
-                                            onPostPress={(id) => goToPost(id, categoryName)}
-                                            loadingNav={isLoading}/>
-                    ))}
+
+                    {/* 8) Podkategorije Okruga */}
+                    {Object.entries(okruziGroupedPosts)
+                        .filter(([, arr]) => (arr?.length ?? 0) > 0)
+                        .map(([categoryName, categoryPosts]) => (
+                            <CustomPostsSection
+                                key={categoryName}
+                                categoryName={categoryName}
+                                posts={categoryPosts}
+                                showFeaturedFirst
+                                onPostPress={(id) => goToPost(id, categoryName)}
+                                loadingNav={isLoading}
+                            />
+                        ))}
+
+                    {/* 9) Region i Planeta */}
+                    {['Region', 'Planeta'].map((name) =>
+                        (generalGroupedPosts[name]?.length ?? 0) > 0 ? (
+                            <CustomPostsSection
+                                key={name}
+                                categoryName={name}
+                                posts={generalGroupedPosts[name] || []}
+                                showFeaturedFirst
+                                onPostPress={(id) => goToPost(id, name)}
+                                loadingNav={isLoading}
+                            />
+                        ) : null
+                    )}
                 </ScrollView>
             ) : (
-                <CustomPostsSection categoryName={activeCategory} posts={posts} gridAfterFirst
-                                    onPostPress={(id) => goToPost(id, activeCategory)}
-                                    loadingNav={isLoading}
-                                    refreshing={refreshing}
-                                    onRefresh={onRefresh}/>
+                (!loading && !searchLoading && !isSearchActive && posts.length === 0) ? (
+                    <View className="flex-1 items-center justify-center px-4">
+                        <Text
+                            className="text-center"
+                            style={{
+                                color: isDark ? colors.grey : colors.black,
+                                fontFamily: 'Roboto-Regular',
+                            }}
+                        >
+                            Nema objava za ovu kategoriju.
+                        </Text>
+                    </View>
+                ) : (
+                    <CustomPostsSection
+                        categoryName={activeCategory}
+                        posts={posts}
+                        gridAfterFirst
+                        onPostPress={(id) => goToPost(id, activeCategory)}
+                        loadingNav={isLoading}
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                    />
+                )
             )}
-
             {isLoading && (
                 <View
                     style={[
@@ -459,8 +557,7 @@ const Index = () => {
                     <Text
                         style={{
                             marginTop: 10,
-                            fontWeight: '600',
-                            fontFamily: 'Roboto-Regular',
+                            fontFamily: 'Roboto-SemiBold',
                             color: isDark ? colors.grey : colors.black,
                             textAlign: 'center',
                         }}
