@@ -1,4 +1,3 @@
-import { Platform } from "react-native";
 import * as Linking from "expo-linking";
 import { LogLevel, OneSignal } from "react-native-onesignal";
 import { addToInbox } from "@/types/notificationInbox";
@@ -7,20 +6,24 @@ import { routeFromUrl, RouteTarget } from "@/types/routeDeepLink";
 import React from "react";
 
 type UseOneSignalDeepLinksOpts = {
-    navigate: (to: RouteTarget) => void; // fastRoute wrapper
+    navigate: (to: RouteTarget) => void;
     onesignalAppId: string;
     debug?: boolean;
 };
 
 export const useOneSignalDeepLinks = ({ navigate, onesignalAppId, debug }: UseOneSignalDeepLinksOpts) => {
-    const lastHandledUrl = { current: null as string | null };
+    const lastHandledUrl = React.useRef<string | null>(null);
+    const didInit = React.useRef(false);
 
     React.useEffect(() => {
-        // Android-only for now; remove the guard once I support iOS.
-        if (Platform.OS !== "android") return;
+        if (didInit.current) return;
+        didInit.current = true;
 
         if (debug) OneSignal.Debug.setLogLevel(LogLevel.Verbose);
+
+        // Init for both platforms
         OneSignal.initialize(onesignalAppId);
+
         OneSignal.Notifications.requestPermission(true);
 
         const handleClick = (event: any) => {
@@ -29,7 +32,6 @@ export const useOneSignalDeepLinks = ({ navigate, onesignalAppId, debug }: UseOn
             const categoryName = extractCategoryName(n, event);
             const deepLinkUrl = getDeepLinkUrl(n, event);
 
-            // Save to inbox as read
             try {
                 addToInbox({
                     id: `${Date.now()}-${Math.random()}`,
@@ -74,19 +76,16 @@ export const useOneSignalDeepLinks = ({ navigate, onesignalAppId, debug }: UseOn
                     read: false,
                 });
             } catch {}
-
         };
 
-        // OneSignal listeners
+        // OneSignal listeners (cross-platform)
         OneSignal.Notifications.addEventListener("click", handleClick);
         OneSignal.Notifications.addEventListener("foregroundWillDisplay", handleForeground);
 
-        // Cold start
+        // Deep linkovi
         Linking.getInitialURL().then((initialUrl) => {
             if (initialUrl) routeFromUrl(initialUrl, navigate, lastHandledUrl);
         });
-
-        // Runtime deep links
         const urlSub = Linking.addEventListener("url", (ev) => routeFromUrl(ev.url, navigate, lastHandledUrl));
 
         return () => {

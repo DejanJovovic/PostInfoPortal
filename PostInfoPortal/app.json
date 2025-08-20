@@ -9,15 +9,20 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.gosmartdevelopment.postinfoportal"
+      "bundleIdentifier": "com.gosmartdevelopment.postinfoportal",
+      "infoPlist": { "UIBackgroundModes": ["remote-notification"] },
+      "entitlements": {
+        "aps-environment": "development",
+        "com.apple.security.application-groups": [
+          "group.com.gosmartdevelopment.postinfoportal.onesignal"
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/icons/favicon.png"
       },
       "package": "com.gosmartdevelopment.postinfoportal",
-      "googleServicesFile": "./google-services.json",
       "permissions": [
         "POST_NOTIFICATIONS"
       ],
@@ -86,23 +91,6 @@
         "origin": false
       },
       "eas": {
-        "build": {
-          "experimental": {
-            "ios": {
-              "appExtensions": [
-                {
-                  "targetName": "OneSignalNotificationServiceExtension",
-                  "bundleIdentifier": "com.gosmartdevelopment.postinfoportal.OneSignalNotificationServiceExtension",
-                  "entitlements": {
-                    "com.apple.security.application-groups": [
-                      "group.com.gosmartdevelopment.postinfoportal.onesignal"
-                    ]
-                  }
-                }
-              ]
-            }
-          }
-        },
         "projectId": "1e1c5dca-b0b2-4614-98c9-6a1f09d788e3"
       }
     }
