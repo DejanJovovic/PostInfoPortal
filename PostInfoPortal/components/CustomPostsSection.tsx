@@ -7,6 +7,7 @@ import {
     TouchableOpacity,
     ScrollView,
     RefreshControl,
+    Platform,
 } from 'react-native';
 import {useTheme} from './ThemeContext';
 import {WPPost} from '@/types/wp';
@@ -46,11 +47,23 @@ const CustomPostsSection: React.FC<Props> = ({
 
         return (
             <View
-                className="rounded-2xl shadow-md p-3 border"
+                className="rounded-2xl p-3 border"
                 style={{
                     backgroundColor: isDark ? colors.black : colors.grey,
                     borderColor: isDark ? '#525050' : '#e5e7eb',
+                    overflow: 'hidden',
+                    ...(Platform.OS === 'ios'
+                        ? {
+                            shadowColor: 'transparent',
+                            shadowOpacity: 0,
+                            shadowRadius: 0,
+                            shadowOffset: { width: 0, height: 0 },
+                        }
+                        : {
+                            elevation: 0,
+                        }),
                 }}
+
             >
                 {image && (
                     <Image
@@ -93,10 +106,21 @@ const CustomPostsSection: React.FC<Props> = ({
 
         return (
             <View
-                className="rounded-2xl shadow-md mb-4 mx-4 p-4 border"
+                className="rounded-2xl mb-4 mx-4 p-4 border"
                 style={{
                     backgroundColor: isDark ? colors.black : colors.grey,
                     borderColor: isDark ? '#525050' : '#e5e7eb',
+                    overflow: 'hidden',
+                    ...(Platform.OS === 'ios'
+                        ? {
+                            shadowColor: 'transparent',
+                            shadowOpacity: 0,
+                            shadowRadius: 0,
+                            shadowOffset: { width: 0, height: 0 },
+                        }
+                        : {
+                            elevation: 0,
+                        }),
                 }}
             >
                 {image && <Image source={{uri: image}} className="w-full h-48 rounded-xl mb-3" resizeMode="cover"/>}

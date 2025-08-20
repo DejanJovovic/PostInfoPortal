@@ -9,7 +9,7 @@ import {
     Image,
     Alert,
     Linking,
-    StyleSheet,
+    StyleSheet, Platform,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useFocusEffect, useRouter, useNavigation} from 'expo-router';
@@ -134,7 +134,7 @@ const Notifications = () => {
                 {parts.map((part, i) => (
                     <Text
                         key={i}
-                        className={part.toLowerCase() === t.toLowerCase() ? 'font-bold text-[#FA0A0F]' : ''}
+                        className={part.toLowerCase() === t.toLowerCase() ? 'text-[#FA0A0F]' : ''}
                     >
                         {part}
                     </Text>
@@ -209,6 +209,17 @@ const Notifications = () => {
             style={{
                 backgroundColor: isDark ? colors.black : colors.grey,
                 borderColor: isDark ? '#525050' : '#e5e7eb',
+                overflow: 'hidden',
+                ...(Platform.OS === 'ios'
+                    ? {
+                        shadowColor: 'transparent',
+                        shadowOpacity: 0,
+                        shadowRadius: 0,
+                        shadowOffset: { width: 0, height: 0 },
+                    }
+                    : {
+                        elevation: 0,
+                    }),
             }}
         >
             <View className="flex-row items-start">
@@ -273,7 +284,7 @@ const Notifications = () => {
     );
 
     const HeaderBar = () => {
-        const canClear = (items?.length ?? 0) > 0;   // 👈 ima li obaveštenja uopšte
+        const canClear = (items?.length ?? 0) > 0;
 
         return (
             <View
@@ -430,8 +441,7 @@ const Notifications = () => {
                     <Text
                         style={{
                             marginTop: 10,
-                            fontWeight: '600',
-                            fontFamily: 'Roboto-Regular',
+                            fontFamily: 'Roboto-SemiBold',
                             color: isDark ? colors.grey : colors.black,
                             textAlign: 'center',
                         }}

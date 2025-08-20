@@ -379,7 +379,7 @@ const Categories = () => {
                                 selectedCategory={selectedCategory}
                                 onCategorySelect={(cat) => {
                                     if (cat === 'Latin | Ćirilica' || cat === selectedCategory) return;
-                                    
+
                                     // reset local filter states
                                     setSelectedCategory(cat);
                                     setIsFilterApplied(false);

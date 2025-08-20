@@ -35,7 +35,7 @@ export const menuData = [
                         "Kolubarski okrug", "Kosovo i Metohija", "Mačvanski okrug", "Moravički okrug", "Nišavski okrug",
                         "Pčinjski okrug", "Pirotski okrug", "Podunavski okrug", "Pomoravski okrug", "Rasinski okrug",
                         "Raški okrug", "Severnobački okrug", "Severnobanatski okrug", "Srednjobanatski okrug", "Sremski okrug",
-                        "Šumadijski okrug", "Toplički okrug", "Zaječarski okrug", "Zapadnobački okrug", "Zlatiborkski okrug"
+                        "Šumadijski okrug", "Toplički okrug", "Zaječarski okrug", "Zapadnobački okrug", "Zlatiborski okrug"
                     ]
                 }
             ]

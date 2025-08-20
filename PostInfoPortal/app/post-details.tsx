@@ -538,8 +538,8 @@ const PostDetails = () => {
                     <Text
                         style={{
                             marginTop: 10,
-                            fontWeight: '600',
                             color: isDark ? colors.grey : colors.black,
+                            fontFamily: 'Roboto-SemiBold',
                             textAlign: 'center',
                         }}
                     >

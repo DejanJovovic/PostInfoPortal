@@ -225,7 +225,7 @@ const CustomCategoryFilter: React.FC<Props> = ({
                                         className={`mb-2 ${isDark ? 'text-[#F9F9F9]' : 'text-black'}`}
                                         style={{fontFamily: 'Roboto-Medium'}}>Mesec</Text>
                                     <ScrollView className="h-48 rounded-xl p-2" style={{
-                                        backgroundColor: isDark ? "#222" : colors.grey,
+                                        backgroundColor: isDark ? "#222" : "#f8f4f4",
                                         maxHeight: 200
                                     }}>
                                         {months.map((month, i) => (
@@ -246,7 +246,7 @@ const CustomCategoryFilter: React.FC<Props> = ({
                                         className={`mb-2 ${isDark ? 'text-[#F9F9F9]' : 'text-black'}`}
                                         style={{fontFamily: 'Roboto-Medium'}}>Godina</Text>
                                     <ScrollView className="h-48 rounded-xl p-2" style={{
-                                        backgroundColor: isDark ? '#222' : colors.grey,
+                                        backgroundColor: isDark ? '#222' : "#f8f4f4",
                                         maxHeight: 200
                                     }}>
                                         {years.map((year) => (

@@ -9,7 +9,7 @@ import {
     RefreshControl,
     Alert,
     ActivityIndicator,
-    StyleSheet,
+    StyleSheet, Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {useFocusEffect, useRouter, useNavigation} from 'expo-router';
@@ -176,7 +176,7 @@ const Favorites = () => {
             }}>
                 {parts.map((part, i) => (
                     <Text key={i}
-                          className={part.toLowerCase() === term.toLowerCase() ? 'font-bold text-[#FA0A0F]' : ''}>
+                          className={part.toLowerCase() === term.toLowerCase() ? 'text-[#FA0A0F]' : ''}>
                         {part}
                     </Text>
                 ))}
@@ -192,11 +192,22 @@ const Favorites = () => {
         return (
             <View className="w-[260px] mr-3">
                 <View
-                    className="rounded-2xl shadow-md p-3 border"
+                    className="rounded-2xl p-3 border"
                     style={{
                         backgroundColor: isDark ? colors.black : colors.grey,
                         borderColor: isDark ? '#525050' : '#e5e7eb',
                         height: isSearchActive ? undefined : 250,
+                        overflow: 'hidden',
+                        ...(Platform.OS === 'ios'
+                            ? {
+                                shadowColor: 'transparent',
+                                shadowOpacity: 0,
+                                shadowRadius: 0,
+                                shadowOffset: { width: 0, height: 0 },
+                            }
+                            : {
+                                elevation: 0,
+                            }),
                     }}
                 >
                     <TouchableOpacity onPress={() => goToPost(item.id)} disabled={isLoading}>
@@ -377,8 +388,7 @@ const Favorites = () => {
                     <Text
                         style={{
                             marginTop: 10,
-                            fontWeight: '600',
-                            fontFamily: 'Roboto-Regular',
+                            fontFamily: 'Roboto-SemiBold',
                             color: isDark ? colors.grey : colors.black,
                             textAlign: 'center',
                         }}

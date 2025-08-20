@@ -122,7 +122,6 @@ const CustomFooter: React.FC<CustomFooterProps> = ({onSearchPress}) => {
                 <Text style={{
                     color: colors.grey,
                     fontSize: 10,
-                    fontWeight: '700',
                     fontFamily: 'YesevaOne-Regular'
                 }}>{text}</Text>
             </View>
@@ -182,8 +181,7 @@ const CustomFooter: React.FC<CustomFooterProps> = ({onSearchPress}) => {
                     <Text style={{
                         marginTop: 10,
                         color: isDark ? colors.grey : colors.black,
-                        fontWeight: '600',
-                        fontFamily: 'Roboto-Regular'
+                        fontFamily: 'Roboto-SemiBold'
                     }}>Učitavanje...</Text>
                 </View>
             )}
