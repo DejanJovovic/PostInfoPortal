@@ -28,8 +28,9 @@ const Categories = () => {
     const {theme} = useTheme();
     const isDark = theme === 'dark';
 
-    const {groupedPosts} = usePostsByCategory();
+    const { groupedPosts, posts, fetchPostsForCategory } = usePostsByCategory();
 
+    const [isCategoryLoading, setIsCategoryLoading] = useState(false);
     const [filteredPosts, setFilteredPosts] = useState<WPPost[]>([]);
     const [isFilterApplied, setIsFilterApplied] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState<string>('');
@@ -62,12 +63,12 @@ const Categories = () => {
 
     // base posts are displayed when the categories is opened
     const basePosts = useMemo(() => {
-        if (selectedCategory && groupedPosts[selectedCategory]) {
-            const unique = uniqById(groupedPosts[selectedCategory]);
+        if (selectedCategory) {
+            const unique = uniqById(posts || []);
             return unique.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
         }
         return flattenAllPosts(groupedPosts);
-    }, [selectedCategory, groupedPosts]);
+    }, [selectedCategory, posts, groupedPosts]);
 
     const activeDataset = useMemo(() => {
         return isFilterApplied ? filteredPosts : basePosts;
@@ -145,8 +146,17 @@ const Categories = () => {
         setSearchQuery('');
         setIsSearchActive(false);
         setVisibleCount(PAGE_SIZE);
-        setRefreshing(false);
-    }, []);
+
+        if (selectedCategory) {
+            setIsCategoryLoading(true);
+            fetchPostsForCategory(selectedCategory).finally(() => {
+                setIsCategoryLoading(false);
+                setRefreshing(false);
+            });
+        } else {
+            setRefreshing(false);
+        }
+    }, [selectedCategory, fetchPostsForCategory]);
 
     const handleFooterSearch = () => {
         setSearchQuery('');
@@ -193,7 +203,7 @@ const Categories = () => {
                 {parts.map((part, i) => (
                     <Text
                         key={`${part}-${i}`}
-                        className={part.toLowerCase() === term.toLowerCase() ? 'font-bold text-[#FA0A0F]' : ''}
+                        className={part.toLowerCase() === term.toLowerCase() ? 'text-[#FA0A0F]' : ''}
                     >
                         {part}
                     </Text>
@@ -343,6 +353,7 @@ const Categories = () => {
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh}/>}
                     contentContainerStyle={{paddingBottom: 100}}
                     ListEmptyComponent={
+                        !isCategoryLoading ? (
                         <View className="px-4 mt-10">
                             <Text className="text-center" style={{
                                 color: isDark ? colors.grey : colors.black,
@@ -351,6 +362,7 @@ const Categories = () => {
                                 Nema rezultata za prikaz.
                             </Text>
                         </View>
+                        ) : null
                     }
                     removeClippedSubviews
                     initialNumToRender={5}
@@ -359,12 +371,29 @@ const Categories = () => {
                 />
             ) : (
                 <FlatList
+                    pointerEvents={isCategoryLoading ? 'none' : 'auto'}
                     data={visibleData}
                     ListHeaderComponent={() => (
                         <>
                             <CustomCategoryFilter
                                 selectedCategory={selectedCategory}
-                                onCategorySelect={setSelectedCategory}
+                                onCategorySelect={(cat) => {
+                                    if (cat === 'Latin | Ćirilica' || cat === selectedCategory) return;
+                                    
+                                    // reset local filter states
+                                    setSelectedCategory(cat);
+                                    setIsFilterApplied(false);
+                                    setFilteredPosts([]);
+                                    setSelectedDate({});
+                                    setSearchQuery('');
+                                    setIsSearchActive(false);
+
+                                    // show overlay
+                                    setIsCategoryLoading(true);
+
+                                    // cache-first: if we already have it in groupedPosts, the overlay will only be seen briefly
+                                    fetchPostsForCategory(cat).finally(() => setIsCategoryLoading(false));
+                                }}
                                 selectedDate={selectedDate}
                                 setSelectedDate={setSelectedDate}
                                 groupedPostsCache={groupedPosts}
@@ -424,13 +453,13 @@ const Categories = () => {
                                 </View>
                             )}
 
-                            {selectedCategory && !isFilterApplied && (
+                            {selectedCategory && !isFilterApplied && !isCategoryLoading && visibleData.length > 0 && (
                                 <View className="px-4 mb-3">
                                     <Text
                                         className="text-center"
                                         style={{ color: isDark ? colors.grey : colors.black, fontFamily: 'Roboto-Medium' }}
                                     >
-                                        Prikazuju se objave za kategoriju:{" "}
+                                        Prikazuju se objave za kategoriju:{' '}
                                         <Text style={{ fontFamily: 'Roboto-Bold', color: colors.red }}>
                                             {selectedCategory}
                                         </Text>
@@ -466,7 +495,7 @@ const Categories = () => {
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh}/>}
                     contentContainerStyle={{paddingBottom: 100}}
                     ListEmptyComponent={
-                        sortedActiveDataset.length === 0 ? (
+                        ! isCategoryLoading && sortedActiveDataset.length === 0 ? (
                             <View className="px-4 mt-10">
                                 <Text className="text-base text-center"
                                       style={{
@@ -484,7 +513,7 @@ const Categories = () => {
                     windowSize={7}
                 />
             )}
-            {isLoading && (
+            {(isCategoryLoading || isLoading) && (
                 <View
                     style={[
                         StyleSheet.absoluteFillObject,
@@ -502,8 +531,7 @@ const Categories = () => {
                     <Text
                         style={{
                             marginTop: 10,
-                            fontWeight: '600',
-                            fontFamily: 'Roboto-Regular',
+                            fontFamily: 'Roboto-SemiBold',
                             color: isDark ? colors.grey : colors.black,
                             textAlign: 'center',
                         }}
