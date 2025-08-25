@@ -12,12 +12,9 @@ type UseOneSignalDeepLinksOpts = {
 };
 
 export const useOneSignalDeepLinks = ({ navigate, onesignalAppId, debug }: UseOneSignalDeepLinksOpts) => {
-    const lastHandledUrl = React.useRef<string | null>(null);
-    const didInit = React.useRef(false);
+    const lastHandledUrl = { current: null as string | null };
 
     React.useEffect(() => {
-        if (didInit.current) return;
-        didInit.current = true;
 
         if (debug) OneSignal.Debug.setLogLevel(LogLevel.Verbose);
 

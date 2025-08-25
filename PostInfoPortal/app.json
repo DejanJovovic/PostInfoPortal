@@ -10,7 +10,12 @@
     "newArchEnabled": true,
     "ios": {
       "bundleIdentifier": "com.gosmartdevelopment.postinfoportal",
-      "infoPlist": { "UIBackgroundModes": ["remote-notification"] },
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "remote-notification"
+        ],
+        "ITSAppUsesNonExemptEncryption": false
+      },
       "entitlements": {
         "aps-environment": "development",
         "com.apple.security.application-groups": [
@@ -23,6 +28,7 @@
         "foregroundImage": "./assets/icons/favicon.png"
       },
       "package": "com.gosmartdevelopment.postinfoportal",
+      "googleServicesFile": "./google-services.json",
       "permissions": [
         "POST_NOTIFICATIONS"
       ],
@@ -66,12 +72,8 @@
       "favicon": "./assets/icons/favicon.png"
     },
     "plugins": [
-      [
-        "onesignal-expo-plugin",
-        {
-          "mode": "development"
-        }
-      ],
+      ["onesignal-expo-plugin", { "mode": "development", "iPhoneDeploymentTarget": "16.0" }],
+      ["expo-build-properties", { "ios": { "deploymentTarget": "16.0", "useFrameworks": "static" } }],
       "expo-router",
       [
         "expo-splash-screen",
@@ -91,7 +93,24 @@
         "origin": false
       },
       "eas": {
-        "projectId": "1e1c5dca-b0b2-4614-98c9-6a1f09d788e3"
+        "build": {
+          "experimental": {
+            "ios": {
+              "appExtensions": [
+                {
+                  "targetName": "OneSignalNotificationServiceExtension",
+                  "bundleIdentifier": "com.gosmartdevelopment.postinfoportal.OneSignalNotificationServiceExtension",
+                  "entitlements": {
+                    "com.apple.security.application-groups": [
+                      "group.com.gosmartdevelopment.postinfoportal.onesignal"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "projectId": "8d37e4bc-513f-4d8a-aa29-eb920ee7e1a5"
       }
     }
   }
