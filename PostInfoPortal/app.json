@@ -30,6 +30,7 @@
       "package": "com.gosmartdevelopment.postinfoportal",
       "googleServicesFile": "./google-services.json",
       "permissions": [
+        "INTERNET",
         "POST_NOTIFICATIONS"
       ],
       "intentFilters": [
@@ -73,7 +74,12 @@
     },
     "plugins": [
       ["onesignal-expo-plugin", { "mode": "development", "iPhoneDeploymentTarget": "16.0" }],
-      ["expo-build-properties", { "ios": { "deploymentTarget": "16.0", "useFrameworks": "static" } }],
+      ["expo-build-properties", {
+        "ios": { "deploymentTarget": "16.0", "useFrameworks": "static" },
+        "android": {
+          "usesCleartextTraffic": true
+        }
+      }],
       "expo-router",
       [
         "expo-splash-screen",
