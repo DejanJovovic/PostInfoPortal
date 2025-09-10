@@ -22,6 +22,8 @@ import CustomPostsSection from '@/components/CustomPostsSection';
 import {useTheme} from '@/components/ThemeContext';
 import colors from "@/constants/colors";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import CustomBanner from "@/components/CustomBanner";
+import { pickRandomAd } from '@/constants/ads';
 
 const LoadingOverlay = ({isDark, message}: { isDark: boolean; message: string }) => (
     <View
@@ -117,6 +119,30 @@ const Index = () => {
         }
     }, [openSearch]);
 
+    const [bottomAdVisible, setBottomAdVisible] = useState(false);
+    const [bottomAd, setBottomAd] = useState(pickRandomAd());
+    const categoryEndAd = React.useMemo(() => pickRandomAd(), [activeCategory, posts.length]);
+
+    const adTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+// Pokaži reklamu (ako nema search loadera / navigacije / menija)
+    const showBottomAd = React.useCallback(() => {
+        if (isLoading) return;
+        if (menuOpen) return;
+        if (loading || searchLoading) return;
+
+        setBottomAd(pickRandomAd());
+        setBottomAdVisible(true);
+    }, [isLoading, menuOpen, loading, searchLoading]);
+
+// Zatvori i zakaži sledeći pokušaj posle cooldown-a
+    const dismissBottomAd = React.useCallback(() => {
+        setBottomAdVisible(false);
+        const nextIn = 10000 + Math.random() * 10000;
+        if (adTimerRef.current) clearTimeout(adTimerRef.current);
+        adTimerRef.current = setTimeout(showBottomAd, nextIn);
+    }, [showBottomAd]);
+
     const deriveCategoryName = (post: any): string | undefined => {
         const groups = post?._embedded?.['wp:term'];
         if (Array.isArray(groups)) {
@@ -151,6 +177,29 @@ const Index = () => {
             });
         });
     };
+
+    // Pokreni prvi pokušaj posle 8–15s od ulaska u ekran
+    useEffect(() => {
+        const firstIn = 8000 + Math.random() * 7000;
+        if (adTimerRef.current) clearTimeout(adTimerRef.current);
+        adTimerRef.current = setTimeout(showBottomAd, firstIn);
+
+        return () => {
+            if (adTimerRef.current) clearTimeout(adTimerRef.current);
+        };
+    }, [showBottomAd]);
+
+// ako se otvori meni / uđe loader / search loader -> sakrij i pauziraj timer
+    useEffect(() => {
+        if (menuOpen || isLoading || loading || searchLoading) {
+            setBottomAdVisible(false);
+            if (adTimerRef.current) clearTimeout(adTimerRef.current);
+        } else if (!bottomAdVisible && !adTimerRef.current) {
+            // restart tajmera kad se “vrati” normalno stanje
+            const inMs = 15000;
+            adTimerRef.current = setTimeout(showBottomAd, inMs);
+        }
+    }, [menuOpen, isLoading, loading, searchLoading, bottomAdVisible, showBottomAd]);
 
     const handleBackWithLoading = () => {
         if (isLoading) return;
@@ -401,117 +450,212 @@ const Index = () => {
                     {/* 1) General categories except Događaji/Lokal/Region/Planeta */}
                     {Object.entries(generalGroupedPosts)
                         .filter(([name]) => !['Događaji', 'Lokal', 'Region', 'Planeta'].includes(name))
-                        .map(([categoryName, categoryPosts]) => (
-                            <CustomPostsSection
-                                key={categoryName}
-                                categoryName={categoryName}
-                                posts={categoryPosts}
-                                showFeaturedFirst
-                                onPostPress={(id) => goToPost(id, categoryName)}
-                                loadingNav={isLoading}
-                            />
-                        ))}
+                        .map(([categoryName, categoryPosts], idx) => {
+                            const ad = pickRandomAd();
+                            return (
+                                <React.Fragment key={categoryName}>
+                                    <CustomPostsSection
+                                        categoryName={categoryName}
+                                        posts={categoryPosts}
+                                        isHome
+                                        onPostPress={(id) => goToPost(id, categoryName)}
+                                        loadingNav={isLoading}
+                                    />
+                                    <CustomBanner
+                                        key={`ad-general-${idx}`}
+                                        url={ad.url}
+                                        imageSrc={ad.imageSrc}
+                                        cta={ad.cta}
+                                    />
+                                </React.Fragment>
+                            );
+                        })}
 
                     {/* 2) Događaji  */}
-                    {(generalGroupedPosts['Događaji']?.length ?? 0) > 0 && (
-                        <CustomPostsSection
-                            key="Događaji"
-                            categoryName="Događaji"
-                            posts={generalGroupedPosts['Događaji'] || []}
-                            showFeaturedFirst
-                            onPostPress={(id) => goToPost(id, 'Događaji')}
-                            loadingNav={isLoading}
-                        />
-                    )}
+                    {(generalGroupedPosts['Događaji']?.length ?? 0) > 0 && (() => {
+                        const ad = pickRandomAd();
+                        return (
+                            <>
+                                <CustomPostsSection
+                                    key="Događaji"
+                                    categoryName="Događaji"
+                                    posts={generalGroupedPosts['Događaji'] || []}
+                                    isHome
+                                    onPostPress={(id) => goToPost(id, 'Događaji')}
+                                    loadingNav={isLoading}
+                                />
+                                <CustomBanner
+                                    key="ad-dogadjaji"
+                                    url={ad.url}
+                                    imageSrc={ad.imageSrc}
+                                    cta={ad.cta}
+                                />
+                            </>
+                        );
+                    })()}
 
                     {/* 3) Lokal */}
-                    {(generalGroupedPosts['Lokal']?.length ?? 0) > 0 && (
-                        <CustomPostsSection
-                            key="Lokal"
-                            categoryName="Lokal"
-                            posts={generalGroupedPosts['Lokal'] || []}
-                            showFeaturedFirst
-                            onPostPress={(id) => goToPost(id, 'Lokal')}
-                            loadingNav={isLoading}
-                        />
-                    )}
+                    {(generalGroupedPosts['Lokal']?.length ?? 0) > 0 && (() => {
+                        const ad = pickRandomAd();
+                        return (
+                            <>
+                                <CustomPostsSection
+                                    key="Lokal"
+                                    categoryName="Lokal"
+                                    posts={generalGroupedPosts['Lokal'] || []}
+                                    isHome
+                                    onPostPress={(id) => goToPost(id, 'Lokal')}
+                                    loadingNav={isLoading}
+                                />
+                                <CustomBanner
+                                    key="ad-lokal"
+                                    url={ad.url}
+                                    imageSrc={ad.imageSrc}
+                                    cta={ad.cta}
+                                />
+                            </>
+                        );
+                    })()}
 
                     {/* 4) Beograd*/}
-                    {(lokalGroupedPosts['Beograd']?.length ?? 0) > 0 && (
-                        <CustomPostsSection
-                            key="Beograd"
-                            categoryName="Beograd"
-                            posts={lokalGroupedPosts['Beograd'] || []}
-                            showFeaturedFirst
-                            onPostPress={(id) => goToPost(id, 'Beograd')}
-                            loadingNav={isLoading}
-                        />
-                    )}
+                    {(lokalGroupedPosts['Beograd']?.length ?? 0) > 0 && (() => {
+                        const ad = pickRandomAd();
+                        return (
+                            <>
+                                <CustomPostsSection
+                                    key="Beograd"
+                                    categoryName="Beograd"
+                                    posts={lokalGroupedPosts['Beograd'] || []}
+                                    isHome
+                                    onPostPress={(id) => goToPost(id, 'Beograd')}
+                                    loadingNav={isLoading}
+                                />
+                                <CustomBanner
+                                    key="ad-beograd"
+                                    url={ad.url}
+                                    imageSrc={ad.imageSrc}
+                                    cta={ad.cta}
+                                />
+                            </>
+                        );
+                    })()}
 
                     {/* 5) Opštine Beograda*/}
                     {Object.entries(beogradGroupedPosts)
                         .filter(([, arr]) => (arr?.length ?? 0) > 0)
-                        .map(([categoryName, categoryPosts]) => (
-                            <CustomPostsSection
-                                key={categoryName}
-                                categoryName={categoryName}
-                                posts={categoryPosts}
-                                showFeaturedFirst
-                                onPostPress={(id) => goToPost(id, categoryName)}
-                                loadingNav={isLoading}
-                            />
-                        ))}
+                        .map(([categoryName, categoryPosts], idx) => {
+                            const ad = pickRandomAd();
+                            return (
+                                <React.Fragment key={categoryName}>
+                                    <CustomPostsSection
+                                        categoryName={categoryName}
+                                        posts={categoryPosts}
+                                        isHome
+                                        onPostPress={(id) => goToPost(id, categoryName)}
+                                        loadingNav={isLoading}
+                                    />
+                                    <CustomBanner
+                                        key={`ad-beograd-sub-${idx}`}
+                                        url={ad.url}
+                                        imageSrc={ad.imageSrc}
+                                        cta={ad.cta}
+                                    />
+                                </React.Fragment>
+                            );
+                        })}
 
                     {/* 6) Gradovi  */}
-                    {(lokalGroupedPosts['Gradovi']?.length ?? 0) > 0 && (
-                        <CustomPostsSection
-                            key="Gradovi"
-                            categoryName="Gradovi"
-                            posts={lokalGroupedPosts['Gradovi'] || []}
-                            showFeaturedFirst
-                            onPostPress={(id) => goToPost(id, 'Gradovi')}
-                            loadingNav={isLoading}
-                        />
-                    )}
+                    {(lokalGroupedPosts['Gradovi']?.length ?? 0) > 0 && (() => {
+                        const ad = pickRandomAd();
+                        return (
+                            <>
+                                <CustomPostsSection
+                                    key="Gradovi"
+                                    categoryName="Gradovi"
+                                    posts={lokalGroupedPosts['Gradovi'] || []}
+                                    isHome
+                                    onPostPress={(id) => goToPost(id, 'Gradovi')}
+                                    loadingNav={isLoading}
+                                />
+                                <CustomBanner
+                                    key="ad-gradovi"
+                                    url={ad.url}
+                                    imageSrc={ad.imageSrc}
+                                    cta={ad.cta}
+                                />
+                            </>
+                        );
+                    })()}
 
                     {/* 7) Okruzi*/}
-                    {(lokalGroupedPosts['Okruzi']?.length ?? 0) > 0 && (
-                        <CustomPostsSection
-                            key="Okruzi"
-                            categoryName="Okruzi"
-                            posts={lokalGroupedPosts['Okruzi'] || []}
-                            showFeaturedFirst
-                            onPostPress={(id) => goToPost(id, 'Okruzi')}
-                            loadingNav={isLoading}
-                        />
-                    )}
+                    {(lokalGroupedPosts['Okruzi']?.length ?? 0) > 0 && (() => {
+                        const ad = pickRandomAd();
+                        return (
+                            <>
+                                <CustomPostsSection
+                                    key="Okruzi"
+                                    categoryName="Okruzi"
+                                    posts={lokalGroupedPosts['Okruzi'] || []}
+                                    isHome
+                                    onPostPress={(id) => goToPost(id, 'Okruzi')}
+                                    loadingNav={isLoading}
+                                />
+                                <CustomBanner
+                                    key="ad-okruzi"
+                                    url={ad.url}
+                                    imageSrc={ad.imageSrc}
+                                    cta={ad.cta}
+                                />
+                            </>
+                        );
+                    })()}
 
                     {/* 8) Podkategorije Okruga */}
                     {Object.entries(okruziGroupedPosts)
                         .filter(([, arr]) => (arr?.length ?? 0) > 0)
-                        .map(([categoryName, categoryPosts]) => (
-                            <CustomPostsSection
-                                key={categoryName}
-                                categoryName={categoryName}
-                                posts={categoryPosts}
-                                showFeaturedFirst
-                                onPostPress={(id) => goToPost(id, categoryName)}
-                                loadingNav={isLoading}
-                            />
-                        ))}
+                        .map(([categoryName, categoryPosts], idx) => {
+                            const ad = pickRandomAd();
+                            return (
+                                <React.Fragment key={categoryName}>
+                                    <CustomPostsSection
+                                        categoryName={categoryName}
+                                        posts={categoryPosts}
+                                        isHome
+                                        onPostPress={(id) => goToPost(id, categoryName)}
+                                        loadingNav={isLoading}
+                                    />
+                                    <CustomBanner
+                                        key={`ad-okruzi-sub-${idx}`}
+                                        url={ad.url}
+                                        imageSrc={ad.imageSrc}
+                                        cta={ad.cta}
+                                    />
+                                </React.Fragment>
+                            );
+                        })}
 
                     {/* 9) Region i Planeta */}
-                    {['Region', 'Planeta'].map((name) =>
-                        (generalGroupedPosts[name]?.length ?? 0) > 0 ? (
-                            <CustomPostsSection
-                                key={name}
-                                categoryName={name}
-                                posts={generalGroupedPosts[name] || []}
-                                showFeaturedFirst
-                                onPostPress={(id) => goToPost(id, name)}
-                                loadingNav={isLoading}
-                            />
-                        ) : null
+                    {['Region', 'Planeta'].map((name, idx) =>
+                        (generalGroupedPosts[name]?.length ?? 0) > 0 ? (() => {
+                            const ad = pickRandomAd();
+                            return (
+                                <React.Fragment key={name}>
+                                    <CustomPostsSection
+                                        categoryName={name}
+                                        posts={generalGroupedPosts[name] || []}
+                                        isHome
+                                        onPostPress={(id) => goToPost(id, name)}
+                                        loadingNav={isLoading}
+                                    />
+                                    <CustomBanner
+                                        key={`ad-${name}-${idx}`}
+                                        url={ad.url}
+                                        imageSrc={ad.imageSrc}
+                                        cta={ad.cta}
+                                    />
+                                </React.Fragment>
+                            );
+                        })() : null
                     )}
                 </ScrollView>
             ) : (
@@ -531,11 +675,14 @@ const Index = () => {
                     <CustomPostsSection
                         categoryName={activeCategory}
                         posts={posts}
-                        gridAfterFirst
                         onPostPress={(id) => goToPost(id, activeCategory)}
                         loadingNav={isLoading}
                         refreshing={refreshing}
                         onRefresh={onRefresh}
+                        adAtEnd
+                        adUrl={categoryEndAd.url}
+                        adImageUrl={categoryEndAd.imageSrc}
+                        adCta={categoryEndAd.cta}
                     />
                 )
             )}
@@ -568,6 +715,25 @@ const Index = () => {
             )}
 
             {!menuOpen && <CustomFooter onSearchPress={handleFooterSearch}/>}
+
+            {bottomAdVisible && (
+                <View
+                    pointerEvents="box-none"
+                    style={[
+                        StyleSheet.absoluteFillObject,
+                        { justifyContent: 'flex-end', alignItems: 'center', zIndex: 10000 },
+                    ]}
+                >
+                    <View style={{ width: '100%', paddingHorizontal: 8, marginBottom: 84 }}>
+                        <CustomBanner
+                            url={bottomAd.url}
+                            imageSrc={bottomAd.imageSrc}
+                            cta={bottomAd.cta}
+                            onClose={dismissBottomAd}
+                        />
+                    </View>
+                </View>
+            )}
         </SafeAreaView>
     );
 };

@@ -1,4 +1,4 @@
-import React, {useState, useCallback, useEffect} from 'react';
+import React, {useState, useCallback, useEffect, useRef} from 'react';
 import {
     View,
     Text,
@@ -21,6 +21,8 @@ import CustomSearchBar from '@/components/CustomSearchBar';
 import icons from '@/constants/icons';
 import {useTheme} from '@/components/ThemeContext';
 import colors from "@/constants/colors";
+import {pickRandomAd} from "@/constants/ads";
+import CustomBanner from "@/components/CustomBanner";
 
 type FavoritePost = WPPost & { category: string };
 
@@ -56,11 +58,41 @@ const Favorites = () => {
         setGroupedFavorites(grouped);
     };
 
+    const [bottomAdVisible, setBottomAdVisible] = useState(false);
+    const [bottomAd, setBottomAd] = useState(() => pickRandomAd());
+
+    const adTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const clearAdTimer = () => {
+        if (adTimerRef.current) {
+            clearTimeout(adTimerRef.current);
+            adTimerRef.current = null;
+        }
+    };
+
+    const scheduleAd = (ms: number) => {
+        clearAdTimer();
+        adTimerRef.current = setTimeout(() => {
+            setBottomAd(pickRandomAd());
+            setBottomAdVisible(true);
+        }, ms);
+    };
+
+    const dismissBottomAd = () => {
+        setBottomAdVisible(false);
+        scheduleAd(10000);
+    };
+
     useFocusEffect(
         useCallback(() => {
             loadFavorites();
         }, [])
     );
+
+    useEffect(() => {
+        scheduleAd(5000);
+        return () => clearAdTimer();
+    }, []);
 
     useEffect(() => {
         const unsub = navigation.addListener('blur', () => setIsLoading(false));
@@ -399,6 +431,25 @@ const Favorites = () => {
             )}
 
             <CustomFooter onSearchPress={handleFooterSearch}/>
+
+            {bottomAdVisible && (
+                <View
+                    pointerEvents="box-none"
+                    style={[
+                        StyleSheet.absoluteFillObject,
+                        { justifyContent: 'flex-end', alignItems: 'center' },
+                    ]}
+                >
+                    <View style={{ width: '100%', paddingHorizontal: 8, marginBottom: 84 }}>
+                        <CustomBanner
+                            url={bottomAd.url}
+                            imageSrc={bottomAd.imageSrc}
+                            cta={bottomAd.cta}
+                            onClose={dismissBottomAd}
+                        />
+                    </View>
+                </View>
+            )}
         </SafeAreaView>
     );
 };

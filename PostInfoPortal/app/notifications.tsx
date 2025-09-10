@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {
     View,
     Text,
@@ -25,6 +25,8 @@ import {
 } from '@/types/notificationInbox';
 import icons from '@/constants/icons';
 import colors from "@/constants/colors";
+import {pickRandomAd} from "@/constants/ads";
+import CustomBanner from "@/components/CustomBanner";
 
 const Notifications = () => {
     const router = useRouter();
@@ -52,11 +54,41 @@ const Notifications = () => {
         }
     };
 
+    const [bottomAdVisible, setBottomAdVisible] = useState(false);
+    const [bottomAd, setBottomAd] = useState(() => pickRandomAd());
+
+    const adTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const clearAdTimer = () => {
+        if (adTimerRef.current) {
+            clearTimeout(adTimerRef.current);
+            adTimerRef.current = null;
+        }
+    };
+
+    const scheduleAd = (ms: number) => {
+        clearAdTimer();
+        adTimerRef.current = setTimeout(() => {
+            setBottomAd(pickRandomAd());
+            setBottomAdVisible(true);
+        }, ms);
+    };
+
+    const dismissBottomAd = () => {
+        setBottomAdVisible(false);
+        scheduleAd(10000);
+    };
+
     useFocusEffect(
         useCallback(() => {
             load();
         }, [])
     );
+
+    useEffect(() => {
+        scheduleAd(5000);
+        return () => clearAdTimer();
+    }, []);
 
     useEffect(() => {
         const unsub = navigation.addListener('blur', () => setIsLoading(false));
@@ -452,6 +484,25 @@ const Notifications = () => {
             )}
 
             <CustomFooter onSearchPress={handleFooterSearch}/>
+
+            {bottomAdVisible && (
+                <View
+                    pointerEvents="box-none"
+                    style={[
+                        StyleSheet.absoluteFillObject,
+                        { justifyContent: 'flex-end', alignItems: 'center' },
+                    ]}
+                >
+                    <View style={{ width: '100%', paddingHorizontal: 8, marginBottom: 84}}>
+                        <CustomBanner
+                            url={bottomAd.url}
+                            imageSrc={bottomAd.imageSrc}
+                            cta={bottomAd.cta}
+                            onClose={dismissBottomAd}
+                        />
+                    </View>
+                </View>
+            )}
         </SafeAreaView>
     );
 };

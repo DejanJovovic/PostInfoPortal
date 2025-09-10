@@ -18,6 +18,8 @@ import {WPPost} from '@/types/wp';
 import {router, useNavigation} from 'expo-router';
 import {ChevronDown, ChevronUp} from 'lucide-react-native';
 import colors from "@/constants/colors";
+import {pickRandomAd} from "@/constants/ads";
+import CustomBanner from "@/components/CustomBanner";
 
 const PAGE_SIZE = 5;
 const ALL_EXCLUDE = new Set(['Naslovna', 'Danas']);
@@ -46,6 +48,36 @@ const Categories = () => {
     const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
     // global sorting state
     const [globalSort, setGlobalSort] = useState<'desc' | 'asc'>('desc');
+
+    const [bottomAdVisible, setBottomAdVisible] = useState(false);
+    const [bottomAd, setBottomAd] = useState(() => pickRandomAd());
+
+    const adTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const clearAdTimer = () => {
+        if (adTimerRef.current) {
+            clearTimeout(adTimerRef.current);
+            adTimerRef.current = null;
+        }
+    };
+
+    const scheduleAd = (ms: number) => {
+        clearAdTimer();
+        adTimerRef.current = setTimeout(() => {
+            setBottomAd(pickRandomAd());
+            setBottomAdVisible(true);
+        }, ms);
+    };
+
+    const dismissBottomAd = () => {
+        setBottomAdVisible(false);
+        scheduleAd(15000);
+    };
+
+    useEffect(() => {
+        scheduleAd(10000);
+        return () => clearAdTimer();
+    }, []);
 
     const uniqById = (arr: WPPost[]) => {
         const map: Record<number, WPPost> = {};
@@ -542,6 +574,25 @@ const Categories = () => {
             )}
 
             <CustomFooter onSearchPress={handleFooterSearch}/>
+
+            {bottomAdVisible && (
+                <View
+                    pointerEvents="box-none"
+                    style={[
+                        StyleSheet.absoluteFillObject,
+                        { justifyContent: 'flex-end', alignItems: 'center' },
+                    ]}
+                >
+                    <View style={{ width: '100%', paddingHorizontal: 8, marginBottom: 84 }}>
+                        <CustomBanner
+                            url={bottomAd.url}
+                            imageSrc={bottomAd.imageSrc}
+                            cta={bottomAd.cta}
+                            onClose={dismissBottomAd}
+                        />
+                    </View>
+                </View>
+            )}
         </SafeAreaView>
     );
 };

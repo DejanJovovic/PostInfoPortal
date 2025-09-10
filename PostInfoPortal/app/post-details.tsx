@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useMemo} from 'react';
+import React, {useState, useEffect, useMemo, useRef} from 'react';
 import {
     Text,
     Image,
@@ -20,12 +20,12 @@ import CustomHeader from '@/components/CustomHeader';
 import {useTheme} from '@/components/ThemeContext';
 import icons from '@/constants/icons';
 import {WPPost} from '@/types/wp';
-
-// notifications inbox helpers (read only for preview mode)
 import {getInbox, type InboxItem} from '@/types/notificationInbox';
 import CustomFooter from "@/components/CustomFooter";
 import {globalSearch} from "@/utils/searchNavigation";
 import colors from "@/constants/colors";
+import CustomBanner from '@/components/CustomBanner';
+import { pickRandomAd } from '@/constants/ads';
 
 const deriveCategoryName = (post: any): string | undefined => {
     const groups = post?._embedded?.['wp:term'];
@@ -82,6 +82,36 @@ const PostDetails = () => {
         }),
         [htmlTextColor]
     );
+
+    const [bottomAdVisible, setBottomAdVisible] = useState(false);
+    const [bottomAd, setBottomAd] = useState(() => pickRandomAd());
+
+    const adTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const clearAdTimer = () => {
+        if (adTimerRef.current) {
+            clearTimeout(adTimerRef.current);
+            adTimerRef.current = null;
+        }
+    };
+
+    const scheduleAd = (ms: number) => {
+        clearAdTimer();
+        adTimerRef.current = setTimeout(() => {
+            setBottomAd(pickRandomAd());
+            setBottomAdVisible(true);
+        }, ms);
+    };
+
+    const dismissBottomAd = () => {
+        setBottomAdVisible(false);
+        scheduleAd(10000);
+    };
+
+    useEffect(() => {
+        scheduleAd(5000);
+        return () => clearAdTimer();
+    }, []);
 
     useEffect(() => {
         const unsub = navigation.addListener('blur', () => setIsLoading(false));
@@ -368,7 +398,7 @@ const PostDetails = () => {
                     loadingNav={isLoading}
                 />
 
-                <ScrollView contentContainerStyle={{paddingBottom: 120}} className="px-4 py-4">
+                <ScrollView contentContainerStyle={{ paddingBottom: bottomAdVisible ? 220 : 120 }} className="px-4 py-4">
                     {preview.imageUrl && (
                         <Image
                             source={{uri: preview.imageUrl}}
@@ -441,6 +471,25 @@ const PostDetails = () => {
                     )}
                 </ScrollView>
                 <CustomFooter onSearchPress={() => router.push(globalSearch())}/>
+
+                {bottomAdVisible && (
+                    <View
+                        pointerEvents="box-none"
+                        style={[
+                            StyleSheet.absoluteFillObject,
+                            { justifyContent: 'flex-end', alignItems: 'center' },
+                        ]}
+                    >
+                        <View style={{ width: '100%', paddingHorizontal: 8, marginBottom: 84 }}>
+                            <CustomBanner
+                                url={bottomAd.url}
+                                imageSrc={bottomAd.imageSrc}
+                                cta={bottomAd.cta}
+                                onClose={dismissBottomAd}
+                            />
+                        </View>
+                    </View>
+                )}
             </SafeAreaView>
         );
     }
@@ -463,7 +512,7 @@ const PostDetails = () => {
                 loadingNav={isLoading}
             />
 
-            <ScrollView contentContainerStyle={{paddingBottom: 120}} className="px-4 py-4">
+            <ScrollView contentContainerStyle={{ paddingBottom: bottomAdVisible ? 220 : 120 }} className="px-4 py-4">
                 {image && (
                     <Image
                         source={{uri: image}}
@@ -548,6 +597,25 @@ const PostDetails = () => {
                 </View>
             )}
             <CustomFooter onSearchPress={() => router.push(globalSearch())} />
+
+            {bottomAdVisible && (
+                <View
+                    pointerEvents="box-none"
+                    style={[
+                        StyleSheet.absoluteFillObject,
+                        { justifyContent: 'flex-end', alignItems: 'center' },
+                    ]}
+                >
+                    <View style={{ width: '100%', paddingHorizontal: 8, marginBottom: 84 }}>
+                        <CustomBanner
+                            url={bottomAd.url}
+                            imageSrc={bottomAd.imageSrc}
+                            cta={bottomAd.cta}
+                            onClose={dismissBottomAd}
+                        />
+                    </View>
+                </View>
+            )}
         </SafeAreaView>
     );
 };
