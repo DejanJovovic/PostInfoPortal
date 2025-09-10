@@ -2,250 +2,334 @@ import React from 'react';
 import {
     View,
     Text,
-    FlatList,
     Image,
     TouchableOpacity,
     ScrollView,
     RefreshControl,
-    Platform,
+    Platform, type ImageSourcePropType,
 } from 'react-native';
 import {useTheme} from './ThemeContext';
 import {WPPost} from '@/types/wp';
-import colors from "@/constants/colors";
+import colors from '@/constants/colors';
+import CustomBanner from "@/components/CustomBanner";
 
 interface Props {
     categoryName: string;
     posts: WPPost[];
-    /** Naslovna posts UI */
-    showFeaturedFirst?: boolean;
-    /** posts UI for other kategorije */
-    gridAfterFirst?: boolean;
+    /** Da li se sekcija prikazuje na "Naslovna" (prikazuje plavi naslov karticu)? */
+    isHome?: boolean;
     refreshing?: boolean;
     onRefresh?: () => void;
     onPostPress: (postId: number, categoryName: string) => void;
     loadingNav?: boolean;
+    /** Reklama na kraju sekcije (za ostale kategorije) */
+    adAtEnd?: boolean;
+    adUrl?: string;
+    adImageUrl?: ImageSourcePropType | string;
+    adTitle?: string;
+    adCta?: string;
 }
 
 const CustomPostsSection: React.FC<Props> = ({
                                                  categoryName,
                                                  posts,
-                                                 showFeaturedFirst = false,
-                                                 gridAfterFirst = false,
+                                                 isHome = false,
                                                  refreshing,
                                                  onRefresh,
                                                  onPostPress,
                                                  loadingNav,
+                                                 adAtEnd = false,
+                                                 adUrl = 'https://example.com',
+                                                 adImageUrl = 'https://via.placeholder.com/1200x400?text=Ad',
+                                                 adTitle = 'Test',
+                                                 adCta = 'Saznaj više',
                                              }) => {
     const {theme} = useTheme();
     const isDark = theme === 'dark';
 
-    const Card = ({item}: { item: WPPost }) => {
-        const image = item._embedded?.['wp:featuredmedia']?.[0]?.source_url;
-        const date = new Date(item.date).toLocaleDateString('sr-RS');
-        const excerpt = item.excerpt?.rendered?.replace(/<[^>]+>/g, '') || '';
-        const postTitle = item.title?.rendered || '';
+    if (!posts || posts.length === 0) return null;
 
-        return (
-            <View
-                className="rounded-2xl p-3 border"
-                style={{
-                    backgroundColor: isDark ? colors.black : colors.grey,
-                    borderColor: isDark ? '#525050' : '#e5e7eb',
-                    overflow: 'hidden',
-                    ...(Platform.OS === 'ios'
-                        ? {
-                            shadowColor: 'transparent',
-                            shadowOpacity: 0,
-                            shadowRadius: 0,
-                            shadowOffset: { width: 0, height: 0 },
-                        }
-                        : {
-                            elevation: 0,
-                        }),
-                }}
+    const featured = posts[0];
+    const nextTwo = posts.slice(1, 3);
+    const rest = posts.slice(3);
 
-            >
-                {image && (
-                    <Image
-                        source={{uri: image}}
-                        className="w-full h-[110px] rounded-xl mb-2"
-                        resizeMode="cover"
-                    />
-                )}
-                <Text
-                    className="mb-1"
+    const cardBase = {
+        backgroundColor: isDark ? colors.black : colors.grey,
+        borderColor: isDark ? '#525050' : '#e5e7eb',
+    } as const;
+
+    const ShadowNone =
+        Platform.OS === 'ios'
+            ? {
+                shadowColor: 'transparent',
+                shadowOpacity: 0,
+                shadowRadius: 0,
+                shadowOffset: {width: 0, height: 0},
+            }
+            : {elevation: 0};
+
+    const getImg = (p: WPPost) => p._embedded?.['wp:featuredmedia']?.[0]?.source_url;
+    const getDate = (p: WPPost) => new Date(p.date).toLocaleDateString('sr-RS');
+    const getExcerpt = (p: WPPost) => p.excerpt?.rendered?.replace(/<[^>]+>/g, '') || '';
+    const getTitle = (p: WPPost) => p.title?.rendered || '';
+
+    return (
+        <View style={{marginBottom: 18}}>
+            {/* Header (samo na Naslovna) */}
+            {isHome && (
+                <View
                     style={{
-                        color: isDark ? colors.grey : colors.black,
-                        fontFamily: 'Roboto-ExtraBold'
+                        backgroundColor: colors.blue,
+                        alignSelf: 'stretch',
+                        marginHorizontal: 12,
+                        paddingHorizontal: 12,
+                        paddingVertical: 8,
+                        borderRadius: 12,
+                        marginTop: 18,
                     }}
-                    numberOfLines={2}
                 >
-                    {postTitle}
-                </Text>
-                <Text className="text-xs mt-1 mb-1" style={{
-                    color: isDark ? colors.grey : colors.black,
-                    fontFamily: 'YesevaOne-Regular'
-                }}>
-                    {date}
-                </Text>
-                <Text className="text-sm" numberOfLines={3} style={{
-                    color: isDark ? colors.grey : colors.black,
-                    fontFamily: 'Roboto-Light'
-                }}>
-                    {excerpt}
-                </Text>
-            </View>
-        );
-    };
+                    <Text
+                        style={{
+                            color: '#fff',
+                            fontFamily: 'YesevaOne-Regular',
+                        }}
+                    >
+                        {categoryName}
+                    </Text>
+                </View>
+            )}
 
-    const FeaturedCard = ({item}: { item: WPPost }) => {
-        const image = item._embedded?.['wp:featuredmedia']?.[0]?.source_url;
-        const date = new Date(item.date).toLocaleDateString('sr-RS');
-        const excerpt = item.excerpt?.rendered?.replace(/<[^>]+>/g, '') || '';
-        const postTitle = item.title?.rendered || '';
-
-        return (
-            <View
-                className="rounded-2xl mb-4 mx-4 p-4 border"
-                style={{
-                    backgroundColor: isDark ? colors.black : colors.grey,
-                    borderColor: isDark ? '#525050' : '#e5e7eb',
-                    overflow: 'hidden',
-                    ...(Platform.OS === 'ios'
-                        ? {
-                            shadowColor: 'transparent',
-                            shadowOpacity: 0,
-                            shadowRadius: 0,
-                            shadowOffset: { width: 0, height: 0 },
-                        }
-                        : {
-                            elevation: 0,
-                        }),
-                }}
-            >
-                {image && <Image source={{uri: image}} className="w-full h-48 rounded-xl mb-3" resizeMode="cover"/>}
-                <Text
-                    className="mb-1"
-                    style={{
-                        color: isDark ? colors.grey : colors.black,
-                        fontFamily: 'Roboto-ExtraBold'
-                    }}
-                    numberOfLines={2}
-                >
-                    {postTitle}
-                </Text>
-                <Text className="text-xs mt-1 mb-1" style={{
-                    color: isDark ? colors.grey : colors.black,
-                    fontFamily: 'YesevaOne-Regular'
-                }}>
-                    {date}
-                </Text>
-                <Text className="text-sm" numberOfLines={3} style={{
-                    color: isDark ? colors.grey : colors.black,
-                    fontFamily: 'Roboto-Light'
-                }}>
-                    {excerpt}
-                </Text>
-            </View>
-        );
-    };
-
-    if (gridAfterFirst) {
-        const rest = posts.slice(1);
-
-        return (
             <ScrollView
-                contentContainerStyle={{paddingBottom: 8}}
+                contentContainerStyle={{
+                    paddingBottom: isHome ? 8 : 250,
+                }}
                 showsVerticalScrollIndicator={false}
+                scrollEventThrottle={16}
                 refreshControl={
                     refreshing !== undefined && onRefresh ? (
                         <RefreshControl refreshing={refreshing} onRefresh={onRefresh}/>
                     ) : undefined
                 }
             >
-                {posts.length > 0 && (
-                    <TouchableOpacity
-                        onPress={() => onPostPress(posts[0].id, categoryName)}
-                        disabled={loadingNav}
-                        activeOpacity={0.8}
+                {/* #1 Featured full-width */}
+                <TouchableOpacity
+                    activeOpacity={0.85}
+                    disabled={loadingNav}
+                    onPress={() => onPostPress(featured.id, categoryName)}
+                    style={{marginHorizontal: 12, marginTop: 10}}
+                >
+                    <View
+                        style={[
+                            {
+                                borderWidth: 1,
+                                borderRadius: 16,
+                                padding: 12,
+                                ...cardBase,
+                                overflow: 'hidden',
+                            },
+                            ShadowNone,
+                        ]}
                     >
-                        <FeaturedCard item={posts[0]}/>
-                    </TouchableOpacity>
-                )}
-
-                {rest.length > 0 && (
-                    <View style={{paddingHorizontal: 12}}>
-                        <View
+                        {getImg(featured) && (
+                            <Image
+                                source={{uri: getImg(featured)!}}
+                                style={{width: '100%', height: 200, borderRadius: 12, marginBottom: 10}}
+                                resizeMode="cover"
+                            />
+                        )}
+                        <Text
+                            numberOfLines={2}
+                            style={{color: isDark ? colors.grey : colors.black, fontFamily: 'Roboto-ExtraBold'}}
+                        >
+                            {getTitle(featured)}
+                        </Text>
+                        <Text
                             style={{
-                                flexDirection: 'row',
-                                flexWrap: 'wrap',
-                                justifyContent: 'space-between',
+                                marginTop: 4,
+                                color: isDark ? colors.grey : colors.black,
+                                fontFamily: 'YesevaOne-Regular'
                             }}
                         >
-                            {rest.map((item) => (
-                                <View key={item.id} style={{width: '48%', marginBottom: 12}}>
-                                    <TouchableOpacity
-                                        onPress={() => onPostPress(item.id, categoryName)}
-                                        disabled={loadingNav}
-                                        activeOpacity={0.8}
+                            {getDate(featured)}
+                        </Text>
+                        <Text
+                            numberOfLines={3}
+                            style={{
+                                marginTop: 2,
+                                color: isDark ? colors.grey : colors.black,
+                                fontFamily: 'Roboto-Light'
+                            }}
+                        >
+                            {getExcerpt(featured)}
+                        </Text>
+                    </View>
+                </TouchableOpacity>
+
+                {/* #2 i #3: dva u redu (po 50%) */}
+                {nextTwo.length > 0 && (
+                    <View
+                        style={{
+                            flexDirection: 'row',
+                            justifyContent: 'space-between',
+                            paddingHorizontal: 12,
+                            marginTop: 12,
+                            flexWrap: 'wrap',
+                            gap: 8,
+                        }}
+                    >
+                        {nextTwo.map((p) => (
+                            <TouchableOpacity
+                                key={p.id}
+                                activeOpacity={0.85}
+                                disabled={loadingNav}
+                                onPress={() => onPostPress(p.id, categoryName)}
+                                style={{width: '48%'}}
+                            >
+                                <View
+                                    style={[
+                                        {
+                                            borderWidth: 1,
+                                            borderRadius: 16,
+                                            padding: 10,
+                                            ...cardBase,
+                                            overflow: 'hidden',
+                                            marginBottom: 8,
+                                        },
+                                        ShadowNone,
+                                    ]}
+                                >
+                                    {getImg(p) && (
+                                        <Image
+                                            source={{uri: getImg(p)!}}
+                                            style={{width: '100%', height: 110, borderRadius: 12, marginBottom: 8}}
+                                            resizeMode="cover"
+                                        />
+                                    )}
+                                    <Text
+                                        numberOfLines={2}
+                                        style={{
+                                            color: isDark ? colors.grey : colors.black,
+                                            fontFamily: 'Roboto-ExtraBold'
+                                        }}
                                     >
-                                        <Card item={item}/>
-                                    </TouchableOpacity>
+                                        {getTitle(p)}
+                                    </Text>
+                                    <Text
+                                        style={{
+                                            marginTop: 4,
+                                            color: isDark ? colors.grey : colors.black,
+                                            fontFamily: 'YesevaOne-Regular',
+                                        }}
+                                    >
+                                        {getDate(p)}
+                                    </Text>
+                                    <Text
+                                        numberOfLines={3}
+                                        style={{
+                                            marginTop: 2,
+                                            color: isDark ? colors.grey : colors.black,
+                                            fontFamily: 'Roboto-Light'
+                                        }}
+                                    >
+                                        {getExcerpt(p)}
+                                    </Text>
                                 </View>
-                            ))}
-                        </View>
+                            </TouchableOpacity>
+                        ))}
                     </View>
                 )}
+
+                {/* Ostali: vertikalno, thumbnail 30% + tekst 70% */}
+                {rest.length > 0 && (
+                    <View style={{marginTop: 6}}>
+                        {rest.map((p) => (
+                            <TouchableOpacity
+                                key={p.id}
+                                activeOpacity={0.85}
+                                disabled={loadingNav}
+                                onPress={() => onPostPress(p.id, categoryName)}
+                                style={{marginHorizontal: 12, marginTop: 10}}
+                            >
+                                <View
+                                    style={[
+                                        {
+                                            borderWidth: 1,
+                                            borderRadius: 16,
+                                            padding: 10,
+                                            ...cardBase,
+                                            overflow: 'hidden',
+                                        },
+                                        ShadowNone,
+                                    ]}
+                                >
+                                    <View style={{flexDirection: 'row', alignItems: 'flex-start', gap: 10}}>
+                                        {getImg(p) ? (
+                                            <Image
+                                                source={{uri: getImg(p)!}}
+                                                style={{
+                                                    flex: 3,
+                                                    alignSelf: 'stretch',
+                                                    borderRadius: 10,
+                                                }}
+                                                resizeMode="cover"
+                                            />
+                                        ) : (
+                                            <View
+                                                style={{
+                                                    flex: 3,
+                                                    alignSelf: 'stretch',
+                                                    backgroundColor: '#ddd',
+                                                    borderRadius: 10,
+                                                }}
+                                            />
+                                        )}
+
+                                        <View style={{flex: 7}}>
+                                            <Text
+                                                numberOfLines={2}
+                                                style={{
+                                                    color: isDark ? colors.grey : colors.black,
+                                                    fontFamily: 'Roboto-ExtraBold'
+                                                }}
+                                            >
+                                                {getTitle(p)}
+                                            </Text>
+                                            <Text
+                                                style={{
+                                                    marginTop: 4,
+                                                    color: isDark ? colors.grey : colors.black,
+                                                    fontFamily: 'YesevaOne-Regular',
+                                                }}
+                                            >
+                                                {getDate(p)}
+                                            </Text>
+                                            <Text
+                                                numberOfLines={3}
+                                                style={{
+                                                    marginTop: 2,
+                                                    color: isDark ? colors.grey : colors.black,
+                                                    fontFamily: 'Roboto-Light'
+                                                }}
+                                            >
+                                                {getExcerpt(p)}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                </View>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                )}
+
+                {/* add at the end */}
+                {adAtEnd && (
+                    <CustomBanner
+                        url={adUrl}
+                        imageSrc={adImageUrl}
+                        cta={adCta}
+                    />
+                )}
             </ScrollView>
-        );
-    }
-
-    const horizontalData = showFeaturedFirst ? posts.slice(1) : posts;
-
-    return (
-        <View className="mb-6">
-            <Text className="text-xl px-4 mb-3"
-                  style={{
-                      color: isDark ? colors.grey : colors.black,
-                      fontFamily: 'YesevaOne-Regular',
-                      marginTop: 35
-                  }}>
-                {categoryName}
-            </Text>
-
-            {showFeaturedFirst && posts.length > 0 && (
-                <TouchableOpacity
-                    onPress={() => onPostPress(posts[0].id, categoryName)}
-                    disabled={loadingNav}
-                    activeOpacity={0.8}
-                >
-                    <FeaturedCard item={posts[0]}/>
-                </TouchableOpacity>
-            )}
-
-            {horizontalData.length > 0 && (
-                <FlatList
-                    data={horizontalData}
-                    renderItem={({item}) => (
-                        <TouchableOpacity
-                            className="w-[240px] mr-3"
-                            onPress={() => onPostPress(item.id, categoryName)}
-                            disabled={loadingNav}
-                            activeOpacity={0.8}
-                        >
-                            <Card item={item}/>
-                        </TouchableOpacity>
-                    )}
-                    keyExtractor={(item) => item.id.toString()}
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{paddingHorizontal: 16}}
-                    removeClippedSubviews
-                    initialNumToRender={3}
-                    maxToRenderPerBatch={4}
-                    windowSize={5}
-                />
-            )}
         </View>
     );
 };
