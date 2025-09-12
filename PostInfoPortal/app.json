@@ -73,13 +73,25 @@
       "favicon": "./assets/icons/favicon.png"
     },
     "plugins": [
-      ["onesignal-expo-plugin", { "mode": "development", "iPhoneDeploymentTarget": "16.0" }],
-      ["expo-build-properties", {
-        "ios": { "deploymentTarget": "16.0", "useFrameworks": "static" },
-        "android": {
-          "usesCleartextTraffic": true
+      [
+        "onesignal-expo-plugin",
+        {
+          "mode": "development",
+          "iPhoneDeploymentTarget": "16.0"
         }
-      }],
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "16.0",
+            "useFrameworks": "static"
+          },
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ],
       "expo-router",
       [
         "expo-splash-screen",
@@ -100,23 +112,8 @@
       },
       "eas": {
         "build": {
-          "experimental": {
-            "ios": {
-              "appExtensions": [
-                {
-                  "targetName": "OneSignalNotificationServiceExtension",
-                  "bundleIdentifier": "com.gosmartdevelopment.postinfoportal.OneSignalNotificationServiceExtension",
-                  "entitlements": {
-                    "com.apple.security.application-groups": [
-                      "group.com.gosmartdevelopment.postinfoportal.onesignal"
-                    ]
-                  }
-                }
-              ]
-            }
-          }
-        },
-        "projectId": "8d37e4bc-513f-4d8a-aa29-eb920ee7e1a5"
+          "projectId": "8d37e4bc-513f-4d8a-aa29-eb920ee7e1a5"
+        }
       }
     }
   }
