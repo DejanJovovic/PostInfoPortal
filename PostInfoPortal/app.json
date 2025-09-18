@@ -73,13 +73,25 @@
       "favicon": "./assets/icons/favicon.png"
     },
     "plugins": [
-      ["onesignal-expo-plugin", { "mode": "development", "iPhoneDeploymentTarget": "16.0" }],
-      ["expo-build-properties", {
-        "ios": { "deploymentTarget": "16.0", "useFrameworks": "static" },
-        "android": {
-          "usesCleartextTraffic": true
+      [
+        "onesignal-expo-plugin",
+        {
+          "mode": "development",
+          "iPhoneDeploymentTarget": "16.0"
         }
-      }],
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "16.0",
+            "useFrameworks": "static"
+          },
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ],
       "expo-router",
       [
         "expo-splash-screen",
@@ -116,7 +128,7 @@
             }
           }
         },
-        "projectId": "1b35149d-82e9-4e4b-8e85-04bf2b500e92"
+        "projectId": "09251736-f7ad-44d3-a826-7640f381f812"
       }
     }
   }

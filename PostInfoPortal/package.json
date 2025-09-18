@@ -17,9 +17,10 @@
     "@react-navigation/bottom-tabs": "^7.3.10",
     "@react-navigation/elements": "^2.3.8",
     "@react-navigation/native": "^7.1.6",
-    "axios": "^1.11.0",
+    "axios": "^1.12.2",
     "expo": "~53.0.20",
     "expo-blur": "~14.1.5",
+    "expo-build-properties": "~0.14.8",
     "expo-constants": "~17.1.7",
     "expo-dev-client": "~5.2.4",
     "expo-font": "~13.3.2",
@@ -34,7 +35,7 @@
     "expo-web-browser": "~14.2.0",
     "lucide-react-native": "^0.533.0",
     "nativewind": "^4.1.23",
-    "onesignal-expo-plugin": "^1.1.2",
+    "onesignal-expo-plugin": "^2.0.3",
     "prettier-plugin-tailwindcss": "^0.5.14",
     "react": "19.0.0",
     "react-dom": "19.0.0",
@@ -48,8 +49,7 @@
     "react-native-svg": "15.11.2",
     "react-native-web": "~0.20.0",
     "react-native-webview": "13.13.5",
-    "tailwindcss": "^3.4.17",
-    "expo-build-properties": "~0.14.8"
+    "tailwindcss": "^3.4.17"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
@@ -58,5 +58,8 @@
     "eslint-config-expo": "~9.2.0",
     "typescript": "~5.8.3"
   },
-  "private": true
+  "private": true,
+  "overrides": {
+    "semver": "^7.6.3"
+  }
 }
