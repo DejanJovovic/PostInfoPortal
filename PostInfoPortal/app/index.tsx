@@ -465,7 +465,6 @@ const Index = () => {
                                         key={`ad-general-${idx}`}
                                         url={ad.url}
                                         imageSrc={ad.imageSrc}
-                                        cta={ad.cta}
                                     />
                                 </React.Fragment>
                             );
@@ -488,7 +487,6 @@ const Index = () => {
                                     key="ad-dogadjaji"
                                     url={ad.url}
                                     imageSrc={ad.imageSrc}
-                                    cta={ad.cta}
                                 />
                             </>
                         );
@@ -511,7 +509,6 @@ const Index = () => {
                                     key="ad-lokal"
                                     url={ad.url}
                                     imageSrc={ad.imageSrc}
-                                    cta={ad.cta}
                                 />
                             </>
                         );
@@ -534,7 +531,6 @@ const Index = () => {
                                     key="ad-beograd"
                                     url={ad.url}
                                     imageSrc={ad.imageSrc}
-                                    cta={ad.cta}
                                 />
                             </>
                         );
@@ -558,7 +554,6 @@ const Index = () => {
                                         key={`ad-beograd-sub-${idx}`}
                                         url={ad.url}
                                         imageSrc={ad.imageSrc}
-                                        cta={ad.cta}
                                     />
                                 </React.Fragment>
                             );
@@ -581,7 +576,6 @@ const Index = () => {
                                     key="ad-gradovi"
                                     url={ad.url}
                                     imageSrc={ad.imageSrc}
-                                    cta={ad.cta}
                                 />
                             </>
                         );
@@ -604,7 +598,6 @@ const Index = () => {
                                     key="ad-okruzi"
                                     url={ad.url}
                                     imageSrc={ad.imageSrc}
-                                    cta={ad.cta}
                                 />
                             </>
                         );
@@ -628,7 +621,6 @@ const Index = () => {
                                         key={`ad-okruzi-sub-${idx}`}
                                         url={ad.url}
                                         imageSrc={ad.imageSrc}
-                                        cta={ad.cta}
                                     />
                                 </React.Fragment>
                             );
@@ -651,7 +643,6 @@ const Index = () => {
                                         key={`ad-${name}-${idx}`}
                                         url={ad.url}
                                         imageSrc={ad.imageSrc}
-                                        cta={ad.cta}
                                     />
                                 </React.Fragment>
                             );
@@ -682,7 +673,6 @@ const Index = () => {
                         adAtEnd
                         adUrl={categoryEndAd.url}
                         adImageUrl={categoryEndAd.imageSrc}
-                        adCta={categoryEndAd.cta}
                     />
                 )
             )}
@@ -728,7 +718,6 @@ const Index = () => {
                         <CustomBanner
                             url={bottomAd.url}
                             imageSrc={bottomAd.imageSrc}
-                            cta={bottomAd.cta}
                             onClose={dismissBottomAd}
                         />
                     </View>

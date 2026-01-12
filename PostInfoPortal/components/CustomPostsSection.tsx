@@ -326,7 +326,6 @@ const CustomPostsSection: React.FC<Props> = ({
                     <CustomBanner
                         url={adUrl}
                         imageSrc={adImageUrl}
-                        cta={adCta}
                     />
                 )}
             </ScrollView>

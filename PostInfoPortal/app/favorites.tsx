@@ -444,7 +444,6 @@ const Favorites = () => {
                         <CustomBanner
                             url={bottomAd.url}
                             imageSrc={bottomAd.imageSrc}
-                            cta={bottomAd.cta}
                             onClose={dismissBottomAd}
                         />
                     </View>

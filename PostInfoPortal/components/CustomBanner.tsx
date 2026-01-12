@@ -1,8 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import {
     View,
-    Text,
-    Image,
     ImageBackground,
     TouchableOpacity,
     Linking,
@@ -12,19 +10,15 @@ import {
 } from 'react-native';
 import { X } from 'lucide-react-native';
 import { useTheme } from '@/components/ThemeContext';
-import colors from '@/constants/colors';
 
 type CustomBannerProps = {
     url: string;
-    cta?: string;
-    /** string URL ili lokalni asset (require/import) */
     imageSrc?: string | ImageSourcePropType;
     onClose?: () => void;
 };
 
 export default function CustomBanner({
                                          url,
-                                         cta = 'Saznaj više',
                                          imageSrc,
                                          onClose,
                                      }: CustomBannerProps) {
@@ -39,9 +33,11 @@ export default function CustomBanner({
 
     const open = async () => {
         try {
-            const can = await Linking.canOpenURL(url);
-            if (can) Linking.openURL(url);
-        } catch {}
+            await Linking.openURL(url);
+        } catch (e) {
+            // optionally show a toast/alert that the link could not be opened
+            console.warn('Failed to open URL:', e);
+        }
     };
 
     const handleClose = () => {
@@ -96,21 +92,6 @@ export default function CustomBanner({
                     >
                         <X size={16} color="#fff" />
                     </TouchableOpacity>
-
-                    <View style={{ padding: 12 }}>
-                        <View
-                            style={{
-                                marginTop: 8,
-                                alignSelf: 'flex-start',
-                                backgroundColor: colors.blue,
-                                paddingHorizontal: 12,
-                                paddingVertical: 6,
-                                borderRadius: 999,
-                            }}
-                        >
-                            <Text style={{ color: colors.grey, fontFamily: 'Roboto-Medium' }}>{cta}</Text>
-                        </View>
-                    </View>
                 </ImageBackground>
             </TouchableOpacity>
         </View>

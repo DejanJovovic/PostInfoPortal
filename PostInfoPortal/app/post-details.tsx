@@ -484,7 +484,6 @@ const PostDetails = () => {
                             <CustomBanner
                                 url={bottomAd.url}
                                 imageSrc={bottomAd.imageSrc}
-                                cta={bottomAd.cta}
                                 onClose={dismissBottomAd}
                             />
                         </View>
@@ -610,7 +609,6 @@ const PostDetails = () => {
                         <CustomBanner
                             url={bottomAd.url}
                             imageSrc={bottomAd.imageSrc}
-                            cta={bottomAd.cta}
                             onClose={dismissBottomAd}
                         />
                     </View>
