@@ -1,17 +1,19 @@
 import images from '@/constants/images';
 import type { AdItem } from '@/types/ad';
 
-export const AD_POOL: Readonly<AdItem[]> = [
+export const AD_POOL: readonly AdItem[] = [
     {
         url: 'https://www.instagram.com/brunch.rs/',
         imageSrc: images.brunch
     },
     {
         url: 'https://www.dotnetworks.rs/',
-        imageSrc: images.dotNetworks},
+        videoSrc: images.dotNetworks
+    },
     {
         url: 'https://www.maneks.rs/',
-        imageSrc: images.maneks},
+        videoSrc: images.maneks
+    },
     {
         url: 'https://novakinvest.rs/',
         imageSrc: images.novakInvest

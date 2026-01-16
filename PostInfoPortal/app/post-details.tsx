@@ -1,31 +1,33 @@
-import React, {useState, useEffect, useMemo, useRef} from 'react';
+﻿import { getPostByIdFull } from '@/utils/wpApi';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    Text,
+    ActivityIndicator,
+    Alert,
     Image,
+    Linking,
     ScrollView,
+    Share,
+    Text,
+    TouchableOpacity,
     useWindowDimensions,
     View,
-    TouchableOpacity,
-    Alert,
-    Linking,
-    Share,
-    ActivityIndicator, StyleSheet,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
-import {useLocalSearchParams, useNavigation, useRouter} from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import RenderHTML from 'react-native-render-html';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import CustomHeader from '@/components/CustomHeader';
-import {useTheme} from '@/components/ThemeContext';
-import icons from '@/constants/icons';
-import {WPPost} from '@/types/wp';
-import {getInbox, type InboxItem} from '@/types/notificationInbox';
+import BottomAdBanner from '@/components/BottomAdBanner';
 import CustomFooter from "@/components/CustomFooter";
-import {globalSearch} from "@/utils/searchNavigation";
-import colors from "@/constants/colors";
-import CustomBanner from '@/components/CustomBanner';
+import CustomHeader from '@/components/CustomHeader';
+import LoadingOverlay from '@/components/LoadingOverlay';
+import { useTheme } from '@/components/ThemeContext';
 import { pickRandomAd } from '@/constants/ads';
+import colors from "@/constants/colors";
+import icons from '@/constants/icons';
+import { getInbox, type InboxItem } from '@/types/notificationInbox';
+import { WPPost } from '@/types/wp';
+import { globalSearch } from "@/utils/searchNavigation";
 
 const deriveCategoryName = (post: any): string | undefined => {
     const groups = post?._embedded?.['wp:term'];
@@ -53,8 +55,8 @@ const PostDetails = () => {
     const router = useRouter();
 
     const categoryParam = Array.isArray(category) ? category[0] : category;
-    const [activeCategory, setActiveCategory] = useState<string>(categoryParam || '');
-    const [menuOpen, setMenuOpen] = useState(false);
+    const decodedCategoryParam = categoryParam ? decodeURIComponent(categoryParam) : undefined;
+    const [activeCategory, setActiveCategory] = useState<string>(decodedCategoryParam || '');
     const [isBookmarked, setIsBookmarked] = useState(false);
     const [postData, setPostData] = useState<WPPost | any | null>(null);
     const [loadingPost, setLoadingPost] = useState(true);
@@ -95,13 +97,13 @@ const PostDetails = () => {
         }
     };
 
-    const scheduleAd = (ms: number) => {
+    const scheduleAd = useCallback((ms: number) => {
         clearAdTimer();
         adTimerRef.current = setTimeout(() => {
             setBottomAd(pickRandomAd());
             setBottomAdVisible(true);
         }, ms);
-    };
+    }, []);
 
     const dismissBottomAd = () => {
         setBottomAdVisible(false);
@@ -111,7 +113,7 @@ const PostDetails = () => {
     useEffect(() => {
         scheduleAd(5000);
         return () => clearAdTimer();
-    }, []);
+    }, [scheduleAd]);
 
     useEffect(() => {
         const unsub = navigation.addListener('blur', () => setIsLoading(false));
@@ -139,11 +141,15 @@ const PostDetails = () => {
                     const cached = allPosts.find((p) => p.id === idNum);
                     if (cached) {
                         setPostData(cached);
-
                         const derived = deriveCategoryName(cached);
                         if (derived && (!activeCategory || activeCategory === 'Naslovna')) {
                             setActiveCategory(derived);
                         }
+                        // Background fetch full content to ensure description and content are fresh
+                        getPostByIdFull(idNum).then((full) => {
+                            if (full && full.id) setPostData(full);
+                        }).catch(()=>{});
+                        setLoadingPost(false);
                         return;
                     }
                 }
@@ -164,15 +170,13 @@ const PostDetails = () => {
                         categoryName: (match as any).categoryName,
                     });
                     if (!activeCategory) {
-                        setActiveCategory((match as any).categoryName || categoryParam || 'Naslovna');
+                        setActiveCategory((match as any).categoryName || decodedCategoryParam || 'Naslovna');
                     }
                     return;
                 }
 
-                // 3) Fallback: if neither cache nor inbox had it, do the normal fetch (for real posts)
-                const res = await fetch(`https://www.postinfo.rs/wp-json/wp/v2/posts/${idNum}?_embed=1`);
-                if (!res.ok) throw new Error('Greška pri učitavanju');
-                const json = await res.json();
+                // 3) Fallback: fetch full post with content and embeds
+                const json = await getPostByIdFull(idNum);
                 if (!json || !json.id) throw new Error('Objava nije pronađena');
 
                 setPostData(json);
@@ -190,7 +194,7 @@ const PostDetails = () => {
         };
 
         loadPost();
-    }, [postId]);
+    }, [postId, activeCategory, decodedCategoryParam]);
 
     // Bookmark state (works for both preview and normal)
     useEffect(() => {
@@ -390,7 +394,7 @@ const PostDetails = () => {
                 style={{backgroundColor: isDark ? colors.black : colors.grey}}
             >
                 <CustomHeader
-                    onMenuToggle={(visible) => setMenuOpen(visible)}
+                    onMenuToggle={(visible) => {}}
                     onCategorySelected={handleCategorySelected}
                     activeCategory={activeCategory || preview.categoryName || 'Naslovna'}
                     showMenu={false}
@@ -472,24 +476,8 @@ const PostDetails = () => {
                 </ScrollView>
                 <CustomFooter onSearchPress={() => router.push(globalSearch())}/>
 
-                {bottomAdVisible && (
-                    <View
-                        pointerEvents="box-none"
-                        style={[
-                            StyleSheet.absoluteFillObject,
-                            { justifyContent: 'flex-end', alignItems: 'center' },
-                        ]}
-                    >
-                        <View style={{ width: '100%', paddingHorizontal: 8, marginBottom: 84 }}>
-                            <CustomBanner
-                                url={bottomAd.url}
-                                imageSrc={bottomAd.imageSrc}
-                                onClose={dismissBottomAd}
-                            />
-                        </View>
-                    </View>
-                )}
-            </SafeAreaView>
+                <BottomAdBanner visible={bottomAdVisible} ad={bottomAd} onClose={dismissBottomAd} />
+        </SafeAreaView>
         );
     }
 
@@ -503,7 +491,7 @@ const PostDetails = () => {
             style={{backgroundColor: isDark ? colors.black : colors.grey}}
         >
             <CustomHeader
-                onMenuToggle={(visible) => setMenuOpen(visible)}
+                onMenuToggle={(visible) => {}}
                 onCategorySelected={handleCategorySelected}
                 activeCategory={activeCategory || 'Naslovna'}
                 showMenu={false}
@@ -569,51 +557,11 @@ const PostDetails = () => {
                 <RenderHTML contentWidth={contentWidth} source={{html: contentRendered}} tagsStyles={tagsStyles}/>
             </ScrollView>
             {isLoading && (
-                <View
-                    style={[
-                        StyleSheet.absoluteFillObject,
-                        {
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            backgroundColor: isDark ? 'rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.7)',
-                            zIndex: 9999,
-                            elevation: 9999,
-                        },
-                    ]}
-                    pointerEvents="auto"
-                >
-                    <ActivityIndicator size="large" color={isDark ? colors.grey : colors.black} />
-                    <Text
-                        style={{
-                            marginTop: 10,
-                            color: isDark ? colors.grey : colors.black,
-                            fontFamily: 'Roboto-SemiBold',
-                            textAlign: 'center',
-                        }}
-                    >
-                        Učitavanje...
-                    </Text>
-                </View>
+                <LoadingOverlay isDark={isDark} message="Učitavanje..." />
             )}
             <CustomFooter onSearchPress={() => router.push(globalSearch())} />
 
-            {bottomAdVisible && (
-                <View
-                    pointerEvents="box-none"
-                    style={[
-                        StyleSheet.absoluteFillObject,
-                        { justifyContent: 'flex-end', alignItems: 'center' },
-                    ]}
-                >
-                    <View style={{ width: '100%', paddingHorizontal: 8, marginBottom: 84 }}>
-                        <CustomBanner
-                            url={bottomAd.url}
-                            imageSrc={bottomAd.imageSrc}
-                            onClose={dismissBottomAd}
-                        />
-                    </View>
-                </View>
-            )}
+            <BottomAdBanner visible={bottomAdVisible} ad={bottomAd} onClose={dismissBottomAd} />
         </SafeAreaView>
     );
 };

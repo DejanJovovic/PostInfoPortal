@@ -1,29 +1,28 @@
-import {
-    View,
-    Text,
-    Image,
-    TouchableOpacity,
-    FlatList,
-    ActivityIndicator,
-    ScrollView,
-    RefreshControl,
-    StyleSheet, Platform,
-} from 'react-native';
-import React, {useCallback, useEffect, useState} from 'react';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import CategoryContent from '@/components/CategoryContent';
+import CustomBanner from "@/components/CustomBanner";
+import CustomFooter from '@/components/CustomFooter';
 import CustomHeader from '@/components/CustomHeader';
 import CustomMenuCategories from '@/components/CustomMenuCategories';
-import CustomFooter from '@/components/CustomFooter';
-import {useLocalSearchParams, useNavigation, useRouter} from 'expo-router';
-import {WPPost} from '@/types/wp';
-import {usePostsByCategory} from '@/hooks/usePostsByCategory';
 import CustomSearchBar from '@/components/CustomSearchBar';
-import CustomPostsSection from '@/components/CustomPostsSection';
-import {useTheme} from '@/components/ThemeContext';
-import colors from "@/constants/colors";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import CustomBanner from "@/components/CustomBanner";
+import HomeContent from '@/components/HomeContent';
+import SearchResults from '@/components/SearchResults';
+import { useTheme } from '@/components/ThemeContext';
 import { pickRandomAd } from '@/constants/ads';
+import colors from "@/constants/colors";
+import { usePostsByCategory } from '@/hooks/usePostsByCategory';
+import { WPPost } from '@/types/wp';
+import { Image } from 'expo-image';
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+    ActivityIndicator,
+    Platform,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const LoadingOverlay = ({isDark, message}: { isDark: boolean; message: string }) => (
     <View
@@ -82,13 +81,21 @@ const Index = () => {
         generalGroupedPosts,
         beogradGroupedPosts,
         okruziGroupedPosts,
+        categories,
+        loadMorePosts,
+        loadingMore,
+        hasMore,
+        currentPage,
     } = usePostsByCategory();
 
     const router = useRouter();
     const navigation = useNavigation();
 
     useEffect(() => {
-        const unsub = navigation.addListener('blur', () => setIsLoading(false));
+        const unsub = navigation.addListener('blur', () => {
+            // Add a small delay to ensure loading spinner is visible during navigation
+            setTimeout(() => setIsLoading(false), 500);
+        });
         return unsub;
     }, [navigation]);
 
@@ -121,7 +128,6 @@ const Index = () => {
 
     const [bottomAdVisible, setBottomAdVisible] = useState(false);
     const [bottomAd, setBottomAd] = useState(pickRandomAd());
-    const categoryEndAd = React.useMemo(() => pickRandomAd(), [activeCategory, posts.length]);
 
     const adTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -170,12 +176,16 @@ const Index = () => {
                 ? categoryName
                 : activeCategory; // fallback
 
-        requestAnimationFrame(() => {
+        try {
             router.push({
                 pathname: '/post-details',
-                params: { postId: postId.toString(), category: finalCategory },
+                params: { postId: postId.toString(), category: encodeURIComponent(finalCategory) },
             });
-        });
+            // Don't use timeout - let navigation events handle it
+        } catch (error) {
+            console.error('Navigation error:', error);
+            setIsLoading(false);
+        }
     };
 
     // Pokreni prvi pokušaj posle 8–15s od ulaska u ekran
@@ -303,8 +313,27 @@ const Index = () => {
         );
     };
 
-    const renderItem = ({item}: { item: WPPost; index: number }) => {
-        const image = item._embedded?.['wp:featuredmedia']?.[0]?.source_url;
+    const renderItem = ({item}: { item: WPPost }) => {
+        const getImg = (p: WPPost) => {
+            const media = p._embedded?.['wp:featuredmedia']?.[0];
+            if (!media) {
+                console.log('No featured media for post:', p.id, p.title.rendered);
+                return undefined;
+            }
+            const sizes = media.media_details?.sizes;
+            const imgUrl = (
+                sizes?.medium?.source_url ||
+                sizes?.medium_large?.source_url ||
+                sizes?.large?.source_url ||
+                media.source_url
+            );
+            if (!imgUrl) {
+                console.log('No image URL found for post:', p.id, 'media:', media);
+            }
+            return imgUrl;
+        };
+
+        const image = getImg(item);
         const date = new Date(item.date).toLocaleDateString('sr-RS');
         const excerpt = item.excerpt.rendered.replace(/<[^>]+>/g, '');
 
@@ -328,9 +357,15 @@ const Index = () => {
                 }}
             >
                 <TouchableOpacity onPress={() => goToPost(item.id, deriveCategoryName(item) || activeCategory)} disabled={isLoading}>
-                    {image && (
-                        <Image source={{uri: image}} className="w-full h-48 rounded-xl mb-3" resizeMode="cover"/>
-                    )}
+                    <Image
+                        source={{uri: image || 'https://via.placeholder.com/400x200/e5e7eb/666666?text=No+Image'}}
+                        className="w-full h-32 rounded-xl mb-3"
+                        contentFit="cover"
+                        cachePolicy="disk"
+                        onError={(error) => {
+                            console.warn('Image failed to load:', error, 'for post:', item.id, 'URL:', image);
+                        }}
+                    />
                     {highlightSearchTerm(item.title.rendered, searchQuery)}
                     <Text className="text-xs mt-1 mb-1" style={{
                         color: isDark ? colors.grey : colors.black,
@@ -364,7 +399,7 @@ const Index = () => {
                 loadingNav={isLoading}
             />
 
-            <CustomMenuCategories onSelectCategory={handleCategorySelect} activeCategory={activeCategory}/>
+            <CustomMenuCategories onSelectCategory={handleCategorySelect} activeCategory={activeCategory} extraCategories={(categories || []).map(c => c.name)} />
 
             {isSearchActive && (
                 <View className="px-2 py-4">
@@ -406,275 +441,43 @@ const Index = () => {
                     <LoadingOverlay isDark={isDark} message="Učitavanje..."/>
                 </View>
             ) : isSearchActive ? (
-                posts.length === 0 && noSearchResults ? (
-                    <View className="flex-1 items-center justify-center px-4">
-                        <Text className="text-center" style={{
-                            color: isDark ? colors.grey : colors.black,
-                            fontFamily: 'Roboto-Regular'
-                        }}>
-                            Nema rezultata za prikaz.
-                        </Text>
-                    </View>
-                ) : (
-                    <FlatList
-                        data={uniquePosts}
-                        renderItem={renderItem}
-                        keyExtractor={(item) => item.id.toString()}
-                        contentContainerStyle={{paddingBottom: 90}}
-                        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh}/>}
-                        ListHeaderComponent={
-                            isSearchActive && noSearchResults ? (
-                                <View className="px-4 mt-6 mb-10">
-                                    <Text className="text-center"
-                                          style={{
-                                              color: isDark ? colors.grey : colors.black,
-                                              fontFamily: 'Roboto-Regular'
-                                          }}>
-                                        Nema rezultata pretrage. Pogledajte neke od ovih objava.
-                                    </Text>
-                                </View>
-                            ) : null
-                        }
-                    />
-                )
+                <SearchResults
+                    posts={uniquePosts}
+                    searchQuery={searchQuery}
+                    noSearchResults={noSearchResults}
+                    refreshing={refreshing}
+                    onRefresh={onRefresh}
+                    onPostPress={(id) => goToPost(id, deriveCategoryName(uniquePosts.find(p => p.id === id) || {} as WPPost) || activeCategory)}
+                    loadingNav={isLoading}
+                    hasMore={hasMore[activeCategory] || false}
+                    loadingMore={loadingMore}
+                    onLoadMore={() => loadMorePosts(activeCategory)}
+                    renderItem={renderItem}
+                />
             ) : activeCategory === 'Naslovna' && (!initialized || Object.keys(groupedPosts).length === 0) ? (
                 <View className="flex-1 items-center justify-center">
                     <LoadingOverlay isDark={isDark} message="Učitavanje objava..."/>
                 </View>
             ) : activeCategory === 'Naslovna' && Object.keys(groupedPosts).length > 0 ? (
-                <ScrollView
-                    className="flex-1"
-                    contentContainerStyle={{ paddingBottom: 100 }}
-                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-                >
-                    {/* 1) General categories except Događaji/Lokal/Region/Planeta */}
-                    {Object.entries(generalGroupedPosts)
-                        .filter(([name]) => !['Događaji', 'Lokal', 'Region', 'Planeta'].includes(name))
-                        .map(([categoryName, categoryPosts], idx) => {
-                            const ad = pickRandomAd();
-                            return (
-                                <React.Fragment key={categoryName}>
-                                    <CustomPostsSection
-                                        categoryName={categoryName}
-                                        posts={categoryPosts}
-                                        isHome
-                                        onPostPress={(id) => goToPost(id, categoryName)}
-                                        loadingNav={isLoading}
-                                    />
-                                    <CustomBanner
-                                        key={`ad-general-${idx}`}
-                                        url={ad.url}
-                                        imageSrc={ad.imageSrc}
-                                    />
-                                </React.Fragment>
-                            );
-                        })}
-
-                    {/* 2) Događaji  */}
-                    {(generalGroupedPosts['Događaji']?.length ?? 0) > 0 && (() => {
-                        const ad = pickRandomAd();
-                        return (
-                            <>
-                                <CustomPostsSection
-                                    key="Događaji"
-                                    categoryName="Događaji"
-                                    posts={generalGroupedPosts['Događaji'] || []}
-                                    isHome
-                                    onPostPress={(id) => goToPost(id, 'Događaji')}
-                                    loadingNav={isLoading}
-                                />
-                                <CustomBanner
-                                    key="ad-dogadjaji"
-                                    url={ad.url}
-                                    imageSrc={ad.imageSrc}
-                                />
-                            </>
-                        );
-                    })()}
-
-                    {/* 3) Lokal */}
-                    {(generalGroupedPosts['Lokal']?.length ?? 0) > 0 && (() => {
-                        const ad = pickRandomAd();
-                        return (
-                            <>
-                                <CustomPostsSection
-                                    key="Lokal"
-                                    categoryName="Lokal"
-                                    posts={generalGroupedPosts['Lokal'] || []}
-                                    isHome
-                                    onPostPress={(id) => goToPost(id, 'Lokal')}
-                                    loadingNav={isLoading}
-                                />
-                                <CustomBanner
-                                    key="ad-lokal"
-                                    url={ad.url}
-                                    imageSrc={ad.imageSrc}
-                                />
-                            </>
-                        );
-                    })()}
-
-                    {/* 4) Beograd*/}
-                    {(lokalGroupedPosts['Beograd']?.length ?? 0) > 0 && (() => {
-                        const ad = pickRandomAd();
-                        return (
-                            <>
-                                <CustomPostsSection
-                                    key="Beograd"
-                                    categoryName="Beograd"
-                                    posts={lokalGroupedPosts['Beograd'] || []}
-                                    isHome
-                                    onPostPress={(id) => goToPost(id, 'Beograd')}
-                                    loadingNav={isLoading}
-                                />
-                                <CustomBanner
-                                    key="ad-beograd"
-                                    url={ad.url}
-                                    imageSrc={ad.imageSrc}
-                                />
-                            </>
-                        );
-                    })()}
-
-                    {/* 5) Opštine Beograda*/}
-                    {Object.entries(beogradGroupedPosts)
-                        .filter(([, arr]) => (arr?.length ?? 0) > 0)
-                        .map(([categoryName, categoryPosts], idx) => {
-                            const ad = pickRandomAd();
-                            return (
-                                <React.Fragment key={categoryName}>
-                                    <CustomPostsSection
-                                        categoryName={categoryName}
-                                        posts={categoryPosts}
-                                        isHome
-                                        onPostPress={(id) => goToPost(id, categoryName)}
-                                        loadingNav={isLoading}
-                                    />
-                                    <CustomBanner
-                                        key={`ad-beograd-sub-${idx}`}
-                                        url={ad.url}
-                                        imageSrc={ad.imageSrc}
-                                    />
-                                </React.Fragment>
-                            );
-                        })}
-
-                    {/* 6) Gradovi  */}
-                    {(lokalGroupedPosts['Gradovi']?.length ?? 0) > 0 && (() => {
-                        const ad = pickRandomAd();
-                        return (
-                            <>
-                                <CustomPostsSection
-                                    key="Gradovi"
-                                    categoryName="Gradovi"
-                                    posts={lokalGroupedPosts['Gradovi'] || []}
-                                    isHome
-                                    onPostPress={(id) => goToPost(id, 'Gradovi')}
-                                    loadingNav={isLoading}
-                                />
-                                <CustomBanner
-                                    key="ad-gradovi"
-                                    url={ad.url}
-                                    imageSrc={ad.imageSrc}
-                                />
-                            </>
-                        );
-                    })()}
-
-                    {/* 7) Okruzi*/}
-                    {(lokalGroupedPosts['Okruzi']?.length ?? 0) > 0 && (() => {
-                        const ad = pickRandomAd();
-                        return (
-                            <>
-                                <CustomPostsSection
-                                    key="Okruzi"
-                                    categoryName="Okruzi"
-                                    posts={lokalGroupedPosts['Okruzi'] || []}
-                                    isHome
-                                    onPostPress={(id) => goToPost(id, 'Okruzi')}
-                                    loadingNav={isLoading}
-                                />
-                                <CustomBanner
-                                    key="ad-okruzi"
-                                    url={ad.url}
-                                    imageSrc={ad.imageSrc}
-                                />
-                            </>
-                        );
-                    })()}
-
-                    {/* 8) Podkategorije Okruga */}
-                    {Object.entries(okruziGroupedPosts)
-                        .filter(([, arr]) => (arr?.length ?? 0) > 0)
-                        .map(([categoryName, categoryPosts], idx) => {
-                            const ad = pickRandomAd();
-                            return (
-                                <React.Fragment key={categoryName}>
-                                    <CustomPostsSection
-                                        categoryName={categoryName}
-                                        posts={categoryPosts}
-                                        isHome
-                                        onPostPress={(id) => goToPost(id, categoryName)}
-                                        loadingNav={isLoading}
-                                    />
-                                    <CustomBanner
-                                        key={`ad-okruzi-sub-${idx}`}
-                                        url={ad.url}
-                                        imageSrc={ad.imageSrc}
-                                    />
-                                </React.Fragment>
-                            );
-                        })}
-
-                    {/* 9) Region i Planeta */}
-                    {['Region', 'Planeta'].map((name, idx) =>
-                        (generalGroupedPosts[name]?.length ?? 0) > 0 ? (() => {
-                            const ad = pickRandomAd();
-                            return (
-                                <React.Fragment key={name}>
-                                    <CustomPostsSection
-                                        categoryName={name}
-                                        posts={generalGroupedPosts[name] || []}
-                                        isHome
-                                        onPostPress={(id) => goToPost(id, name)}
-                                        loadingNav={isLoading}
-                                    />
-                                    <CustomBanner
-                                        key={`ad-${name}-${idx}`}
-                                        url={ad.url}
-                                        imageSrc={ad.imageSrc}
-                                    />
-                                </React.Fragment>
-                            );
-                        })() : null
-                    )}
-                </ScrollView>
+                <HomeContent
+                    generalGroupedPosts={generalGroupedPosts}
+                    lokalGroupedPosts={lokalGroupedPosts}
+                    beogradGroupedPosts={beogradGroupedPosts}
+                    okruziGroupedPosts={okruziGroupedPosts}
+                    refreshing={refreshing}
+                    onRefresh={onRefresh}
+                    onPostPress={(id, category) => goToPost(id, category)}
+                    loadingNav={isLoading}
+                />
             ) : (
-                (!loading && !searchLoading && !isSearchActive && posts.length === 0) ? (
-                    <View className="flex-1 items-center justify-center px-4">
-                        <Text
-                            className="text-center"
-                            style={{
-                                color: isDark ? colors.grey : colors.black,
-                                fontFamily: 'Roboto-Regular',
-                            }}
-                        >
-                            Nema objava za ovu kategoriju.
-                        </Text>
-                    </View>
-                ) : (
-                    <CustomPostsSection
-                        categoryName={activeCategory}
-                        posts={posts}
-                        onPostPress={(id) => goToPost(id, activeCategory)}
-                        loadingNav={isLoading}
-                        refreshing={refreshing}
-                        onRefresh={onRefresh}
-                        adAtEnd
-                        adUrl={categoryEndAd.url}
-                        adImageUrl={categoryEndAd.imageSrc}
-                    />
-                )
+                <CategoryContent
+                    activeCategory={activeCategory}
+                    posts={posts}
+                    refreshing={refreshing}
+                    onRefresh={onRefresh}
+                    onPostPress={(id, category) => goToPost(id, category)}
+                    loadingNav={isLoading}
+                />
             )}
             {isLoading && (
                 <View
@@ -718,6 +521,7 @@ const Index = () => {
                         <CustomBanner
                             url={bottomAd.url}
                             imageSrc={bottomAd.imageSrc}
+                            videoSrc={bottomAd.videoSrc}
                             onClose={dismissBottomAd}
                         />
                     </View>

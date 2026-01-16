@@ -1,17 +1,17 @@
-import React, {Dispatch, SetStateAction, useEffect, useState} from 'react';
+﻿import colors from '@/constants/colors';
+import { nameToSlugMap } from "@/constants/nameToSlugMap";
+import { menuData } from '@/types/menuData';
+import { WPPost } from '@/types/wp';
+import { ChevronDown, ChevronUp } from 'lucide-react-native';
+import React, { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import {
-    View,
-    Text,
-    TouchableOpacity,
     Modal,
     ScrollView,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import {ChevronDown, ChevronUp} from 'lucide-react-native';
-import {WPPost} from '@/types/wp';
-import {useTheme} from './ThemeContext';
-import {menuData} from '@/types/menuData';
-import colors from '@/constants/colors';
-import {nameToSlugMap} from "@/constants/nameToSlugMap";
+import { useTheme } from './ThemeContext';
 
 interface Props {
     selectedCategory: string;
@@ -291,3 +291,4 @@ const CustomCategoryFilter: React.FC<Props> = ({
 };
 
 export default CustomCategoryFilter;
+

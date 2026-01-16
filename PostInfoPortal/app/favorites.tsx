@@ -1,28 +1,29 @@
-import React, {useState, useCallback, useEffect, useRef} from 'react';
-import {
-    View,
-    Text,
-    FlatList,
-    TouchableOpacity,
-    Image,
-    ScrollView,
-    RefreshControl,
-    Alert,
-    ActivityIndicator,
-    StyleSheet, Platform,
-} from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import {useFocusEffect, useRouter, useNavigation} from 'expo-router';
-import {WPPost} from '@/types/wp';
-import {SafeAreaView} from 'react-native-safe-area-context';
-import CustomHeader from '@/components/CustomHeader';
+﻿import BottomAdBanner from '@/components/BottomAdBanner';
 import CustomFooter from '@/components/CustomFooter';
+import CustomHeader from '@/components/CustomHeader';
 import CustomSearchBar from '@/components/CustomSearchBar';
-import icons from '@/constants/icons';
-import {useTheme} from '@/components/ThemeContext';
+import LoadingOverlay from '@/components/LoadingOverlay';
+import SearchHeader from '@/components/SearchHeader';
+import { useTheme } from '@/components/ThemeContext';
+import { pickRandomAd } from "@/constants/ads";
 import colors from "@/constants/colors";
-import {pickRandomAd} from "@/constants/ads";
-import CustomBanner from "@/components/CustomBanner";
+import icons from '@/constants/icons';
+import { WPPost } from '@/types/wp';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect, useNavigation, useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+    Alert,
+    FlatList,
+    Image,
+    Platform,
+    RefreshControl,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 type FavoritePost = WPPost & { category: string };
 
@@ -305,33 +306,28 @@ const Favorites = () => {
             />
 
             {isSearchActive && (
-                <View className="px-2 py-4">
-                    <View className="flex-row items-center justify-between px-2 mt-2">
-                        <Text
-                            className="mt-2 px-2"
-                            style={{
-                                color: isDark ? colors.grey : colors.black,
-                                fontFamily: 'Roboto-Medium',
-                            }}
-                        >
-                            {searchQuery.trim().length > 0 ? (
-                                <>
-                                    Rezultati pretrage{" "}
-                                    <Text
-                                        style={{
-                                            color: colors.red,
-                                            fontFamily: "Roboto-Bold",
-                                        }}
-                                    >
-                                        &#34;{searchQuery}&#34;
-                                    </Text>
-                                </>
-                            ) : (
-                                "Unesite željenu reč za pretragu ispod"
-                            )}
-                        </Text>
-
-                        {searchQuery.trim().length > 0 && (
+                <SearchHeader
+                    isDark={isDark}
+                    labelClassName="mt-2 px-2"
+                    label={
+                        searchQuery.trim().length > 0 ? (
+                            <>
+                                Rezultati pretrage{" "}
+                                <Text
+                                    style={{
+                                        color: colors.red,
+                                        fontFamily: "Roboto-Bold",
+                                    }}
+                                >
+                                    &#34;{searchQuery}&#34;
+                                </Text>
+                            </>
+                        ) : (
+                            "Unesite željenu reč za pretragu ispod"
+                        )
+                    }
+                    rightAction={
+                        searchQuery.trim().length > 0 ? (
                             <Text
                                 onPress={() => {
                                     setSearchQuery('');
@@ -343,21 +339,22 @@ const Favorites = () => {
                             >
                                 ✕
                             </Text>
-                        )}
-                    </View>
-
-                    <CustomSearchBar
-                        key={searchQuery}
-                        query={searchQuery}
-                        onSearch={setSearchQuery}
-                        onReset={() => {
-                            setSearchQuery('');
-                            setIsSearchActive(false);
-                            setTriggerSearchOpen(false);
-                        }}
-                        backgroundColor={colors.blue}
-                    />
-                </View>
+                        ) : null
+                    }
+                    searchBar={
+                        <CustomSearchBar
+                            key={searchQuery}
+                            query={searchQuery}
+                            onSearch={setSearchQuery}
+                            onReset={() => {
+                                setSearchQuery('');
+                                setIsSearchActive(false);
+                                setTriggerSearchOpen(false);
+                            }}
+                            backgroundColor={colors.blue}
+                        />
+                    }
+                />
             )}
 
             <ScrollView
@@ -403,52 +400,12 @@ const Favorites = () => {
             </ScrollView>
 
             {isLoading && (
-                <View
-                    style={[
-                        StyleSheet.absoluteFillObject,
-                        {
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            backgroundColor: isDark ? 'rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.7)',
-                            zIndex: 9999,
-                            elevation: 9999,
-                        },
-                    ]}
-                    pointerEvents="auto"
-                >
-                    <ActivityIndicator size="large" color={isDark ? colors.grey : colors.black}/>
-                    <Text
-                        style={{
-                            marginTop: 10,
-                            fontFamily: 'Roboto-SemiBold',
-                            color: isDark ? colors.grey : colors.black,
-                            textAlign: 'center',
-                        }}
-                    >
-                        Učitavanje...
-                    </Text>
-                </View>
+                <LoadingOverlay isDark={isDark} message="Učitavanje..." />
             )}
 
             <CustomFooter onSearchPress={handleFooterSearch}/>
 
-            {bottomAdVisible && (
-                <View
-                    pointerEvents="box-none"
-                    style={[
-                        StyleSheet.absoluteFillObject,
-                        { justifyContent: 'flex-end', alignItems: 'center' },
-                    ]}
-                >
-                    <View style={{ width: '100%', paddingHorizontal: 8, marginBottom: 84 }}>
-                        <CustomBanner
-                            url={bottomAd.url}
-                            imageSrc={bottomAd.imageSrc}
-                            onClose={dismissBottomAd}
-                        />
-                    </View>
-                </View>
-            )}
+            <BottomAdBanner visible={bottomAdVisible} ad={bottomAd} onClose={dismissBottomAd} />
         </SafeAreaView>
     );
 };

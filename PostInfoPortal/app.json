@@ -101,7 +101,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true
@@ -128,7 +129,7 @@
             }
           }
         },
-        "projectId": "10cda242-8451-410e-9f9d-30ac2e7e263d"
+        "projectId": "9ef5aef8-db00-493c-9080-05396eb5c7da"
       }
     }
   }

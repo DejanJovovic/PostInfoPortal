@@ -1,17 +1,17 @@
+import CustomSearchBar from "@/components/CustomSearchBar";
+import colors from '@/constants/colors';
+import icons from '@/constants/icons';
+import images from '@/constants/images';
+import { usePathname, useRouter } from 'expo-router';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-    View,
-    Image,
-    TouchableOpacity,
     Animated,
     Dimensions,
+    Image,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import React, {useEffect, useRef, useState} from 'react';
-import {usePathname, useRouter} from 'expo-router';
-import images from '@/constants/images';
-import icons from '@/constants/icons';
-import colors from '@/constants/colors';
 import MenuDrawer from './MenuDrawer';
-import CustomSearchBar from "@/components/CustomSearchBar";
 
 type CustomHeaderProps = {
     onMenuToggle?: (visible: boolean) => void;
@@ -96,7 +96,6 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({
 
             {/* only center area is clickable */}
             <TouchableOpacity
-                onPress={() => router.replace('/')}
                 className="absolute top-0 bottom-0 left-1/3 right-1/3 z-10"
                 activeOpacity={0.8}
             >

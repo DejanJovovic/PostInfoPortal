@@ -1,27 +1,56 @@
-import React, { useState, useMemo } from 'react';
+﻿import { useTheme } from '@/components/ThemeContext';
+import { VideoView, useVideoPlayer, type VideoSource } from 'expo-video';
+import { X } from 'lucide-react-native';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-    View,
     ImageBackground,
-    TouchableOpacity,
+    ImageSourcePropType,
     Linking,
     Platform,
     StyleSheet,
-    ImageSourcePropType,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { X } from 'lucide-react-native';
-import { useTheme } from '@/components/ThemeContext';
 
 type CustomBannerProps = {
     url: string;
     imageSrc?: string | ImageSourcePropType;
+    videoSrc?: VideoSource;
     onClose?: () => void;
 };
 
+type BannerVideoProps = {
+    source: VideoSource;
+};
+
+const BannerVideo = ({ source }: BannerVideoProps) => {
+    const player = useVideoPlayer(source, (player) => {
+        player.loop = true;
+        player.muted = true;
+        player.play();
+    });
+
+    useEffect(() => {
+        player.play();
+    }, [player]);
+
+    return (
+        <VideoView
+            player={player}
+            style={{ width: '100%', height: 200 }}
+            contentFit="cover"
+            allowsFullscreen={false}
+            allowsPictureInPicture={false}
+        />
+    );
+};
+
 export default function CustomBanner({
-                                         url,
-                                         imageSrc,
-                                         onClose,
-                                     }: CustomBannerProps) {
+    url,
+    imageSrc,
+    videoSrc,
+    onClose,
+}: CustomBannerProps) {
     const { theme } = useTheme();
     const isDark = theme === 'dark';
     const [visible, setVisible] = useState(true);
@@ -30,6 +59,8 @@ export default function CustomBanner({
         () => (typeof imageSrc === 'string' ? { uri: imageSrc } : imageSrc),
         [imageSrc]
     );
+
+    const hasVideo = Boolean(videoSrc);
 
     const open = async () => {
         try {
@@ -61,39 +92,43 @@ export default function CustomBanner({
                 ...(Platform.OS === 'android' ? { elevation: 0 } : {}),
             }}
         >
-            {/* Pozadinska slika PREKO CELE KARTICE */}
+            {/* Pozadinska slika ili video PREKO CELE KARTICE */}
             <TouchableOpacity activeOpacity={0.9} onPress={open} style={{ width: '100%' }}>
-                <ImageBackground
-                    source={imgSource ?? { uri: 'https://via.placeholder.com/1200x400?text=Ad' }}
-                    style={{ width: '100%', height: 200, justifyContent: 'flex-end' }}
-                    resizeMode="cover"
-                >
-                    {/* Tamni gradijent/overlay da tekst bude čitljiv */}
-                    <View
-                        style={[
-                            StyleSheet.absoluteFillObject,
-                            { backgroundColor: 'rgba(0,0,0,0.18)' },
-                        ]}
+                {hasVideo && videoSrc ? (
+                    <BannerVideo source={videoSrc} />
+                ) : (
+                    <ImageBackground
+                        source={imgSource ?? { uri: 'https://via.placeholder.com/1200x400?text=Ad' }}
+                        style={{ width: '100%', height: 200, justifyContent: 'flex-end' }}
+                        resizeMode="cover"
                     />
+                )}
+                {/* Tamni gradijent/overlay da tekst bude čitljiv */}
+                <View
+                    style={[
+                        StyleSheet.absoluteFillObject,
+                        { backgroundColor: 'rgba(0,0,0,0.18)' },
+                    ]}
+                />
 
-                    {/* X dugme gore desno (absolute) */}
-                    <TouchableOpacity
-                        onPress={handleClose}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                        style={{
-                            position: 'absolute',
-                            top: 8,
-                            right: 8,
-                            zIndex: 10,
-                            backgroundColor: 'rgba(0,0,0,0.5)',
-                            borderRadius: 16,
-                            padding: 4,
-                        }}
-                    >
-                        <X size={16} color="#fff" />
-                    </TouchableOpacity>
-                </ImageBackground>
+                {/* X dugme gore desno (absolute) */}
+                <TouchableOpacity
+                    onPress={handleClose}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    style={{
+                        position: 'absolute',
+                        top: 8,
+                        right: 8,
+                        zIndex: 10,
+                        backgroundColor: 'rgba(0,0,0,0.5)',
+                        borderRadius: 16,
+                        padding: 4,
+                    }}
+                >
+                    <X size={16} color="#fff" />
+                </TouchableOpacity>
             </TouchableOpacity>
         </View>
     );
 }
+

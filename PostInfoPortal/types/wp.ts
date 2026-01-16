@@ -5,6 +5,6 @@ export type WPPost = {
     content: { rendered: string };
     date: string;
     _embedded?: {
-        'wp:featuredmedia'?: { source_url: string }[];
+        'wp:featuredmedia'?: { source_url: string; media_details?: { sizes?: Record<string, { source_url: string }> } }[];
     };
 };

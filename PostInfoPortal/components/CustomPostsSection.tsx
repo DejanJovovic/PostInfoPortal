@@ -1,17 +1,16 @@
+﻿import CustomBanner from "@/components/CustomBanner";
+import colors from '@/constants/colors';
+import { WPPost } from '@/types/wp';
+import { Image } from 'expo-image';
 import React from 'react';
 import {
-    View,
+    Platform,
     Text,
-    Image,
     TouchableOpacity,
-    ScrollView,
-    RefreshControl,
-    Platform, type ImageSourcePropType,
+    View,
+    type ImageSourcePropType,
 } from 'react-native';
-import {useTheme} from './ThemeContext';
-import {WPPost} from '@/types/wp';
-import colors from '@/constants/colors';
-import CustomBanner from "@/components/CustomBanner";
+import { useTheme } from './ThemeContext';
 
 interface Props {
     categoryName: string;
@@ -68,7 +67,24 @@ const CustomPostsSection: React.FC<Props> = ({
             }
             : {elevation: 0};
 
-    const getImg = (p: WPPost) => p._embedded?.['wp:featuredmedia']?.[0]?.source_url;
+    const getImg = (p: WPPost) => {
+        const media = p._embedded?.['wp:featuredmedia']?.[0];
+        if (!media) {
+            console.log('No featured media for post:', p.id, p.title.rendered);
+            return undefined;
+        }
+        const sizes = media.media_details?.sizes;
+        const imgUrl = (
+            sizes?.medium?.source_url ||
+            sizes?.medium_large?.source_url ||
+            sizes?.large?.source_url ||
+            media.source_url
+        );
+        if (!imgUrl) {
+            console.log('No image URL found for post:', p.id, 'media:', media);
+        }
+        return imgUrl;
+    };
     const getDate = (p: WPPost) => new Date(p.date).toLocaleDateString('sr-RS');
     const getExcerpt = (p: WPPost) => p.excerpt?.rendered?.replace(/<[^>]+>/g, '') || '';
     const getTitle = (p: WPPost) => p.title?.rendered || '';
@@ -99,17 +115,10 @@ const CustomPostsSection: React.FC<Props> = ({
                 </View>
             )}
 
-            <ScrollView
-                contentContainerStyle={{
+            <View
+                style={{
                     paddingBottom: isHome ? 8 : 250,
                 }}
-                showsVerticalScrollIndicator={false}
-                scrollEventThrottle={16}
-                refreshControl={
-                    refreshing !== undefined && onRefresh ? (
-                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh}/>
-                    ) : undefined
-                }
             >
                 {/* #1 Featured full-width */}
                 <TouchableOpacity
@@ -134,7 +143,12 @@ const CustomPostsSection: React.FC<Props> = ({
                             <Image
                                 source={{uri: getImg(featured)!}}
                                 style={{width: '100%', height: 200, borderRadius: 12, marginBottom: 10}}
-                                resizeMode="cover"
+                                contentFit="cover"
+                                cachePolicy="disk"
+                                transition={150}
+                                onError={(error) => {
+                                    console.warn('Image failed to load for featured post:', featured.id, error);
+                                }}
                             />
                         )}
                         <Text
@@ -202,7 +216,12 @@ const CustomPostsSection: React.FC<Props> = ({
                                         <Image
                                             source={{uri: getImg(p)!}}
                                             style={{width: '100%', height: 110, borderRadius: 12, marginBottom: 8}}
-                                            resizeMode="cover"
+                                            contentFit="cover"
+                                            cachePolicy="disk"
+                                            transition={150}
+                                            onError={(error) => {
+                                                console.warn('Image failed to load for post:', p.id, error);
+                                            }}
                                         />
                                     )}
                                     <Text
@@ -271,7 +290,12 @@ const CustomPostsSection: React.FC<Props> = ({
                                                     alignSelf: 'stretch',
                                                     borderRadius: 10,
                                                 }}
-                                                resizeMode="cover"
+                                                contentFit="cover"
+                                                cachePolicy="disk"
+                                                transition={150}
+                                                onError={(error) => {
+                                                    console.warn('Image failed to load for post:', p.id, error);
+                                                }}
                                             />
                                         ) : (
                                             <View
@@ -328,9 +352,9 @@ const CustomPostsSection: React.FC<Props> = ({
                         imageSrc={adImageUrl}
                     />
                 )}
-            </ScrollView>
+            </View>
         </View>
     );
 };
 
-export default CustomPostsSection;
+export default React.memo(CustomPostsSection);

@@ -1,11 +1,11 @@
-import React from 'react';
-import {ScrollView, View, Text, TouchableOpacity, Image, Switch} from 'react-native';
-import {menuData} from '@/types/menuData';
-import MenuCategoryItem from './MenuCategoryItem';
-import icons from '@/constants/icons';
-import {Feather} from '@expo/vector-icons';
-import {useTheme} from "@/components/ThemeContext";
+﻿import { useTheme } from "@/components/ThemeContext";
 import colors from "@/constants/colors";
+import icons from '@/constants/icons';
+import { menuData } from '@/types/menuData';
+import { Feather } from '@expo/vector-icons';
+import React from 'react';
+import { Image, ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
+import MenuCategoryItem from './MenuCategoryItem';
 
 type MenuDrawerProps = {
     onCategorySelect: (categoryName: string) => void;
@@ -61,7 +61,7 @@ const MenuDrawer: React.FC<MenuDrawerProps> = ({onCategorySelect, activeCategory
                           color: colors.grey,
                           fontFamily: 'YesevaOne-Regular'
                       }}>
-                    © 2022{' '}
+                    © 2026{' '}
                     <Text className="underline"
                           onPress={() => console.log('PostInfo pressed')}
                           style={{

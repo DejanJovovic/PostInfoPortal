@@ -1,25 +1,32 @@
-import React, {useEffect, useRef} from 'react';
+﻿import { useTheme } from "@/components/ThemeContext";
+import colors from "@/constants/colors";
+import { menuData } from '@/types/menuData';
+import React, { useEffect, useRef } from 'react';
 import {
-    View,
+    findNodeHandle,
+    View as RNView,
     ScrollView,
     Text,
     TouchableOpacity,
-    findNodeHandle,
-    View as RNView, UIManager,
+    UIManager,
+    View,
 } from 'react-native';
-import {menuData} from '@/types/menuData';
-import {useTheme} from "@/components/ThemeContext";
-import colors from "@/constants/colors";
 
 type Props = {
     onSelectCategory: (categoryName: string) => void;
     activeCategory: string;
+    extraCategories?: string[]; // optionally merge WordPress categories
 };
 
-const CustomMenuCategories: React.FC<Props> = ({onSelectCategory, activeCategory}) => {
-    const categories = menuData
+const CustomMenuCategories: React.FC<Props> = ({onSelectCategory, activeCategory, extraCategories}) => {
+    const baseCategories = menuData
         .map((item) => (typeof item === 'string' ? item : item.title))
         .filter((category) => category !== 'Latin | Ćirilica');
+
+    // Merge with extra (WP) categories if provided
+    const categories = Array.from(
+        new Set([...(baseCategories || []), ...((extraCategories as string[] | undefined) || [])])
+    );
 
     const scrollViewRef = useRef<ScrollView>(null);
     const categoryRefs = useRef<Record<string, RNView | null>>({});

@@ -1,7 +1,6 @@
-import React, {useState, useEffect} from 'react';
-import {View, Text, TouchableOpacity, Image} from 'react-native';
-import icons from '@/constants/icons';
-import colors from "@/constants/colors";
+﻿import icons from '@/constants/icons';
+import React, { useEffect, useState } from 'react';
+import { Image, Text, TouchableOpacity, View } from 'react-native';
 
 type CategoryItem = {
     title: string;
