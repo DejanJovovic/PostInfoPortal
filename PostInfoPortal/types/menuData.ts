@@ -1,45 +1,95 @@
 export const menuData = [
-    "Naslovna",
-    "Danas",
-    "Politika",
-    "Energetika",
-    "Privreda",
-    "Bezbednost",
-    "Ekonomija",
-    "Društvo",
-    "Obrazovanje",
-    "Tehnologija",
-    "Turizam",
-    "Zdravstvo",
-    "Sport",
-    "Kultura",
-    "Događaji",
-        {
-            title: "Lokal",
-            children: [
-                {
-                    title: "Beograd",
-                    children: [
-                        "Barajevo", "Čukarica", "Grocka", "Lazarevac", "Mladenovac", "Novi Beograd",
-                        "Palilula", "Obrenovac", "Rakovica", "Savski venac", "Sopot", "Stari grad",
-                        "Surčin", "Voždovac", "Vračar", "Zemun", "Zvezdara"
-                    ]
-                },
-                {
-                    title: "Gradovi"
-                },
-                {
-                    title: "Okruzi",
-                    children: [
-                        "Borski okrug", "Braničevski okrug", "Jablanički okrug", "Južnobački okrug", "Južnobanatski okrug",
-                        "Kolubarski okrug", "Kosovo i Metohija", "Mačvanski okrug", "Moravički okrug", "Nišavski okrug",
-                        "Pčinjski okrug", "Pirotski okrug", "Podunavski okrug", "Pomoravski okrug", "Rasinski okrug",
-                        "Raški okrug", "Severnobački okrug", "Severnobanatski okrug", "Srednjobanatski okrug", "Sremski okrug",
-                        "Šumadijski okrug", "Toplički okrug", "Zaječarski okrug", "Zapadnobački okrug", "Zlatiborski okrug"
-                    ]
-                }
-            ]
-        },
-    "Region",
-    "Planeta"
+  "Naslovna",
+  "Danas",
+  {
+    title: "Politika",
+    children: ["Bezbednost"],
+  },
+  "Svet",
+  "Crna hronika",
+  "Ekonomija",
+  {
+    title: "Društvo",
+    children: [
+      "Događaji",
+      "Kultura",
+      "Obrazovanje",
+      "Tehnologija",
+      "Turizam",
+      "Zdravlje i život",
+    ],
+  },
+  "Sport",
+  {
+    title: "Lokal",
+    children: [
+      {
+        title: "Gradovi",
+        children: [
+          "Beograd",
+          "Novi Sad",
+          "Niš",
+          "Bor",
+          "Bajina Bašta",
+          "Čačak",
+          "Jagodina",
+          "Kikinda",
+          "Kosovska Mitrovica",
+          "Kragujevac",
+          "Kraljevo",
+          "Kruševac",
+          "Leskovac",
+          "Loznica",
+          "Novi Pazar",
+          "Požarevac",
+          "Pančevo",
+          "Priština",
+          "Pirot",
+          "Prokuplje",
+          "S. Mitrovica",
+          "Smederevo",
+          "Sombor",
+          "Subotica",
+          "Šabac",
+          "Užice",
+          "Valjevo",
+          "Vranje",
+          "Vršac",
+          "Zaječar",
+          "Zrenjanin",
+        ],
+      },
+      {
+        title: "Okruzi",
+        children: [
+          "Borski okrug",
+          "Braničevski okrug",
+          "Jablanički okrug",
+          "Južnobački okrug",
+          "Južnobanatski okrug",
+          "Kolubarski okrug",
+          "Kosovo i Metohija",
+          "Mačvanski okrug",
+          "Moravički okrug",
+          "Nišavski okrug",
+          "Pčinjski okrug",
+          "Pirotski okrug",
+          "Podunavski okrug",
+          "Pomoravski okrug",
+          "Rasinski okrug",
+          "Raški okrug",
+          "Severnobački okrug",
+          "Severnobanatski okrug",
+          "Srednjobanatski okrug",
+          "Sremski okrug",
+          "Šumadijski okrug",
+          "Toplički okrug",
+          "Zaječarski okrug",
+          "Zapadnobački okrug",
+          "Zlatiborski okrug",
+        ],
+      },
+    ],
+  },
+  "Region",
 ];
