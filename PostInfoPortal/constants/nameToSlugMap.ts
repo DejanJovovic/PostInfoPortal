@@ -1,5 +1,7 @@
 export const nameToSlugMap: Record<string, string> = {
   Naslovna: "",
+  "Glavna vest": "glavna-vest",
+  "Glavne vesti": "glavna-vest",
   Politika: "politika",
   Bezbednost: "bezbednost",
   Svet: "svet",
@@ -17,6 +19,7 @@ export const nameToSlugMap: Record<string, string> = {
   "Zdravlje i život": "zdravlje-i-zivot",
   "Zdravlje i zivot": "zdravlje-i-zivot",
   Sport: "sport",
+  Kolumne: "kolumne",
   Lokal: "lokal",
   Region: "region",
   Gradovi: "gradovi",

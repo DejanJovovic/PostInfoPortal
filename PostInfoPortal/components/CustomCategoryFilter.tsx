@@ -24,6 +24,17 @@ type FlatCategory = {
   slug: string;
 };
 
+const PINNED_CATEGORY_ORDER = [
+  "Politika",
+  "Svet",
+  "Crna hronika",
+  "Ekonomija",
+  "Društvo",
+  "Sport",
+  "Lokal",
+  "Region",
+] as const;
+
 const months = [
   "Januar",
   "Februar",
@@ -100,8 +111,30 @@ const CustomCategoryFilter: React.FC<Props> = ({
     (cat) => cat.title !== "Naslovna" && cat.title !== "Danas",
   );
 
+  const societyLabel = allCategories.some((cat) => cat.title === "Društvo")
+    ? "Društvo"
+    : allCategories.some((cat) => cat.title === "Drustvo")
+      ? "Drustvo"
+      : "Društvo";
+
+  const pinnedOrderResolved = PINNED_CATEGORY_ORDER.map((title) =>
+    title === "Društvo" ? societyLabel : title,
+  );
+
+  const byTitle = new Map(allCategories.map((cat) => [cat.title, cat]));
+  const pinnedCategories = pinnedOrderResolved
+    .map((title) => byTitle.get(title))
+    .filter((cat): cat is FlatCategory => Boolean(cat));
+
+  const pinnedSet = new Set(pinnedCategories.map((cat) => cat.title));
+  const remainingCategories = allCategories.filter(
+    (cat) => !pinnedSet.has(cat.title),
+  );
+
   const [showAll, setShowAll] = useState(false);
-  const categoriesToShow = showAll ? allCategories : allCategories.slice(0, 8);
+  const categoriesToShow = showAll
+    ? [...pinnedCategories, ...remainingCategories]
+    : pinnedCategories;
 
   useEffect(() => {
     if (showDateModal) setTempDate(selectedDate);
@@ -210,7 +243,7 @@ const CustomCategoryFilter: React.FC<Props> = ({
             })}
           </View>
 
-          {allCategories.length > 8 && (
+          {remainingCategories.length > 0 && (
             <TouchableOpacity
               onPress={() => setShowAll(!showAll)}
               className="mb-4 self-center flex-row items-center"

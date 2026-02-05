@@ -1,6 +1,7 @@
 ﻿import { nameToSlugMap } from "@/constants/nameToSlugMap";
 import { menuData } from "@/types/menuData";
 import { WPPost } from "@/types/wp";
+import { HOME_CATEGORIES_ORDER } from "@/constants/homeCategoriesOrder";
 import {
   getCategories,
   getCategoryBySlug,
@@ -17,6 +18,7 @@ import {
 import { buildDanasForToday, buildDanasFromList } from "./danasUtils";
 import { createGroupedPostsCacheSaver } from "./postsCache";
 import { isSameLocalDate, normalizeText, uniqById } from "./postsUtils";
+import { prefetchNaslovnaStartupPayload } from "./startupPrefetch";
 
 export const usePostsByCategory = () => {
   const [categories, setCategories] = useState<
@@ -36,17 +38,9 @@ export const usePostsByCategory = () => {
   const [dailyCirclesPosts, setDailyCirclesPosts] = useState<WPPost[]>([]);
 
   const DANAS_KEY = "Danas";
-
-  const HOME_CATEGORIES_ORDER = [
-    "Politika",
-    "Svet",
-    "Ekonomija",
-    "Sport",
-    "Crna hronika",
-    "Beograd",
-    "Lokal",
-    "Region",
-  ] as const;
+  const MAIN_NEWS_KEY = "Glavna vest";
+  const MAIN_NEWS_SLUG = "glavna-vest";
+  const MAIN_NEWS_PAGE_SIZE = 7;
 
   const HOME_PAGE_SIZE = 4;
   const CATEGORY_PAGE_SIZE = 10;
@@ -54,6 +48,13 @@ export const usePostsByCategory = () => {
   const DANAS_SOURCE_PAGE_SIZE = 30;
   const DAILY_CIRCLES_DAYS = 6;
   const DAILY_CIRCLES_POSTS_PER_DAY = 5;
+
+  const normalizeCategoryName = (value: string) =>
+    String(value || "")
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
 
   const danasSourcePageRef = useRef(1);
   const danasModeRef = useRef<"today" | "fallback" | null>(null);
@@ -152,6 +153,11 @@ export const usePostsByCategory = () => {
     danasKey: DANAS_KEY,
     homeCategories: HOME_CATEGORIES_ORDER,
     homePageSize: HOME_PAGE_SIZE,
+    extraLimits: {
+      [MAIN_NEWS_KEY]: MAIN_NEWS_PAGE_SIZE,
+      Kolumne: 1,
+      Događaji: 1,
+    },
   });
 
   const TTL_MS = 15 * 60 * 1000;
@@ -194,14 +200,56 @@ export const usePostsByCategory = () => {
     return {};
   };
 
-  const getCategoryId = async (categoryName: string) => {
+  const getCategoryId = async (
+    categoryName: string,
+    slugMapOverride?: Record<string, number>,
+  ) => {
+    const normalized = normalizeCategoryName(categoryName);
+
+    const byNameInState = (categories || []).find(
+      (c) => normalizeCategoryName(c?.name || "") === normalized,
+    )?.id;
+    if (typeof byNameInState === "number") return byNameInState;
+
     const slug = nameToSlugMap[categoryName];
-    if (!slug) return undefined;
-    if (Object.keys(slugToId).length === 0) {
-      const map = await fetchCategories();
-      return map[slug];
+    if (slug) {
+      const effectiveSlugMap =
+        slugMapOverride && Object.keys(slugMapOverride).length > 0
+          ? slugMapOverride
+          : slugToId;
+
+      if (Object.keys(effectiveSlugMap).length === 0) {
+        const map = await fetchCategories();
+        const id = map[slug];
+        if (typeof id === "number") return id;
+      } else {
+        const id = effectiveSlugMap[slug];
+        if (typeof id === "number") return id;
+      }
+
+      try {
+        const bySlug = await getCategoryBySlug(slug);
+        if (Array.isArray(bySlug) && bySlug.length > 0 && bySlug[0]?.id) {
+          return bySlug[0].id as number;
+        }
+      } catch {}
     }
-    return slugToId[slug];
+
+    // Fallback for categories not in `nameToSlugMap` (or if the slug changed):
+    // try to resolve by exact category name from the WP categories endpoint.
+    try {
+      const data = await getCategories();
+      if (Array.isArray(data)) {
+        const byName = data.find(
+          (c: any) =>
+            normalizeCategoryName(c?.name || "") === normalized &&
+            typeof c?.id === "number",
+        )?.id as number | undefined;
+        if (typeof byName === "number") return byName;
+      }
+    } catch {}
+
+    return undefined;
   };
 
   const getCategoryIdBySlug = async (categoryName: string) => {
@@ -216,6 +264,25 @@ export const usePostsByCategory = () => {
       console.warn("getCategoryBySlug failed:", e);
     }
     return undefined;
+  };
+
+  const fetchCategoryFirstPage = async (
+    categoryName: string,
+    perPage: number,
+    slugMapOverride?: Record<string, number>,
+  ) => {
+    const isTema = categoryName === "Crna hronika";
+    const categoryId = isTema
+      ? await getCategoryIdBySlug(categoryName)
+      : await getCategoryId(categoryName, slugMapOverride);
+
+    if (categoryId) {
+      const fetched = await getPostsByCategoryId(categoryId, 1, perPage);
+      if (Array.isArray(fetched)) return fetched as WPPost[];
+    }
+
+    const fallback = await getPostsBySearch(categoryName, 1, perPage);
+    return Array.isArray(fallback) ? (fallback as WPPost[]) : [];
   };
 
   const fetchAllPosts = async ({ showLoader = true } = {}) => {
@@ -303,22 +370,14 @@ export const usePostsByCategory = () => {
       const running: Promise<void>[] = [];
 
       const runNext = async (name: string) => {
-        const isTema = name === "Crna hronika";
-        const slug = nameToSlugMap[name];
-        const categoryId = isTema
-          ? await getCategoryIdBySlug(name)
-          : slug
-            ? slugMap[slug]
-            : undefined;
-
-        if (!categoryId) return;
         try {
-          const fetched = (await getPostsByCategoryId(
-            categoryId,
-            1,
-            HOME_PAGE_SIZE,
-          )) as WPPost[];
-          fetchedByCategory[name] = Array.isArray(fetched) ? fetched : [];
+          const pageSize =
+            name === "Kolumne" || name === "Događaji" ? 1 : HOME_PAGE_SIZE;
+          fetchedByCategory[name] = await fetchCategoryFirstPage(
+            name,
+            pageSize,
+            slugMap,
+          );
         } catch (err) {
           console.error(`Greška za kategoriju ${name}:`, err);
           fetchedByCategory[name] = [];
@@ -335,6 +394,61 @@ export const usePostsByCategory = () => {
           running.push(p);
         }
         if (running.length) await Promise.race(running);
+      }
+
+      // "Glavna vest" (main headline) for the home carousel:
+      // - If the newest post matches the cached newest post, keep cached list.
+      // - If it differs, fetch a fresh list.
+      try {
+        let mainId = slugMap[MAIN_NEWS_SLUG];
+        if (!mainId) {
+          const bySlug = await getCategoryBySlug(MAIN_NEWS_SLUG);
+          if (Array.isArray(bySlug) && bySlug.length > 0 && bySlug[0]?.id) {
+            mainId = bySlug[0].id as number;
+          }
+        }
+
+        if (mainId) {
+          let cachedList = groupedPosts[MAIN_NEWS_KEY] || [];
+          let cachedTopId = cachedList[0]?.id;
+          if (!cachedTopId) {
+            try {
+              const cacheRaw = await AsyncStorage.getItem("groupedPostsCache");
+              if (cacheRaw) {
+                const { data } = JSON.parse(cacheRaw);
+                if (data?.[MAIN_NEWS_KEY] && data[MAIN_NEWS_KEY].length) {
+                  cachedList = data[MAIN_NEWS_KEY] as WPPost[];
+                  cachedTopId = cachedList[0]?.id;
+                }
+              }
+            } catch {}
+          }
+          const head = (await getPostsByCategoryId(mainId, 1, 1)) as WPPost[];
+          const headId = Array.isArray(head) ? head[0]?.id : undefined;
+
+          if (
+            cachedTopId &&
+            headId &&
+            cachedTopId === headId &&
+            cachedList.length >= MAIN_NEWS_PAGE_SIZE
+          ) {
+            fetchedByCategory[MAIN_NEWS_KEY] = cachedList;
+          } else {
+            const full = (await getPostsByCategoryId(
+              mainId,
+              1,
+              MAIN_NEWS_PAGE_SIZE,
+            )) as WPPost[];
+            fetchedByCategory[MAIN_NEWS_KEY] = Array.isArray(full) ? full : [];
+          }
+        } else if (groupedPosts[MAIN_NEWS_KEY]) {
+          fetchedByCategory[MAIN_NEWS_KEY] = groupedPosts[MAIN_NEWS_KEY] || [];
+        }
+      } catch (e) {
+        console.warn(`[${MAIN_NEWS_KEY}] Failed to refresh:`, e);
+        if (groupedPosts[MAIN_NEWS_KEY]) {
+          fetchedByCategory[MAIN_NEWS_KEY] = groupedPosts[MAIN_NEWS_KEY] || [];
+        }
       }
 
       await dailyPromise;
@@ -379,18 +493,14 @@ export const usePostsByCategory = () => {
       return;
     }
 
-    if (
-      page === 1 &&
-      !append &&
-      !forceRefresh &&
-      categoryName.toLowerCase() === "naslovna"
-    ) {
-      const hasStartupInMemory =
-        HOME_CATEGORIES_ORDER.every((n) =>
-          Object.prototype.hasOwnProperty.call(groupedPosts, n),
-        ) && Object.prototype.hasOwnProperty.call(groupedPosts, DANAS_KEY);
+    const isNaslovna = categoryName.toLowerCase() === "naslovna";
+    if (page === 1 && !append && !forceRefresh && isNaslovna) {
+      const hasAnyHomeContent =
+        HOME_CATEGORIES_ORDER.some((n) => (groupedPosts[n]?.length || 0) > 0) ||
+        (groupedPosts[DANAS_KEY]?.length || 0) > 0 ||
+        (groupedPosts[MAIN_NEWS_KEY]?.length || 0) > 0;
 
-      if (hasStartupInMemory) {
+      if (hasAnyHomeContent) {
         setPosts([]);
         setCurrentPage((prev) => ({ ...prev, [categoryName]: 1 }));
         setHasMore((prev) => ({ ...prev, [categoryName]: false }));
@@ -644,7 +754,9 @@ export const usePostsByCategory = () => {
         const hasStartupInMemory =
           HOME_CATEGORIES_ORDER.every((n) =>
             Object.prototype.hasOwnProperty.call(groupedPosts, n),
-          ) && Object.prototype.hasOwnProperty.call(groupedPosts, DANAS_KEY);
+          ) &&
+          Object.prototype.hasOwnProperty.call(groupedPosts, DANAS_KEY) &&
+          Object.prototype.hasOwnProperty.call(groupedPosts, MAIN_NEWS_KEY);
 
         if (hasStartupInMemory && !forceRefresh) {
           setPosts([]);
@@ -838,7 +950,10 @@ export const usePostsByCategory = () => {
   const homeGroupedPosts = Object.fromEntries(
     HOME_CATEGORIES_ORDER.map((name) => [
       name,
-      (groupedPosts[name] || []).slice(0, HOME_PAGE_SIZE),
+      (groupedPosts[name] || []).slice(
+        0,
+        name === "Kolumne" || name === "Događaji" ? 1 : HOME_PAGE_SIZE,
+      ),
     ]),
   ) as Record<string, WPPost[]>;
 
@@ -886,40 +1001,49 @@ export const usePostsByCategory = () => {
     const init = async () => {
       let hasStartupPayload = false;
       let loadedDailyCircles = false;
+      let hasAnyCachedPosts = false;
+
+      const applyGroupedCache = async (cacheRaw: string) => {
+        const { data, timestamp } = JSON.parse(cacheRaw);
+        const updated = { ...data } as Record<string, WPPost[]>;
+
+        if (!updated[DANAS_KEY] || updated[DANAS_KEY].length === 0) {
+          const danas = buildDanasForToday(updated, DANAS_PAGE_SIZE);
+          if (danas.length > 0) updated[DANAS_KEY] = danas;
+          else delete updated[DANAS_KEY];
+        }
+
+        setGroupedPosts(updated);
+        try {
+          await saveGroupedPostsToCache(updated);
+        } catch {}
+
+        const hasHome = HOME_CATEGORIES_ORDER.every((n) =>
+          Object.prototype.hasOwnProperty.call(updated, n),
+        );
+        const hasDanas = Object.prototype.hasOwnProperty.call(
+          updated,
+          DANAS_KEY,
+        );
+        const hasMainNews = Object.prototype.hasOwnProperty.call(
+          updated,
+          MAIN_NEWS_KEY,
+        );
+        hasStartupPayload = hasHome && hasDanas && hasMainNews;
+
+        hasAnyCachedPosts = Object.values(updated).some(
+          (arr) => Array.isArray(arr) && arr.length > 0,
+        );
+
+        const isStale = !timestamp || Date.now() - timestamp > TTL_MS;
+        if (isStale) fetchAllPosts({ showLoader: false }).catch(() => {});
+
+        if (hasAnyCachedPosts) setInitialized(true);
+      };
 
       try {
         const cacheRaw = await AsyncStorage.getItem("groupedPostsCache");
-        if (cacheRaw) {
-          const { data, timestamp } = JSON.parse(cacheRaw);
-          const updated = { ...data } as Record<string, WPPost[]>;
-
-          if (!updated[DANAS_KEY] || updated[DANAS_KEY].length === 0) {
-            const danas = buildDanasForToday(updated, DANAS_PAGE_SIZE);
-            if (danas.length > 0) updated[DANAS_KEY] = danas;
-            else delete updated[DANAS_KEY];
-          }
-
-          setGroupedPosts(updated);
-          try {
-            await saveGroupedPostsToCache(updated);
-          } catch {}
-
-          const hasHome = HOME_CATEGORIES_ORDER.every((n) =>
-            Object.prototype.hasOwnProperty.call(updated, n),
-          );
-          const hasDanas = Object.prototype.hasOwnProperty.call(
-            updated,
-            DANAS_KEY,
-          );
-          hasStartupPayload = hasHome && hasDanas;
-
-          const isStale = !timestamp || Date.now() - timestamp > TTL_MS;
-          if (isStale) {
-            fetchAllPosts({ showLoader: false }).catch(() => {});
-          }
-
-          if (hasStartupPayload) setInitialized(true);
-        }
+        if (cacheRaw) await applyGroupedCache(cacheRaw);
       } catch (e) {
         console.warn("Failed to read groupedPostsCache:", e);
         if (
@@ -936,6 +1060,20 @@ export const usePostsByCategory = () => {
         }
       }
 
+      // If we didn't have anything cached, give the startup prefetch a short chance to populate the cache
+      // (it may already be in-flight from `app/_layout.tsx`).
+      if (!hasAnyCachedPosts) {
+        try {
+          await Promise.race([
+            prefetchNaslovnaStartupPayload(),
+            new Promise((r) => setTimeout(r, 1200)),
+          ]);
+
+          const cacheAfter = await AsyncStorage.getItem("groupedPostsCache");
+          if (cacheAfter) await applyGroupedCache(cacheAfter);
+        } catch {}
+      }
+
       try {
         const { posts: daily, hasAllDays } = await loadDailyCirclesFromCache({
           days: DAILY_CIRCLES_DAYS,
@@ -950,8 +1088,13 @@ export const usePostsByCategory = () => {
 
       try {
         if (!hasStartupPayload) {
-          await fetchAllPosts({ showLoader: true });
-          setInitialized(true);
+          if (hasAnyCachedPosts) {
+            fetchAllPosts({ showLoader: false }).catch(() => {});
+            setInitialized(true);
+          } else {
+            await fetchAllPosts({ showLoader: true });
+            setInitialized(true);
+          }
         } else if (!loadedDailyCircles) {
           fetchAllPosts({ showLoader: false }).catch(() => {});
         }

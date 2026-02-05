@@ -6,7 +6,10 @@ export const simplifyPost = (post: WPPost): Partial<WPPost> => ({
   title: post.title,
   excerpt: post.excerpt,
   date: post.date,
-  _embedded: { "wp:featuredmedia": post._embedded?.["wp:featuredmedia"] },
+  _embedded: {
+    "wp:featuredmedia": post._embedded?.["wp:featuredmedia"],
+    author: post._embedded?.author,
+  },
 });
 
 export const createGroupedPostsCacheSaver = (opts: {
@@ -15,10 +18,12 @@ export const createGroupedPostsCacheSaver = (opts: {
   homePageSize: number;
   limitDefault?: number;
   limitDanas?: number;
+  extraLimits?: Record<string, number>;
 }) => {
   const homeSet = new Set<string>(opts.homeCategories as unknown as string[]);
   const limitDefault = opts.limitDefault ?? 50;
   const limitDanas = opts.limitDanas ?? 60;
+  const extraLimits = opts.extraLimits ?? {};
 
   return async (grouped: Record<string, WPPost[]>) => {
     try {
@@ -30,6 +35,8 @@ export const createGroupedPostsCacheSaver = (opts: {
               0,
               k === opts.danasKey
                 ? limitDanas
+                : typeof extraLimits[k] === "number"
+                  ? extraLimits[k]
                 : homeSet.has(k)
                   ? opts.homePageSize
                   : limitDefault,

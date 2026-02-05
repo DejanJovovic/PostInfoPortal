@@ -432,8 +432,6 @@ const Notifications = () => {
               onSearch={setSearchQuery}
               onReset={() => {
                 setSearchQuery("");
-                setIsSearchActive(false);
-                setTriggerSearchOpen(false);
               }}
               backgroundColor={colors.blue}
             />

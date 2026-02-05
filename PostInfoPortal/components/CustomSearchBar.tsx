@@ -34,14 +34,14 @@ const CustomSearchBar: React.FC<CustomSearchBarProps> = ({
 
   return (
     <View
-      className="flex-row items-center px-4 py-3 mt-10 mx-2 rounded-2xl"
+      className="flex-row items-center px-4 py-3 mt-10 mx-2 rounded-xl"
       style={{ backgroundColor: backgroundColor || "#222" }}
     >
       <TextInput
         placeholder="Pretraga..."
         placeholderTextColor={colors.grey}
-        className="flex-1 text-[#F9F9F9] text-sm"
-        style={{ fontFamily: "YesevaOne-Regular" }}
+        className="flex-1 text-[#F9F9F9] text-lg"
+        style={{ fontFamily: "Roboto-Bold" }}
         value={input}
         onChangeText={setInput}
         onSubmitEditing={handleSearch}

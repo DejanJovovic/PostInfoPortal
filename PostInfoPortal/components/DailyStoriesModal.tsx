@@ -1,4 +1,5 @@
 import { WPPost } from "@/types/wp";
+import { cleanWpRenderedText, getPostTitleText } from "@/hooks/postsUtils";
 import { Image } from "expo-image";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -86,7 +87,7 @@ export default function DailyStoriesModal({
               sizes?.medium_large?.source_url ||
               media?.source_url;
 
-            const excerpt = (p.excerpt?.rendered || "").replace(/<[^>]+>/g, "");
+            const excerpt = cleanWpRenderedText(p.excerpt?.rendered);
 
             return (
               <View key={p.id} style={{ width, height }}>
@@ -100,7 +101,7 @@ export default function DailyStoriesModal({
 
                 <View style={styles.bottom} pointerEvents="box-none">
                   <Text style={styles.title} numberOfLines={2}>
-                    {p.title?.rendered}
+                    {getPostTitleText(p)}
                   </Text>
                   <Text style={styles.excerpt} numberOfLines={2}>
                     {excerpt}

@@ -8,6 +8,7 @@ export const menuData = [
   "Svet",
   "Crna hronika",
   "Ekonomija",
+  "Kolumne",
   {
     title: "Društvo",
     children: [

@@ -1,4 +1,5 @@
 import colors from "@/constants/colors";
+import { getPostTitleText } from "@/hooks/postsUtils";
 import { WPPost } from "@/types/wp";
 import { Image } from "expo-image";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -133,7 +134,7 @@ export default function NewestPostsTicker({
               numberOfLines={1}
               ellipsizeMode="tail"
             >
-              {current?.title?.rendered || ""}
+              {getPostTitleText(current)}
             </Text>
           </Animated.View>
         </TouchableOpacity>
@@ -154,7 +155,7 @@ export default function NewestPostsTicker({
             activeOpacity={0.7}
           >
             <Image
-              source={require("../assets/icons/backArrow.png")}
+              source={require("../assets/icons/left-arrow.png")}
               style={[
                 styles.controlIcon,
                 { tintColor: isDark ? "#ffffff" : "#000000" },
@@ -200,22 +201,22 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   iconWrap: {
-    width: 54,
+    width: 28,
     height: 54,
     alignItems: "center",
     justifyContent: "center",
   },
   favicon: {
-    width: 26,
-    height: 26,
+    width: 22,
+    height: 22,
   },
   titleWrap: {
     flex: 1,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 10,
   },
   titleText: {
-    fontSize: 16,
+    fontSize: 12,
     fontFamily: "Roboto-Bold",
   },
   controls: {
@@ -224,7 +225,7 @@ const styles = StyleSheet.create({
     borderLeftWidth: 1,
   },
   controlButton: {
-    width: 44,
+    width: 34,
     height: 54,
     alignItems: "center",
     justifyContent: "center",
@@ -232,7 +233,7 @@ const styles = StyleSheet.create({
   },
   controlButtonRight: {},
   controlIcon: {
-    width: 18,
-    height: 18,
+    width: 16,
+    height: 16,
   },
 });

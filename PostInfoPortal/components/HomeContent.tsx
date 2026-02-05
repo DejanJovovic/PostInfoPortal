@@ -4,7 +4,6 @@ import React from "react";
 import { RefreshControl, ScrollView, View } from "react-native";
 import CustomBanner from "./CustomBanner";
 import CustomPostsSection from "./CustomPostsSection";
-import DailyCircles from "./DailyCircles";
 import NewestMainCarousel from "./NewestMainAnimatedPosts";
 import NewestPostsTicker from "./TrendingPosts";
 
@@ -16,6 +15,7 @@ interface HomeContentProps {
   onPostPress: (postId: number, categoryName: string) => void;
   loadingNav: boolean;
   todayPosts?: WPPost[];
+  mainPosts?: WPPost[];
   dailyCirclesPosts?: WPPost[];
 }
 
@@ -27,8 +27,12 @@ const HomeContent: React.FC<HomeContentProps> = ({
   onPostPress,
   loadingNav,
   todayPosts,
+  mainPosts,
   dailyCirclesPosts,
 }) => {
+  const hasTodayPosts = Boolean(todayPosts && todayPosts.length > 0);
+  const mainCarouselAd = pickRandomAd();
+
   return (
     <ScrollView
       className="flex-1"
@@ -37,26 +41,35 @@ const HomeContent: React.FC<HomeContentProps> = ({
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
-      {dailyCirclesPosts && dailyCirclesPosts.length > 0 && (
+      {/* {dailyCirclesPosts && dailyCirclesPosts.length > 0 && (
         <DailyCircles posts={dailyCirclesPosts} />
-      )}
-      {todayPosts && todayPosts.length > 0 && (
+      )} */}
+      {hasTodayPosts && (
         <View style={{ marginTop: 8 }}>
           <NewestPostsTicker
-            posts={todayPosts}
+            posts={todayPosts ?? []}
             onPostPress={onPostPress}
             loadingNav={loadingNav}
           />
         </View>
       )}
-      {todayPosts && todayPosts.length > 0 && (
-        <View style={{ marginTop: 8 }}>
-          <NewestMainCarousel
-            posts={todayPosts}
-            onPostPress={onPostPress}
-            loadingNav={loadingNav}
-          />
-        </View>
+      {mainPosts && mainPosts.length > 0 && (
+        <>
+          <View style={{ marginTop: hasTodayPosts ? 14 : 5 }}>
+            <NewestMainCarousel
+              posts={mainPosts}
+              onPostPress={onPostPress}
+              loadingNav={loadingNav}
+            />
+          </View>
+          <View style={{ marginBottom: 24 }}>
+            <CustomBanner
+              url={mainCarouselAd.url}
+              imageSrc={mainCarouselAd.imageSrc}
+              videoSrc={mainCarouselAd.videoSrc}
+            />
+          </View>
+        </>
       )}
       {homeCategoryOrder.map((categoryName, idx) => {
         const categoryPosts = homeGroupedPosts[categoryName] || [];

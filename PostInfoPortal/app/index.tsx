@@ -10,6 +10,10 @@ import { useTheme } from "@/components/ThemeContext";
 import { pickRandomAd } from "@/constants/ads";
 import colors from "@/constants/colors";
 import { usePostsByCategory } from "@/hooks/usePostsByCategory";
+import {
+  cleanWpRenderedText,
+  getPostTitleText,
+} from "@/hooks/postsUtils";
 import { WPPost } from "@/types/wp";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
@@ -265,15 +269,6 @@ const Index = () => {
     }
   };
 
-  const resetSearch = async () => {
-    setSearchQuery("");
-    setIsSearchActive(false);
-    setNoSearchResults(false);
-    setSearchAttemptCount(0);
-    setActiveCategory("Naslovna");
-    await fetchPostsForCategory("Naslovna");
-  };
-
   const handleFooterSearch = () => {
     setSearchQuery("");
     setIsSearchActive(true);
@@ -368,7 +363,8 @@ const Index = () => {
 
     const image = getImg(item);
     const date = new Date(item.date).toLocaleDateString("sr-RS");
-    const excerpt = item.excerpt.rendered.replace(/<[^>]+>/g, "");
+    const excerpt = cleanWpRenderedText(item.excerpt?.rendered);
+    const meta = date;
 
     return (
       <View
@@ -420,15 +416,17 @@ const Index = () => {
               );
             }}
           />
-          {highlightSearchTerm(item.title.rendered, searchQuery)}
+          {highlightSearchTerm(getPostTitleText(item), searchQuery)}
           <Text
             className="text-xs mt-1 mb-1"
+            numberOfLines={1}
+            ellipsizeMode="tail"
             style={{
               color: colors.darkerGray,
               fontSize: 12,
             }}
           >
-            {date}
+            {meta}
           </Text>
           <Text
             className="text-sm"
@@ -498,7 +496,12 @@ const Index = () => {
             key={searchQuery + searchAttemptCount}
             query={searchQuery}
             onSearch={handleSearch}
-            onReset={resetSearch}
+            onReset={() => {
+              setSearchQuery("");
+              setPosts([]);
+              setNoSearchResults(true);
+              setSearchAttemptCount(0);
+            }}
             backgroundColor={colors.blue}
           />
         </View>
@@ -542,6 +545,7 @@ const Index = () => {
           onPostPress={(id, category) => goToPost(id, category)}
           loadingNav={isLoading}
           todayPosts={(groupedPosts["Danas"] || []).slice(0, 10)}
+          mainPosts={(groupedPosts["Glavna vest"] || []).slice(0, 7)}
           dailyCirclesPosts={dailyCirclesPosts}
         />
       ) : (

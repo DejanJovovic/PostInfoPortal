@@ -1,4 +1,4 @@
-﻿import { useTheme } from "@/components/ThemeContext";
+import { useTheme } from "@/components/ThemeContext";
 import { VideoView, useVideoPlayer, type VideoSource } from "expo-video";
 import { X } from "lucide-react-native";
 import React, { useEffect, useMemo, useState } from "react";
@@ -7,6 +7,7 @@ import {
   ImageSourcePropType,
   Linking,
   Platform,
+  Image as RNImage,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -23,6 +24,8 @@ type BannerVideoProps = {
   source: VideoSource;
 };
 
+const DEFAULT_MEDIA_ASPECT_RATIO = 16 / 9;
+
 const BannerVideo = ({ source }: BannerVideoProps) => {
   const player = useVideoPlayer(source, (player) => {
     player.loop = true;
@@ -37,7 +40,7 @@ const BannerVideo = ({ source }: BannerVideoProps) => {
   return (
     <VideoView
       player={player}
-      style={{ width: "100%", height: 200 }}
+      style={StyleSheet.absoluteFill}
       contentFit="cover"
       allowsFullscreen={false}
       allowsPictureInPicture={false}
@@ -54,6 +57,9 @@ export default function CustomBanner({
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const [visible, setVisible] = useState(true);
+  const [mediaAspectRatio, setMediaAspectRatio] = useState(
+    DEFAULT_MEDIA_ASPECT_RATIO,
+  );
 
   const imgSource: ImageSourcePropType | undefined = useMemo(
     () => (typeof imageSrc === "string" ? { uri: imageSrc } : imageSrc),
@@ -61,6 +67,79 @@ export default function CustomBanner({
   );
 
   const hasVideo = Boolean(videoSrc);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const setRatio = (width?: number, height?: number) => {
+      if (cancelled) return;
+      if (
+        !width ||
+        !height ||
+        !Number.isFinite(width) ||
+        !Number.isFinite(height)
+      ) {
+        setMediaAspectRatio(DEFAULT_MEDIA_ASPECT_RATIO);
+        return;
+      }
+      setMediaAspectRatio(width / height);
+    };
+
+    const resolveLocalAspect = (source: number) => {
+      const resolved = RNImage.resolveAssetSource(source);
+      setRatio(resolved?.width, resolved?.height);
+    };
+
+    if (hasVideo && videoSrc) {
+      if (typeof videoSrc === "number") {
+        resolveLocalAspect(videoSrc);
+      } else if (
+        typeof (videoSrc as any)?.width === "number" &&
+        typeof (videoSrc as any)?.height === "number"
+      ) {
+        setRatio((videoSrc as any).width, (videoSrc as any).height);
+      } else if (typeof (videoSrc as any)?.uri === "number") {
+        resolveLocalAspect((videoSrc as any).uri);
+      } else {
+        setMediaAspectRatio(DEFAULT_MEDIA_ASPECT_RATIO);
+      }
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    if (!imageSrc) {
+      setMediaAspectRatio(DEFAULT_MEDIA_ASPECT_RATIO);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    if (typeof imageSrc === "string") {
+      RNImage.getSize(
+        imageSrc,
+        (width, height) => setRatio(width, height),
+        () => setMediaAspectRatio(DEFAULT_MEDIA_ASPECT_RATIO),
+      );
+    } else if (typeof imageSrc === "number") {
+      resolveLocalAspect(imageSrc);
+    } else if (
+      typeof (imageSrc as any)?.uri === "string" &&
+      (imageSrc as any).uri.length > 0
+    ) {
+      RNImage.getSize(
+        (imageSrc as any).uri,
+        (width, height) => setRatio(width, height),
+        () => setMediaAspectRatio(DEFAULT_MEDIA_ASPECT_RATIO),
+      );
+    } else {
+      setMediaAspectRatio(DEFAULT_MEDIA_ASPECT_RATIO);
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasVideo, imageSrc, videoSrc]);
 
   const open = async () => {
     try {
@@ -81,7 +160,7 @@ export default function CustomBanner({
     <View
       style={{
         marginHorizontal: 12,
-        marginTop: 12,
+        marginTop: 5,
         borderWidth: 1,
         borderRadius: 16,
         overflow: "hidden",
@@ -93,7 +172,7 @@ export default function CustomBanner({
       <TouchableOpacity
         activeOpacity={0.9}
         onPress={open}
-        style={{ width: "100%" }}
+        style={{ width: "100%", aspectRatio: mediaAspectRatio }}
       >
         {hasVideo && videoSrc ? (
           <BannerVideo source={videoSrc} />
@@ -104,7 +183,10 @@ export default function CustomBanner({
                 uri: "https://via.placeholder.com/1200x400?text=Ad",
               }
             }
-            style={{ width: "100%", height: 200, justifyContent: "flex-end" }}
+            style={[
+              StyleSheet.absoluteFillObject,
+              { justifyContent: "flex-end" },
+            ]}
             resizeMode="cover"
           />
         )}

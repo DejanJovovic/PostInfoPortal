@@ -16,7 +16,7 @@ import {
 const navItems = [
   { key: "home", label: "Naslovna", icon: icons.home },
   { key: "notifications", label: "Najnovije", icon: icons.bell },
-  { key: "favorites", label: "Moje kategorije", icon: icons.add },
+  { key: "favorites", label: "Omiljeno", icon: icons.bookmark },
   { key: "categories", label: "Sve kategorije", icon: icons.allCategories },
   { key: "search", label: "Pretraga", icon: icons.search },
 ];
@@ -132,7 +132,7 @@ const CustomFooter: React.FC<CustomFooterProps> = ({ onSearchPress }) => {
 
   return (
     <>
-      <View className="absolute bottom-0 w-full mb-5 bg-[#201F5B] rounded-3xl flex-row justify-between items-center px-2 py-3 z-50">
+      <View className="absolute bottom-0 w-full mb-5 bg-[#201F5B] flex-row justify-between items-center px-2 py-3 z-50">
         {navItems.map((item) => {
           const isActive = active === item.key;
           const tintColor = isActive ? colors.red : colors.grey;

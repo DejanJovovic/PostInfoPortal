@@ -8,6 +8,7 @@ import SearchHeader from "@/components/SearchHeader";
 import { useTheme } from "@/components/ThemeContext";
 import { pickRandomAd } from "@/constants/ads";
 import colors from "@/constants/colors";
+import { cleanWpRenderedText, getPostTitleText } from "@/hooks/postsUtils";
 import { usePostsByCategory } from "@/hooks/usePostsByCategory";
 import { WPPost } from "@/types/wp";
 import { router, useNavigation } from "expo-router";
@@ -163,7 +164,7 @@ const Categories = () => {
     const q = query.toLowerCase().trim();
     if (!q) return activeDataset;
     return activeDataset.filter((p) =>
-      p.title.rendered.toLowerCase().includes(q),
+      getPostTitleText(p).toLowerCase().includes(q),
     );
   };
 
@@ -291,7 +292,8 @@ const Categories = () => {
 
       const image = item._embedded?.["wp:featuredmedia"]?.[0]?.source_url;
       const date = new Date(item.date).toLocaleDateString("sr-RS");
-      const excerpt = item.excerpt?.rendered.replace(/<[^>]+>/g, "");
+      const excerpt = cleanWpRenderedText(item.excerpt?.rendered);
+      const meta = date;
 
       return (
         <Animated.View style={animStyle}>
@@ -315,15 +317,17 @@ const Categories = () => {
                   />
                 </View>
               )}
-              {highlightSearchTerm(item.title.rendered, searchQuery)}
+              {highlightSearchTerm(getPostTitleText(item), searchQuery)}
               <Text
                 className="text-xs mt-1 mb-1"
+                numberOfLines={1}
+                ellipsizeMode="tail"
                 style={{
                   color: colors.darkerGray,
                   fontSize: 12,
                 }}
               >
-                {date}
+                {meta}
               </Text>
               <Text
                 className="text-sm"
@@ -408,7 +412,6 @@ const Categories = () => {
               onSearch={setSearchQuery}
               onReset={() => {
                 setSearchQuery("");
-                setIsSearchActive(false);
               }}
               backgroundColor={colors.blue}
             />
@@ -594,16 +597,13 @@ const Categories = () => {
                     <Text
                       className="mr-2 text-center"
                       style={{
-                        color: isDark ? colors.grey : colors.black,
+                        color: colors.grey,
                         fontFamily: "Roboto-Bold",
                       }}
                     >
                       Prikaži još
                     </Text>
-                    <ChevronDown
-                      color={isDark ? colors.grey : colors.black}
-                      size={18}
-                    />
+                    <ChevronDown color={colors.grey} size={18} />
                   </View>
                 </TouchableOpacity>
               </View>

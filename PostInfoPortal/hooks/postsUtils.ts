@@ -46,3 +46,114 @@ export const normalizeText = (text: string) =>
     .replace(/&[^;]+;/g, "")
     .toLowerCase()
     .trim();
+
+const decodeHtmlEntity = (entity: string) => {
+  // numeric: &#8211; or &#x2013;
+  const num = entity.match(/^&#(\d+);$/);
+  if (num) {
+    const code = Number(num[1]);
+    if (Number.isFinite(code) && code >= 0 && code <= 0x10ffff) {
+      try {
+        return String.fromCodePoint(code);
+      } catch {}
+    }
+  }
+  const hex = entity.match(/^&#x([0-9a-fA-F]+);$/);
+  if (hex) {
+    const code = Number.parseInt(hex[1], 16);
+    if (Number.isFinite(code) && code >= 0 && code <= 0x10ffff) {
+      try {
+        return String.fromCodePoint(code);
+      } catch {}
+    }
+  }
+
+  const named = entity.match(/^&([a-zA-Z]+);$/);
+  if (named) {
+    const map: Record<string, string> = {
+      nbsp: " ",
+      amp: "&",
+      quot: '"',
+      apos: "'",
+      lt: "<",
+      gt: ">",
+      rsquo: "’",
+      lsquo: "‘",
+      rdquo: "”",
+      ldquo: "“",
+      laquo: "«",
+      raquo: "»",
+      ndash: "–",
+      mdash: "—",
+      hellip: "…",
+      bull: "•",
+      middot: "·",
+      copy: "©",
+      reg: "®",
+      trade: "™",
+      euro: "€",
+      pound: "£",
+      deg: "°",
+      shy: "",
+    };
+    map.rsquo = "’";
+    map.lsquo = "‘";
+    map.rdquo = "”";
+    map.ldquo = "“";
+    map.laquo = "«";
+    map.raquo = "»";
+    map.ndash = "–";
+    map.mdash = "—";
+    map.hellip = "…";
+    map.bull = "•";
+    map.middot = "·";
+    map.copy = "©";
+    map.reg = "®";
+    map.trade = "™";
+    map.euro = "€";
+    map.pound = "£";
+    map.deg = "°";
+    return map[named[1]] ?? entity;
+  }
+
+  return entity;
+};
+
+export const cleanWpRenderedText = (html?: string) => {
+  if (!html) return "";
+
+  // Strip tags but keep word boundaries.
+  let text = String(html)
+    .replace(/<\s*br\s*\/?>/gi, " ")
+    .replace(/<\/p>/gi, " ")
+    .replace(/<[^>]*>/g, " ");
+
+  // Decode entities we commonly see from WP.
+  text = text.replace(/&#x?[0-9a-fA-F]+;|&[a-zA-Z]+;/g, (m) =>
+    decodeHtmlEntity(m),
+  );
+
+  // Normalize spaces and remove leading junk like "&nbsp;" / "&#8211;" (en-dash).
+  text = text.replace(/\u00A0/g, " ").replace(/\s+/g, " ").trim();
+  text = text.replace(/^(?:[-–—]\s*)+/, "").trim();
+
+  return text;
+};
+
+export const getFeaturedMediaCaptionText = (post?: WPPost) => {
+  const media: any = post?._embedded?.["wp:featuredmedia"]?.[0];
+  const caption = media?.caption;
+  const rendered =
+    typeof caption === "string" ? caption : (caption?.rendered as string);
+  return cleanWpRenderedText(rendered);
+};
+
+export const getPostAuthorNameText = (post?: WPPost) => {
+  const name = post?._embedded?.author?.[0]?.name;
+  return cleanWpRenderedText(name).toUpperCase();
+};
+
+export const getPostTitleText = (post?: WPPost) => {
+  const title = post?.title?.rendered;
+  return cleanWpRenderedText(title);
+};

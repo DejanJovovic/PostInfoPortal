@@ -21,8 +21,12 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import RenderHTML from "react-native-render-html";
+import RenderHTML, {
+  HTMLContentModel,
+  HTMLElementModel,
+} from "react-native-render-html";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { WebView } from "react-native-webview";
 
 import BottomAdBanner from "@/components/BottomAdBanner";
 import CustomFooter from "@/components/CustomFooter";
@@ -32,6 +36,7 @@ import { useTheme } from "@/components/ThemeContext";
 import { pickRandomAd } from "@/constants/ads";
 import colors from "@/constants/colors";
 import icons from "@/constants/icons";
+import { getFeaturedMediaCaptionText, getPostTitleText } from "@/hooks/postsUtils";
 import { getInbox, type InboxItem } from "@/types/notificationInbox";
 import { WPPost } from "@/types/wp";
 import { globalSearch } from "@/utils/searchNavigation";
@@ -47,6 +52,94 @@ const deriveCategoryName = (post: any): string | undefined => {
 };
 
 const postDetailsCacheKey = (id: number) => `postDetailsCache:${id}`;
+
+const DEFAULT_EMBED_ASPECT_RATIO = 16 / 9;
+const APP_REFERRER_URL = "https://www.postinfo.rs/";
+const APP_WIDGET_REFERRER = "https://www.postinfo.rs/post-details";
+
+const parseEmbedNumericAttr = (value?: string) => {
+  if (!value) return undefined;
+  const parsed = Number(String(value).replace(/[^\d.]/g, ""));
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+};
+
+const normalizeUrl = (raw?: string) => {
+  if (!raw || typeof raw !== "string") return undefined;
+  const trimmed = raw.trim();
+  return trimmed.startsWith("//") ? `https:${trimmed}` : trimmed;
+};
+
+const extractYoutubeId = (url: URL) => {
+  const host = url.hostname.toLowerCase();
+
+  if (host.includes("youtu.be")) {
+    return url.pathname.split("/").filter(Boolean)[0];
+  }
+  if (!host.includes("youtube.com") && !host.includes("youtube-nocookie.com")) {
+    return undefined;
+  }
+  if (url.pathname.startsWith("/watch")) return url.searchParams.get("v") || undefined;
+  if (url.pathname.startsWith("/shorts/")) return url.pathname.split("/shorts/")[1];
+  if (url.pathname.startsWith("/live/")) return url.pathname.split("/live/")[1];
+  if (url.pathname.includes("/embed/")) return url.pathname.split("/embed/")[1];
+  return undefined;
+};
+
+const stripYoutubeId = (value?: string | null) => {
+  if (!value) return undefined;
+  const clean = String(value).split(/[?&#/]/)[0];
+  return clean || undefined;
+};
+
+const getEmbedTarget = (raw?: string) => {
+  const src = normalizeUrl(raw);
+  if (!src) return undefined;
+
+  try {
+    const parsed = new URL(src);
+    const host = parsed.hostname.toLowerCase();
+    const isYoutube =
+      host.includes("youtube.com") ||
+      host.includes("youtube-nocookie.com") ||
+      host.includes("youtu.be");
+
+    if (!isYoutube) {
+      return {
+        embedUrl: src,
+        externalUrl: src,
+        isYoutube: false,
+      };
+    }
+
+    const videoId = stripYoutubeId(extractYoutubeId(parsed));
+    if (!videoId) {
+      return {
+        embedUrl: src,
+        externalUrl: src,
+        isYoutube: true,
+      };
+    }
+
+    const query = new URLSearchParams({
+      playsinline: "1",
+      rel: "0",
+      origin: APP_REFERRER_URL.replace(/\/$/, ""),
+      widget_referrer: APP_WIDGET_REFERRER,
+    });
+
+    return {
+      embedUrl: `https://www.youtube.com/embed/${videoId}?${query.toString()}`,
+      externalUrl: `https://www.youtube.com/watch?v=${videoId}`,
+      isYoutube: true,
+    };
+  } catch {
+    return {
+      embedUrl: src,
+      externalUrl: src,
+      isYoutube: false,
+    };
+  }
+};
 
 const simplifyPostForDetailsCache = (post: any) => ({
   id: post?.id,
@@ -91,7 +184,14 @@ type PreviewFromNotification = {
 
 const PostDetails = () => {
   const { width } = useWindowDimensions();
-  const contentWidth = useMemo(() => width, [width]);
+  const horizontalContentPadding = useMemo(
+    () => Math.max(16, Math.round(width * 0.05)),
+    [width],
+  );
+  const contentWidth = useMemo(
+    () => Math.max(0, width - horizontalContentPadding * 2),
+    [width, horizontalContentPadding],
+  );
 
   const { postId, category } = useLocalSearchParams<{
     postId?: string;
@@ -129,8 +229,94 @@ const PostDetails = () => {
       h2: { color: htmlTextColor },
       h3: { color: htmlTextColor },
       a: { color: "#1d4ed8" },
+      figure: { marginTop: 12, marginBottom: 12 },
+      img: { marginTop: 12, marginBottom: 12 },
     }),
     [htmlTextColor],
+  );
+
+  const customHTMLElementModels = useMemo(
+    () => ({
+      iframe: HTMLElementModel.fromCustomModel({
+        tagName: "iframe",
+        contentModel: HTMLContentModel.block,
+      }),
+    }),
+    [],
+  );
+
+  const htmlRenderers = useMemo(
+    () => ({
+      iframe: ({ tnode }: any) => {
+        const embed = getEmbedTarget(tnode?.attributes?.src);
+        if (!embed?.embedUrl) return null;
+
+        const embedWidth = parseEmbedNumericAttr(tnode?.attributes?.width);
+        const embedHeight = parseEmbedNumericAttr(tnode?.attributes?.height);
+        const aspectRatio =
+          embedWidth && embedHeight
+            ? embedWidth / embedHeight
+            : DEFAULT_EMBED_ASPECT_RATIO;
+
+        const baseEmbedUrl = embed.embedUrl.split("?")[0];
+
+        return (
+          <View
+            style={{
+              width: "100%",
+              aspectRatio,
+              borderRadius: 8,
+              overflow: "hidden",
+              marginTop: 12,
+              marginBottom: 12,
+            }}
+          >
+            <WebView
+              source={{
+                uri: embed.embedUrl,
+                headers: embed.isYoutube ? { Referer: APP_REFERRER_URL } : {},
+              }}
+              style={{ flex: 1 }}
+              allowsFullscreenVideo
+              allowsInlineMediaPlayback
+              mediaPlaybackRequiresUserAction={false}
+              javaScriptEnabled
+              domStorageEnabled
+              setSupportMultipleWindows={false}
+              onShouldStartLoadWithRequest={(request) => {
+                const next = normalizeUrl(request?.url);
+                if (!next || next === "about:blank") return true;
+                if (
+                  typeof (request as any)?.isTopFrame === "boolean" &&
+                  (request as any).isTopFrame === false
+                ) {
+                  return true;
+                }
+
+                // Allow normal initial/embedded player navigations.
+                if (next.startsWith(baseEmbedUrl) || next.includes("/embed/")) {
+                  return true;
+                }
+
+                if (!embed.isYoutube) return true;
+
+                // Any "watch on YouTube" jump should open externally with direct video URL.
+                const nextTarget = getEmbedTarget(next);
+                if (!nextTarget?.isYoutube) return true;
+                const external =
+                  nextTarget?.externalUrl || embed.externalUrl || APP_REFERRER_URL;
+
+                Linking.openURL(external).catch((err) => {
+                  console.warn("Failed to open external video URL:", err);
+                });
+                return false;
+              }}
+            />
+          </View>
+        );
+      },
+    }),
+    [],
   );
 
   const [bottomAdVisible, setBottomAdVisible] = useState(false);
@@ -318,6 +504,10 @@ const PostDetails = () => {
     preview?.imageUrl ||
     postData?._embedded?.["wp:featuredmedia"]?.[0]?.source_url;
 
+  const imageCaption = getFeaturedMediaCaptionText(
+    postData as WPPost | undefined,
+  );
+
   const toggleBookmark = async () => {
     try {
       const idRaw = Array.isArray(postId) ? postId[0] : postId;
@@ -385,7 +575,7 @@ const PostDetails = () => {
 
     const linkToShare = postData?.link || `https://www.postinfo.rs/?p=${idNum}`;
     const postTitle =
-      (postData?.title?.rendered as string) || preview?.title || "";
+      getPostTitleText(postData as WPPost | undefined) || preview?.title || "";
 
     if (!linkToShare) {
       Alert.alert("Greška", "Nema linka za deljenje.");
@@ -504,8 +694,11 @@ const PostDetails = () => {
         />
 
         <ScrollView
-          contentContainerStyle={{ paddingBottom: bottomAdVisible ? 220 : 120 }}
-          className="px-4 py-4"
+          contentContainerStyle={{
+            paddingHorizontal: horizontalContentPadding,
+            paddingTop: 16,
+            paddingBottom: bottomAdVisible ? 220 : 120,
+          }}
         >
           {preview.imageUrl && (
             <ExpoImage
@@ -521,7 +714,7 @@ const PostDetails = () => {
             />
           )}
 
-          <View className="flex-row justify-between items-center mb-2">
+          <View className="flex-row justify-between items-start mb-2">
             <Text
               className="text-xl flex-1 pr-4"
               style={{
@@ -529,7 +722,6 @@ const PostDetails = () => {
                 color: isDark ? colors.grey : colors.black,
                 fontFamily: "Roboto-ExtraBold",
               }}
-              numberOfLines={3}
             >
               {preview.title || "Objava"}
             </Text>
@@ -607,7 +799,7 @@ const PostDetails = () => {
     );
   }
 
-  const titleRendered = postData?.title?.rendered ?? "";
+  const titleRendered = getPostTitleText(postData as WPPost | undefined);
   const contentRendered =
     postData?.content?.rendered ?? postData?.excerpt?.rendered ?? "";
 
@@ -626,8 +818,11 @@ const PostDetails = () => {
       />
 
       <ScrollView
-        contentContainerStyle={{ paddingBottom: bottomAdVisible ? 220 : 120 }}
-        className="px-4 py-4"
+        contentContainerStyle={{
+          paddingHorizontal: horizontalContentPadding,
+          paddingTop: 16,
+          paddingBottom: bottomAdVisible ? 220 : 120,
+        }}
       >
         {image && (
           <ExpoImage
@@ -643,7 +838,7 @@ const PostDetails = () => {
           />
         )}
 
-        <View className="flex-row justify-between items-center mb-2">
+        <View className="flex-row justify-between items-start mb-2">
           <Text
             className="text-xl flex-1 pr-4"
             style={{
@@ -651,7 +846,6 @@ const PostDetails = () => {
               color: isDark ? colors.grey : colors.black,
               fontFamily: "Roboto-ExtraBold",
             }}
-            numberOfLines={3}
           >
             {titleRendered}
           </Text>
@@ -671,15 +865,36 @@ const PostDetails = () => {
           </TouchableOpacity>
         </View>
 
-        <Text
-          className="text-sm mb-3"
-          style={{
-            color: colors.darkerGray,
-            fontSize: 12,
-          }}
-        >
-          {formattedDate || "-"}
-        </Text>
+        <View className="flex-row items-center justify-between mb-3">
+          <Text
+            className="text-sm"
+            style={{
+              color: colors.darkerGray,
+              fontSize: 12,
+              flexShrink: 0,
+            }}
+          >
+            {formattedDate || "-"}
+          </Text>
+          {!!imageCaption && (
+            <Text
+              className="text-sm"
+              numberOfLines={1}
+              ellipsizeMode="tail"
+              style={{
+                color: colors.darkerGray,
+                fontSize: 12,
+                marginLeft: 12,
+                textAlign: "right",
+                flexShrink: 1,
+                minWidth: 0,
+                maxWidth: "70%",
+              }}
+            >
+              {imageCaption}
+            </Text>
+          )}
+        </View>
 
         <View className="flex-row justify-around items-center mt-5 mb-5 px-4">
           {[
@@ -704,6 +919,8 @@ const PostDetails = () => {
             contentWidth={contentWidth}
             source={{ html: contentRendered }}
             tagsStyles={tagsStyles}
+            customHTMLElementModels={customHTMLElementModels}
+            renderers={htmlRenderers}
           />
         </View>
       </ScrollView>

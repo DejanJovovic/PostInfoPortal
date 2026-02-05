@@ -1,5 +1,6 @@
 ﻿import CustomBanner from "@/components/CustomBanner";
 import colors from "@/constants/colors";
+import { cleanWpRenderedText, getPostTitleText } from "@/hooks/postsUtils";
 import { WPPost } from "@/types/wp";
 import { Image } from "expo-image";
 import React from "react";
@@ -49,6 +50,12 @@ const CustomPostsSection: React.FC<Props> = ({
   const featured = posts[0];
   const nextTwo = posts.slice(1, 3);
   const rest = posts.slice(3);
+  const normalizedCategory = categoryName.trim().toLowerCase();
+  const showReadMoreButton =
+    isHome &&
+    (normalizedCategory === "kolumne" ||
+      normalizedCategory === "događaji" ||
+      normalizedCategory === "dogadjaji");
 
   const cardBase = {
     backgroundColor: isDark ? colors.black : colors.grey,
@@ -83,34 +90,26 @@ const CustomPostsSection: React.FC<Props> = ({
     return imgUrl;
   };
   const getDate = (p: WPPost) => new Date(p.date).toLocaleDateString("sr-RS");
-  const getExcerpt = (p: WPPost) =>
-    p.excerpt?.rendered?.replace(/<[^>]+>/g, "") || "";
-  const getTitle = (p: WPPost) => p.title?.rendered || "";
+  const getMeta = (p: WPPost) => getDate(p);
+  const getExcerpt = (p: WPPost) => cleanWpRenderedText(p.excerpt?.rendered);
+  const getTitle = (p: WPPost) => getPostTitleText(p);
 
   return (
     <View style={{ marginBottom: isHome ? 18 : 6 }}>
       {isHome && (
-        <View
+        <Text
           style={{
-            backgroundColor: colors.blue,
-            alignSelf: "stretch",
+            fontSize: 28,
+            color: isDark ? colors.grey : colors.black,
+            fontFamily:
+              Platform.OS === "android" ? "PlayfairDisplay-Bold" : "System",
             marginHorizontal: 12,
-            paddingHorizontal: 12,
-            paddingVertical: 8,
-            borderRadius: 12,
-            marginTop: 18,
+            marginTop: 24,
+            marginBottom: 12,
           }}
         >
-          <Text
-            style={{
-              fontSize: 28,
-              color: "#fff",
-              fontFamily: "Roboto-Bold",
-            }}
-          >
-            {categoryName}
-          </Text>
-        </View>
+          {categoryName}
+        </Text>
       )}
 
       <View
@@ -172,8 +171,10 @@ const CustomPostsSection: React.FC<Props> = ({
                 marginTop: 4,
                 color: colors.darkerGray,
               }}
+              numberOfLines={1}
+              ellipsizeMode="tail"
             >
-              {getDate(featured)}
+              {getMeta(featured)}
             </Text>
             <Text
               numberOfLines={3}
@@ -187,6 +188,35 @@ const CustomPostsSection: React.FC<Props> = ({
             </Text>
           </View>
         </TouchableOpacity>
+
+        {showReadMoreButton && (
+          <TouchableOpacity
+            activeOpacity={0.85}
+            disabled={loadingNav}
+            onPress={() => onPostPress(featured.id, categoryName)}
+            style={{
+              alignSelf: "center",
+              marginTop: 10,
+              backgroundColor: colors.blue,
+              borderRadius: 10,
+              minWidth: 170,
+              paddingHorizontal: 24,
+              paddingVertical: 11,
+              alignItems: "center",
+            }}
+          >
+            <Text
+              style={{
+                color: "#fff",
+                fontFamily: "Roboto-Bold",
+                fontSize: 16,
+                lineHeight: 20,
+              }}
+            >
+              Pročitaj više
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {nextTwo.length > 0 && (
           <View
@@ -256,8 +286,10 @@ const CustomPostsSection: React.FC<Props> = ({
                       marginTop: 4,
                       color: colors.darkerGray,
                     }}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
                   >
-                    {getDate(p)}
+                    {getMeta(p)}
                   </Text>
                   <Text
                     numberOfLines={3}
@@ -350,8 +382,10 @@ const CustomPostsSection: React.FC<Props> = ({
                           color: colors.darkerGray,
                           fontSize: 12,
                         }}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
                       >
-                        {getDate(p)}
+                        {getMeta(p)}
                       </Text>
                       <Text
                         numberOfLines={3}

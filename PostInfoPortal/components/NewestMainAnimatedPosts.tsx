@@ -1,9 +1,13 @@
 import colors from "@/constants/colors";
+import { getPostTitleText } from "@/hooks/postsUtils";
 import { WPPost } from "@/types/wp";
+import { getPostByIdFull } from "@/utils/wpApi";
 import { Image } from "expo-image";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
+  LayoutChangeEvent,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -17,8 +21,12 @@ type NewestMainCarouselProps = {
   loadingNav?: boolean;
 };
 
-const AUTO_ADVANCE_MS = 4000;
-const MAX_NEWEST = 4;
+const AUTO_ADVANCE_MS = 6000;
+const MAX_NEWEST = 7;
+const THUMBS_VISIBLE = 4;
+const MAIN_NEWS_CATEGORY_NAME = "Glavna vest";
+const MAIN_NEWS_LABEL = "GLAVNA VEST";
+const FALLBACK_CATEGORY_NAMES = new Set(["nekategorizovano", "uncategorized"]);
 
 const getFirstImageFromContent = (html?: string) => {
   if (!html) return undefined;
@@ -27,13 +35,24 @@ const getFirstImageFromContent = (html?: string) => {
 };
 
 const deriveCategoryName = (post: WPPost): string | undefined => {
-  const groups = (post?._embedded as any)?.["wp:term"];
-  if (Array.isArray(groups)) {
-    const flat = groups.flat().filter(Boolean);
-    const cat = flat.find((t: any) => t?.taxonomy === "category" && t?.name);
-    if (cat?.name) return String(cat.name);
-  }
-  return undefined;
+  const groups = (post as any)?._embedded?.["wp:term"];
+  if (!Array.isArray(groups)) return undefined;
+
+  const flat = groups.flat().filter(Boolean);
+  const cats = flat
+    .filter((t: any) => t?.taxonomy === "category" && t?.name)
+    .map((t: any) => String(t.name).trim())
+    .filter((name: string) => {
+      if (!name) return false;
+      return !FALLBACK_CATEGORY_NAMES.has(name.toLowerCase());
+    });
+
+  const preferred =
+    cats.find(
+      (n) => n.trim().toLowerCase() !== MAIN_NEWS_CATEGORY_NAME.toLowerCase(),
+    ) ?? cats[0];
+
+  return preferred ? preferred : undefined;
 };
 
 const getImg = (p: WPPost) => {
@@ -62,16 +81,35 @@ export default function NewestMainCarousel({
   const [index, setIndex] = useState(0);
   const [direction, setDirection] = useState<1 | -1>(1);
   const anim = useRef(new Animated.Value(0)).current;
+  const [thumbsViewportWidth, setThumbsViewportWidth] = useState(0);
+  const thumbScrollRef = useRef<ScrollView | null>(null);
+  const prevIndexRef = useRef(0);
+  const [resolvedCategoryById, setResolvedCategoryById] = useState<
+    Record<number, string>
+  >({});
+  const resolvingIdsRef = useRef(new Set<number>());
 
   const newestPosts = useMemo(() => {
     const cleaned = (posts || []).filter((p) => p && p.date);
-    const withImages = cleaned.filter((p) => !!getImg(p));
-    const base = withImages.length >= 2 ? withImages : cleaned;
-    const sorted = [...base].sort((a, b) =>
+    const sorted = [...cleaned].sort((a, b) =>
       (b.date || "").localeCompare(a.date || ""),
     );
     return sorted.slice(0, MAX_NEWEST);
   }, [posts]);
+
+  const thumbsVisibleCount = useMemo(() => {
+    return Math.min(THUMBS_VISIBLE, Math.max(1, newestPosts.length));
+  }, [newestPosts.length]);
+
+  const thumbsWindowStart = useMemo(() => {
+    const maxStart = Math.max(0, newestPosts.length - thumbsVisibleCount);
+    return Math.min(index, maxStart);
+  }, [index, newestPosts.length, thumbsVisibleCount]);
+
+  const thumbItemWidth = useMemo(() => {
+    if (!thumbsViewportWidth) return 0;
+    return thumbsViewportWidth / thumbsVisibleCount;
+  }, [thumbsViewportWidth, thumbsVisibleCount]);
 
   useEffect(() => {
     if (newestPosts.length < 2) return;
@@ -87,6 +125,23 @@ export default function NewestMainCarousel({
   }, [index, newestPosts.length]);
 
   useEffect(() => {
+    if (!thumbItemWidth) return;
+
+    const toX = thumbsWindowStart * thumbItemWidth;
+    const prevIndex = prevIndexRef.current;
+    const lastIdx = newestPosts.length - 1;
+    const isWrap =
+      newestPosts.length > 0 &&
+      prevIndex === lastIdx &&
+      index === 0 &&
+      direction === 1;
+
+    thumbScrollRef.current?.scrollTo({ x: toX, animated: !isWrap });
+
+    prevIndexRef.current = index;
+  }, [direction, index, newestPosts.length, thumbItemWidth, thumbsWindowStart]);
+
+  useEffect(() => {
     anim.setValue(0);
     Animated.timing(anim, {
       toValue: 1,
@@ -95,6 +150,51 @@ export default function NewestMainCarousel({
     }).start();
   }, [anim, index, direction]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const idsToResolve = newestPosts
+      .filter((p) => p && typeof p.id === "number")
+      .filter((p) => !deriveCategoryName(p))
+      .map((p) => p.id)
+      .filter(
+        (id) => !resolvedCategoryById[id] && !resolvingIdsRef.current.has(id),
+      );
+
+    if (idsToResolve.length === 0) return;
+
+    idsToResolve.forEach((id) => resolvingIdsRef.current.add(id));
+
+    Promise.all(
+      idsToResolve.map(async (id) => {
+        try {
+          const full = await getPostByIdFull(id);
+          const name = deriveCategoryName(full as any);
+          return [id, name] as const;
+        } catch {
+          return [id, undefined] as const;
+        }
+      }),
+    )
+      .then((pairs) => {
+        if (cancelled) return;
+        setResolvedCategoryById((prev) => {
+          const next = { ...prev };
+          for (const [id, name] of pairs) {
+            if (typeof name === "string" && name.length > 0) next[id] = name;
+          }
+          return next;
+        });
+      })
+      .finally(() => {
+        idsToResolve.forEach((id) => resolvingIdsRef.current.delete(id));
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [newestPosts, resolvedCategoryById]);
+
   if (newestPosts.length === 0) return null;
 
   const current = newestPosts[index];
@@ -102,10 +202,14 @@ export default function NewestMainCarousel({
   const date = current?.date
     ? new Date(current.date).toLocaleDateString("sr-RS")
     : "";
+  const derivedCategory =
+    (current ? deriveCategoryName(current) : undefined) ||
+    (current?.id ? resolvedCategoryById[current.id] : undefined);
+  const meta = date;
   const categoryLabel =
     index === 0
-      ? "GLAVNA VEST"
-      : (deriveCategoryName(current) || "").toUpperCase();
+      ? MAIN_NEWS_LABEL
+      : (derivedCategory || MAIN_NEWS_LABEL).toUpperCase();
   const translateX = anim.interpolate({
     inputRange: [0, 1],
     outputRange: [direction === 1 ? 18 : -18, 0],
@@ -123,11 +227,21 @@ export default function NewestMainCarousel({
 
   const handlePress = (post: WPPost) => {
     if (!onPostPress || loadingNav) return;
-    onPostPress(post.id, deriveCategoryName(post) || "");
+    onPostPress(
+      post.id,
+      deriveCategoryName(post) ||
+        resolvedCategoryById[post.id] ||
+        MAIN_NEWS_CATEGORY_NAME,
+    );
   };
 
   const fallbackThumb =
     image || newestPosts.map((post) => getImg(post)).find(Boolean);
+
+  const onThumbsLayout = (e: LayoutChangeEvent) => {
+    const w = e.nativeEvent.layout.width;
+    if (w && w !== thumbsViewportWidth) setThumbsViewportWidth(w);
+  };
 
   return (
     <View style={styles.container}>
@@ -154,7 +268,12 @@ export default function NewestMainCarousel({
             )}
             <View style={styles.mainOverlay}>
               {categoryLabel.length > 0 && (
-                <View style={styles.badge}>
+                <View
+                  style={[
+                    styles.badge,
+                    categoryLabel === MAIN_NEWS_LABEL && styles.mainNewsBadge,
+                  ]}
+                >
                   <Text style={styles.badgeText}>{categoryLabel}</Text>
                 </View>
               )}
@@ -162,10 +281,16 @@ export default function NewestMainCarousel({
                 style={{ transform: [{ translateX }], opacity: anim }}
               >
                 <Text style={styles.mainTitle} numberOfLines={3}>
-                  {current?.title?.rendered || ""}
+                  {getPostTitleText(current)}
                 </Text>
               </Animated.View>
-              <Text style={styles.dateText}>{date}</Text>
+              <Text
+                style={styles.dateText}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {meta}
+              </Text>
             </View>
           </TouchableOpacity>
           <View style={styles.arrowStack}>
@@ -188,7 +313,7 @@ export default function NewestMainCarousel({
               activeOpacity={0.75}
             >
               <Image
-                source={require("../assets/icons/backArrow.png")}
+                source={require("../assets/icons/left-arrow.png")}
                 style={[styles.arrowIcon, styles.arrowIconRed]}
                 contentFit="contain"
               />
@@ -197,36 +322,62 @@ export default function NewestMainCarousel({
         </View>
       </View>
 
-      <View style={styles.thumbRow}>
-        {newestPosts.map((post, idx) => {
-          const thumb = getImg(post) || fallbackThumb;
-          if (!thumb) return null;
-          const isActive = idx === index;
-          return (
-            <View key={post.id} style={styles.thumbItem}>
-              <TouchableOpacity
-                style={styles.thumbTouchable}
-                onPress={() => {
-                  if (idx === index) {
-                    handlePress(post);
-                    return;
-                  }
-                  setDirection(idx >= index ? 1 : -1);
-                  setIndex(idx);
-                }}
-                disabled={loadingNav}
-                activeOpacity={0.85}
+      <View style={styles.thumbRow} onLayout={onThumbsLayout}>
+        <ScrollView
+          ref={thumbScrollRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          bounces={false}
+          contentContainerStyle={styles.thumbTrack}
+        >
+          {newestPosts.map((post, idx) => {
+            const thumbUri = getImg(post) || fallbackThumb;
+            const isActive = idx === index;
+            return (
+              <View
+                key={post.id}
+                style={[
+                  styles.thumbItem,
+                  thumbItemWidth
+                    ? { width: thumbItemWidth }
+                    : styles.thumbItem4,
+                ]}
               >
-                <Image
-                  source={{ uri: thumb }}
-                  style={styles.thumbImage}
-                  contentFit="cover"
-                />
-              </TouchableOpacity>
-              {isActive && <View style={styles.thumbPointer} />}
-            </View>
-          );
-        })}
+                <TouchableOpacity
+                  style={styles.thumbTouchable}
+                  onPress={() => {
+                    if (idx === index) {
+                      handlePress(post);
+                      return;
+                    }
+                    setDirection(idx >= index ? 1 : -1);
+                    setIndex(idx);
+                  }}
+                  disabled={loadingNav}
+                  activeOpacity={0.85}
+                >
+                  {thumbUri ? (
+                    <Image
+                      source={{ uri: thumbUri }}
+                      style={styles.thumbImage}
+                      contentFit="cover"
+                    />
+                  ) : (
+                    <View style={styles.thumbImageFallback} />
+                  )}
+                </TouchableOpacity>
+                {isActive && (
+                  <View
+                    style={[
+                      styles.thumbPointer,
+                      { borderTopColor: isDark ? colors.grey : colors.black },
+                    ]}
+                  />
+                )}
+              </View>
+            );
+          })}
+        </ScrollView>
       </View>
     </View>
   );
@@ -240,7 +391,6 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 12,
     overflow: "hidden",
-    marginBottom: 10,
   },
   mainImageWrap: {
     position: "relative",
@@ -267,6 +417,10 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 4,
     marginBottom: 8,
+  },
+  mainNewsBadge: {
+    minWidth: 122,
+    paddingHorizontal: 14,
   },
   badgeText: {
     color: "#ffffff",
@@ -316,23 +470,37 @@ const styles = StyleSheet.create({
     tintColor: colors.red,
   },
   thumbRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 8,
+    overflow: "hidden",
+    marginTop: 2,
     paddingTop: 10,
     marginBottom: 6,
+    width: "100%",
+  },
+  thumbTrack: {
+    flexDirection: "row",
   },
   thumbItem: {
-    width: "24%",
     alignItems: "center",
     position: "relative",
   },
+  thumbItem4: {
+    width: "25%",
+  },
   thumbImage: {
-    width: "100%",
+    width: "92%",
     height: 62,
     borderRadius: 6,
     backgroundColor: "#f2f2f2",
     marginTop: 8,
+    alignSelf: "center",
+  },
+  thumbImageFallback: {
+    width: "92%",
+    height: 62,
+    borderRadius: 6,
+    backgroundColor: "#d8d8d8",
+    marginTop: 8,
+    alignSelf: "center",
   },
   thumbTouchable: {
     width: "100%",
@@ -341,14 +509,15 @@ const styles = StyleSheet.create({
     width: 0,
     height: 0,
     position: "absolute",
-    top: 0,
+    top: 8,
     left: "50%",
     marginLeft: -8,
+    zIndex: 2,
     borderLeftWidth: 8,
     borderRightWidth: 8,
     borderTopWidth: 8,
     borderLeftColor: "transparent",
     borderRightColor: "transparent",
-    borderTopColor: "#ffffff",
+    borderTopColor: "#000000",
   },
 });

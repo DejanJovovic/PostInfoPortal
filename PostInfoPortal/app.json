@@ -24,6 +24,7 @@
       }
     },
     "android": {
+      "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
         "foregroundImage": "./assets/icons/favicon.png"
       },
@@ -129,7 +130,7 @@
             }
           }
         },
-        "projectId": "9ef5aef8-db00-493c-9080-05396eb5c7da"
+        "projectId": "b61dc622-c694-4257-bb82-65936c515e48"
       }
     }
   }

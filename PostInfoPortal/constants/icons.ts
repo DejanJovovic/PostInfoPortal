@@ -10,6 +10,7 @@ import faviconNew from "../assets/icons/favicon_new.png";
 import filter from "../assets/icons/filter.png";
 import home from "../assets/icons/home.png";
 import instagram from "../assets/icons/instagram.png";
+import leftArrow from "../assets/icons/left-arrow.png";
 import linkedin from "../assets/icons/linkedin.png";
 import mail from "../assets/icons/mail.png";
 import menu from "../assets/icons/menu.png";
@@ -44,4 +45,5 @@ export default {
   mail,
   whatsapp,
   filter,
+  leftArrow,
 };

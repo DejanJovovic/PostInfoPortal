@@ -1,5 +1,6 @@
 import SplashScreen from "@/components/SplashScreen";
 import { ThemeProvider } from "@/components/ThemeContext";
+import { prefetchNaslovnaStartupPayload } from "@/hooks/startupPrefetch";
 import { useOneSignalDeepLinks } from "@/hooks/useOneSignalDeepLinks";
 import { RouteTarget } from "@/types/routeDeepLink";
 import { useFonts } from "expo-font";
@@ -19,6 +20,12 @@ export default function RootLayout() {
   const router = useRouter();
   const [showCustomSplash, setShowCustomSplash] = React.useState(true);
 
+  React.useEffect(() => {
+    // Start fetching the "Naslovna" startup payload immediately (while the custom splash is visible).
+    // If network fails, existing cache remains and the app behaves as it does today.
+    prefetchNaslovnaStartupPayload().catch(() => {});
+  }, []);
+
   const [fontsLoaded] = useFonts({
     "Roboto-Bold": require("../assets/fonts/Roboto-Bold.ttf"),
     "Roboto-ExtraBold": require("../assets/fonts/Roboto-ExtraBold.ttf"),
@@ -27,6 +34,7 @@ export default function RootLayout() {
     "Roboto-Regular": require("../assets/fonts/Roboto-Regular.ttf"),
     "Roboto-SemiBold": require("../assets/fonts/Roboto-SemiBold.ttf"),
     "YesevaOne-Regular": require("../assets/fonts/YesevaOne-Regular.ttf"),
+    "PlayfairDisplay-Bold": require("../assets/fonts/PlayfairDisplay-Bold.ttf"),
   });
 
   // hides splash when openning the notification

@@ -1,13 +1,18 @@
 import { pickRandomAd } from "@/constants/ads";
 import colors from "@/constants/colors";
-import React from "react";
+import { getPostTitleText } from "@/hooks/postsUtils";
+import { WPPost } from "@/types/wp";
+import { getLatestPosts } from "@/utils/wpApi";
+import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    RefreshControl,
-    ScrollView,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Platform,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import CustomBanner from "./CustomBanner";
 import CustomPostsSection from "./CustomPostsSection";
@@ -38,8 +43,34 @@ const CategoryContent: React.FC<CategoryContentProps> = ({
 }) => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
+  const [popularPosts, setPopularPosts] = useState<WPPost[]>([]);
+  const [hoveredPopularId, setHoveredPopularId] = useState<number | null>(null);
+  const [pressedPopularId, setPressedPopularId] = useState<number | null>(null);
 
   const categoryEndAd = pickRandomAd();
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadPopular = async () => {
+      try {
+        const latest = await getLatestPosts(1, 5);
+        if (!cancelled) {
+          setPopularPosts(Array.isArray(latest) ? latest : []);
+        }
+      } catch {
+        if (!cancelled) {
+          setPopularPosts([]);
+        }
+      }
+    };
+
+    loadPopular();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeCategory]);
 
   return (
     <ScrollView
@@ -79,6 +110,8 @@ const CategoryContent: React.FC<CategoryContentProps> = ({
           disabled={!hasMore || loadingMore || loadingNav}
           style={{
             backgroundColor: colors.blue,
+            alignSelf: "center",
+            paddingHorizontal: 24,
             paddingVertical: 12,
             borderRadius: 12,
             alignItems: "center",
@@ -95,6 +128,57 @@ const CategoryContent: React.FC<CategoryContentProps> = ({
           )}
         </TouchableOpacity>
       </View>
+
+      {popularPosts.length > 0 && (
+        <View style={{ paddingHorizontal: 12, marginTop: 26 }}>
+          <Text
+            style={{
+              fontSize: 28,
+              color: isDark ? colors.grey : colors.black,
+              fontFamily: Platform.OS === "android" ? "sans-serif" : "System",
+              fontWeight: "700",
+              marginBottom: 18,
+            }}
+          >
+            Popularno
+          </Text>
+          {popularPosts.map((post) => {
+            const isHighlighted =
+              hoveredPopularId === post.id || pressedPopularId === post.id;
+            return (
+              <Pressable
+                key={post.id}
+                onPress={() => onPostPress(post.id, activeCategory)} // check later if its supposed to actually be activeCategory
+                onPressIn={() => setPressedPopularId(post.id)}
+                onPressOut={() => setPressedPopularId(null)}
+                onHoverIn={() => setHoveredPopularId(post.id)}
+                onHoverOut={() => setHoveredPopularId(null)}
+                disabled={loadingNav}
+                style={{
+                  paddingVertical: 10,
+                  borderBottomWidth: 1,
+                  borderBottomColor: isDark ? "#3f3f3f" : "#e5e7eb",
+                }}
+              >
+                <Text
+                  style={{
+                    color: isHighlighted
+                      ? colors.red
+                      : isDark
+                        ? colors.grey
+                        : colors.black,
+                    fontFamily: "Roboto-Bold",
+                    fontSize: 16,
+                    lineHeight: 22,
+                  }}
+                >
+                  {getPostTitleText(post)}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
 
       <CustomBanner
         url={categoryEndAd.url}

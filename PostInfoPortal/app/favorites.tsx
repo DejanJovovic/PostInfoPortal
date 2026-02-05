@@ -8,6 +8,10 @@ import { useTheme } from "@/components/ThemeContext";
 import { pickRandomAd } from "@/constants/ads";
 import colors from "@/constants/colors";
 import icons from "@/constants/icons";
+import {
+  cleanWpRenderedText,
+  getPostTitleText,
+} from "@/hooks/postsUtils";
 import { WPPost } from "@/types/wp";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useNavigation, useRouter } from "expo-router";
@@ -151,7 +155,7 @@ const Favorites = () => {
     const lower = searchQuery.toLowerCase();
     for (const [category, posts] of Object.entries(groupedFavorites)) {
       const filtered = posts.filter((p) =>
-        p.title.rendered.toLowerCase().includes(lower),
+        getPostTitleText(p).toLowerCase().includes(lower),
       );
       if (filtered.length > 0) result[category] = filtered;
     }
@@ -241,7 +245,8 @@ const Favorites = () => {
   const renderPost = ({ item }: { item: WPPost }) => {
     const image = item._embedded?.["wp:featuredmedia"]?.[0]?.source_url;
     const date = new Date(item.date).toLocaleDateString("sr-RS");
-    const excerpt = item.excerpt.rendered.replace(/<[^>]+>/g, "");
+    const excerpt = cleanWpRenderedText(item.excerpt?.rendered);
+    const meta = date;
 
     return (
       <View className="w-[260px] mr-3">
@@ -277,7 +282,7 @@ const Favorites = () => {
             )}
             <View>
               {isSearchActive ? (
-                highlightSearchTerm(item.title.rendered, searchQuery)
+                highlightSearchTerm(getPostTitleText(item), searchQuery)
               ) : (
                 <Text
                   numberOfLines={2}
@@ -287,7 +292,7 @@ const Favorites = () => {
                     fontFamily: "Roboto-ExtraBold",
                   }}
                 >
-                  {item.title.rendered.replace(/<[^>]+>/g, "")}
+                  {getPostTitleText(item)}
                 </Text>
               )}
             </View>
@@ -295,12 +300,17 @@ const Favorites = () => {
             <View className="flex-row justify-between items-center mb-1">
               <Text
                 className="text-xs mt-1 mb-1"
+                numberOfLines={1}
+                ellipsizeMode="tail"
                 style={{
                   color: colors.darkerGray,
                   fontSize: 12,
+                  flex: 1,
+                  flexShrink: 1,
+                  marginRight: 8,
                 }}
               >
-                {date}
+                {meta}
               </Text>
               <TouchableOpacity
                 onPress={() => removePost(item.id)}
@@ -392,8 +402,6 @@ const Favorites = () => {
               onSearch={setSearchQuery}
               onReset={() => {
                 setSearchQuery("");
-                setIsSearchActive(false);
-                setTriggerSearchOpen(false);
               }}
               backgroundColor={colors.blue}
             />
