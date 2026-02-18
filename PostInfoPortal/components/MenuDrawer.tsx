@@ -5,13 +5,13 @@ import { menuData } from "@/types/menuData";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
 import {
-    Image,
-    Linking,
-    ScrollView,
-    Switch,
-    Text,
-    TouchableOpacity,
-    View,
+  Image,
+  Linking,
+  ScrollView,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import MenuCategoryItem from "./MenuCategoryItem";
 
@@ -27,6 +27,25 @@ const MenuDrawer: React.FC<MenuDrawerProps> = ({
   const { theme, toggleTheme } = useTheme();
 
   const isDarkMode = theme === "dark";
+  const menuDividerStyle = {
+    height: 1,
+    backgroundColor: "#F9F9F9",
+    marginHorizontal: 8,
+  } as const;
+  const footerLinks = [
+    { label: "Impresum", url: "https://www.postinfo.rs/impresum/" },
+    { label: "Marketing", url: "https://www.postinfo.rs/marketing/" },
+    {
+      label: "Politika privatnosti",
+      url: "https://www.postinfo.rs/politika-privatnosti/",
+    },
+    { label: "O nama", url: "https://www.postinfo.rs/o-nama/" },
+    {
+      label: "Prijatelji portala",
+      url: "https://www.postinfo.rs/prijatelji-portala/",
+    },
+    { label: "Kontakt", url: "https://www.postinfo.rs/kontakt/" },
+  ] as const;
 
   const openLink = (url: string) => {
     Linking.openURL(url).catch((err) => {
@@ -107,6 +126,49 @@ const MenuDrawer: React.FC<MenuDrawerProps> = ({
           </TouchableOpacity>
         </View>
 
+        <View style={[menuDividerStyle, { marginTop: 16 }]} />
+
+        <View
+          style={{
+            flexDirection: "row",
+            flexWrap: "wrap",
+            justifyContent: "center",
+            alignItems: "center",
+            marginTop: 12,
+            paddingHorizontal: 16,
+            rowGap: 8,
+          }}
+        >
+          {footerLinks.map((link, idx) => (
+            <React.Fragment key={link.label}>
+              <TouchableOpacity onPress={() => openLink(link.url)}>
+                <Text
+                  style={{
+                    color: colors.grey,
+                    fontFamily: "Roboto-Regular",
+                    fontSize: 12,
+                  }}
+                >
+                  {link.label}
+                </Text>
+              </TouchableOpacity>
+              {idx < footerLinks.length - 1 && (
+                <Text
+                  style={{
+                    color: colors.grey,
+                    marginHorizontal: 6,
+                    fontSize: 12,
+                  }}
+                >
+                  /
+                </Text>
+              )}
+            </React.Fragment>
+          ))}
+        </View>
+
+        <View style={[menuDividerStyle, { marginTop: 12 }]} />
+
         <View className="flex-row items-center justify-between px-4 mt-6">
           <View className="flex-row items-center gap-2">
             <Feather
@@ -133,7 +195,7 @@ const MenuDrawer: React.FC<MenuDrawerProps> = ({
             className="text-xs flex-wrap leading-5"
             style={{
               color: colors.grey,
-              fontFamily: "YesevaOne-Regular",
+              fontFamily: "Roboto",
             }}
           >
             © 2026{" "}
@@ -141,8 +203,8 @@ const MenuDrawer: React.FC<MenuDrawerProps> = ({
               className="underline"
               onPress={() => openLink("https://www.postinfo.rs")}
               style={{
-                color: colors.grey,
-                fontFamily: "YesevaOne-Regular",
+                color: colors.red,
+                fontFamily: "Roboto",
               }}
             >
               POSTINFO
@@ -152,8 +214,8 @@ const MenuDrawer: React.FC<MenuDrawerProps> = ({
               className="underline"
               onPress={() => openLink("https://www.digitalthinking.rs")}
               style={{
-                color: colors.grey,
-                fontFamily: "YesevaOne-Regular",
+                color: colors.red,
+                fontFamily: "Roboto",
               }}
             >
               Digital Thinking d.o.o.

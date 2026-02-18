@@ -370,7 +370,7 @@ export default function NewestMainCarousel({
                   <View
                     style={[
                       styles.thumbPointer,
-                      { borderTopColor: isDark ? colors.grey : colors.black },
+                      { borderTopColor: colors.grey },
                     ]}
                   />
                 )}
@@ -386,7 +386,7 @@ export default function NewestMainCarousel({
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 12,
-    paddingBottom: 14,
+    paddingBottom: 8,
   },
   card: {
     borderRadius: 12,
@@ -471,9 +471,9 @@ const styles = StyleSheet.create({
   },
   thumbRow: {
     overflow: "hidden",
-    marginTop: 2,
-    paddingTop: 10,
-    marginBottom: 6,
+    marginTop: 0,
+    paddingTop: 4,
+    marginBottom: 4,
     width: "100%",
   },
   thumbTrack: {
@@ -491,7 +491,7 @@ const styles = StyleSheet.create({
     height: 62,
     borderRadius: 6,
     backgroundColor: "#f2f2f2",
-    marginTop: 8,
+    marginTop: 4,
     alignSelf: "center",
   },
   thumbImageFallback: {
@@ -499,7 +499,7 @@ const styles = StyleSheet.create({
     height: 62,
     borderRadius: 6,
     backgroundColor: "#d8d8d8",
-    marginTop: 8,
+    marginTop: 4,
     alignSelf: "center",
   },
   thumbTouchable: {
@@ -509,7 +509,7 @@ const styles = StyleSheet.create({
     width: 0,
     height: 0,
     position: "absolute",
-    top: 8,
+    top: 4,
     left: "50%",
     marginLeft: -8,
     zIndex: 2,

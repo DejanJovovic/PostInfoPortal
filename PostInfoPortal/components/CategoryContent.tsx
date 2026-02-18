@@ -1,4 +1,3 @@
-import { pickRandomAd } from "@/constants/ads";
 import colors from "@/constants/colors";
 import { getPostTitleText } from "@/hooks/postsUtils";
 import { WPPost } from "@/types/wp";
@@ -14,8 +13,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import CustomBanner from "./CustomBanner";
 import CustomPostsSection from "./CustomPostsSection";
+import RotatingAdBanner from "./RotatingAdBanner";
 import { useTheme } from "./ThemeContext";
 
 interface CategoryContentProps {
@@ -46,8 +45,6 @@ const CategoryContent: React.FC<CategoryContentProps> = ({
   const [popularPosts, setPopularPosts] = useState<WPPost[]>([]);
   const [hoveredPopularId, setHoveredPopularId] = useState<number | null>(null);
   const [pressedPopularId, setPressedPopularId] = useState<number | null>(null);
-
-  const categoryEndAd = pickRandomAd();
 
   useEffect(() => {
     let cancelled = false;
@@ -180,11 +177,7 @@ const CategoryContent: React.FC<CategoryContentProps> = ({
         </View>
       )}
 
-      <CustomBanner
-        url={categoryEndAd.url}
-        imageSrc={categoryEndAd.imageSrc}
-        videoSrc={categoryEndAd.videoSrc}
-      />
+      <RotatingAdBanner />
     </ScrollView>
   );
 };

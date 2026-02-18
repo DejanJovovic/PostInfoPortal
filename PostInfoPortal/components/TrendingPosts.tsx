@@ -191,29 +191,28 @@ export default function NewestPostsTicker({
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 12,
-    paddingBottom: 10,
+    paddingBottom: 2,
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
-    borderRadius: 10,
     overflow: "hidden",
   },
   iconWrap: {
     width: 28,
-    height: 54,
+    height: 38,
     alignItems: "center",
     justifyContent: "center",
   },
   favicon: {
-    width: 22,
-    height: 22,
+    width: 16,
+    height: 16,
   },
   titleWrap: {
     flex: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
   },
   titleText: {
     fontSize: 12,
@@ -225,15 +224,15 @@ const styles = StyleSheet.create({
     borderLeftWidth: 1,
   },
   controlButton: {
-    width: 34,
-    height: 54,
+    width: 28,
+    height: 38,
     alignItems: "center",
     justifyContent: "center",
     borderLeftWidth: 1,
   },
   controlButtonRight: {},
   controlIcon: {
-    width: 16,
-    height: 16,
+    width: 12,
+    height: 12,
   },
 });

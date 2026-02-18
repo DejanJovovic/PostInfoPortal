@@ -8,6 +8,7 @@ import {
   Animated,
   Dimensions,
   Image,
+  ImageBackground,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -90,18 +91,29 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({
 
   return (
     <View className="w-full h-[100px] relative">
-      <Image
-        source={images.header}
+      <ImageBackground
+        source={images.postInfoWallpaper}
         className="w-full h-full"
         resizeMode="cover"
-      />
-
-      <TouchableOpacity
-        className="absolute top-0 bottom-0 left-1/3 right-1/3 z-10"
-        activeOpacity={0.8}
       >
-        <View className="w-full h-full" />
-      </TouchableOpacity>
+        <View
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            top: 44,
+            left: 0,
+            right: 0,
+            alignItems: "center",
+            transform: [{ translateY: -24 }],
+          }}
+        >
+          <Image
+            source={images.postInfoLogo}
+            style={{ width: 220, height: 48 }}
+            resizeMode="contain"
+          />
+        </View>
+      </ImageBackground>
 
       {!isRoot && (
         <TouchableOpacity

@@ -42,6 +42,7 @@ const BannerVideo = ({ source }: BannerVideoProps) => {
       player={player}
       style={StyleSheet.absoluteFill}
       contentFit="cover"
+      surfaceType={Platform.OS === "android" ? "textureView" : undefined}
       allowsFullscreen={false}
       allowsPictureInPicture={false}
     />

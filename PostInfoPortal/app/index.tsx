@@ -9,11 +9,8 @@ import SearchResults from "@/components/SearchResults";
 import { useTheme } from "@/components/ThemeContext";
 import { pickRandomAd } from "@/constants/ads";
 import colors from "@/constants/colors";
+import { cleanWpRenderedText, getPostTitleText } from "@/hooks/postsUtils";
 import { usePostsByCategory } from "@/hooks/usePostsByCategory";
-import {
-  cleanWpRenderedText,
-  getPostTitleText,
-} from "@/hooks/postsUtils";
 import { WPPost } from "@/types/wp";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
@@ -138,7 +135,7 @@ const Index = () => {
   }, [openSearch]);
 
   const [bottomAdVisible, setBottomAdVisible] = useState(false);
-  const [bottomAd, setBottomAd] = useState(pickRandomAd());
+  const [bottomAd, setBottomAd] = useState(() => pickRandomAd());
 
   const adTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -461,11 +458,13 @@ const Index = () => {
         loadingNav={isLoading}
       />
 
-      <CustomMenuCategories
-        onSelectCategory={handleCategorySelect}
-        activeCategory={activeCategory}
-        extraCategories={(categories || []).map((c) => c.name)}
-      />
+      <View style={{ marginTop: -8 }}>
+        <CustomMenuCategories
+          onSelectCategory={handleCategorySelect}
+          activeCategory={activeCategory}
+          extraCategories={(categories || []).map((c) => c.name)}
+        />
+      </View>
 
       {isSearchActive && (
         <View className="px-2 py-4">

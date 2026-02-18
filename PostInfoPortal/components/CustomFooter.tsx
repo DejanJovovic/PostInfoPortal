@@ -1,12 +1,14 @@
 import { useTheme } from "@/components/ThemeContext";
 import colors from "@/constants/colors";
 import icons from "@/constants/icons";
+import images from "@/constants/images";
 import { getUnreadCount, inboxSubscribe } from "@/types/notificationInbox";
 import { router, useFocusEffect, usePathname } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Image,
+  ImageBackground,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -132,10 +134,14 @@ const CustomFooter: React.FC<CustomFooterProps> = ({ onSearchPress }) => {
 
   return (
     <>
-      <View className="absolute bottom-0 w-full mb-5 bg-[#201F5B] flex-row justify-between items-center px-2 py-3 z-50">
+      <ImageBackground
+        source={images.postInfoWallpaper}
+        resizeMode="cover"
+        className="absolute bottom-0 w-full mb-5 flex-row justify-between items-center px-2 py-3 z-50"
+      >
         {navItems.map((item) => {
           const isActive = active === item.key;
-          const tintColor = isActive ? colors.red : colors.grey;
+          const tintColor = isActive ? "white" : "#756f6f";
 
           const iconWithBadge =
             item.key === "notifications" ? (
@@ -171,7 +177,7 @@ const CustomFooter: React.FC<CustomFooterProps> = ({ onSearchPress }) => {
             </TouchableOpacity>
           );
         })}
-      </View>
+      </ImageBackground>
       {isLoading && (
         <View
           style={[

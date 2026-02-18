@@ -1,10 +1,9 @@
-﻿import { pickRandomAd } from "@/constants/ads";
 import { WPPost } from "@/types/wp";
 import React from "react";
 import { RefreshControl, ScrollView, View } from "react-native";
-import CustomBanner from "./CustomBanner";
 import CustomPostsSection from "./CustomPostsSection";
 import NewestMainCarousel from "./NewestMainAnimatedPosts";
+import RotatingAdBanner from "./RotatingAdBanner";
 import NewestPostsTicker from "./TrendingPosts";
 
 interface HomeContentProps {
@@ -31,7 +30,6 @@ const HomeContent: React.FC<HomeContentProps> = ({
   dailyCirclesPosts,
 }) => {
   const hasTodayPosts = Boolean(todayPosts && todayPosts.length > 0);
-  const mainCarouselAd = pickRandomAd();
 
   return (
     <ScrollView
@@ -45,7 +43,7 @@ const HomeContent: React.FC<HomeContentProps> = ({
         <DailyCircles posts={dailyCirclesPosts} />
       )} */}
       {hasTodayPosts && (
-        <View style={{ marginTop: 8 }}>
+        <View style={{ marginTop: 1 }}>
           <NewestPostsTicker
             posts={todayPosts ?? []}
             onPostPress={onPostPress}
@@ -55,26 +53,27 @@ const HomeContent: React.FC<HomeContentProps> = ({
       )}
       {mainPosts && mainPosts.length > 0 && (
         <>
-          <View style={{ marginTop: hasTodayPosts ? 14 : 5 }}>
+          <View style={{ marginTop: hasTodayPosts ? 6 : 4 }}>
             <NewestMainCarousel
               posts={mainPosts}
               onPostPress={onPostPress}
               loadingNav={loadingNav}
             />
           </View>
-          <View style={{ marginBottom: 24 }}>
-            <CustomBanner
-              url={mainCarouselAd.url}
-              imageSrc={mainCarouselAd.imageSrc}
-              videoSrc={mainCarouselAd.videoSrc}
-            />
-          </View>
+          <RotatingAdBanner containerStyle={{ marginTop: -6, marginBottom: 6 }} />
         </>
       )}
       {homeCategoryOrder.map((categoryName, idx) => {
         const categoryPosts = homeGroupedPosts[categoryName] || [];
         if (!categoryPosts.length) return null;
-        const ad = pickRandomAd();
+
+        const isLastVisibleCategoryBanner = homeCategoryOrder
+          .slice(idx + 1)
+          .every(
+            (nextCategoryName) =>
+              (homeGroupedPosts[nextCategoryName] || []).length === 0,
+          );
+
         return (
           <React.Fragment key={categoryName}>
             <CustomPostsSection
@@ -84,12 +83,11 @@ const HomeContent: React.FC<HomeContentProps> = ({
               onPostPress={onPostPress}
               loadingNav={loadingNav}
             />
-            <CustomBanner
-              key={`ad-home-${idx}`}
-              url={ad.url}
-              imageSrc={ad.imageSrc}
-              videoSrc={ad.videoSrc}
-            />
+            <View
+              style={{ marginBottom: isLastVisibleCategoryBanner ? 115 : 0 }}
+            >
+              <RotatingAdBanner />
+            </View>
           </React.Fragment>
         );
       })}

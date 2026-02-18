@@ -82,14 +82,14 @@ const CustomMenuCategories: React.FC<Props> = ({
 
   return (
     <View
-      className="h-[60px] w-full"
+      className="h-[40px] w-full"
       style={{ backgroundColor: isDark ? colors.black : colors.grey }}
     >
       <ScrollView
         ref={scrollViewRef}
         horizontal
         showsHorizontalScrollIndicator={true}
-        contentContainerStyle={{ paddingHorizontal: 16, alignItems: "center" }}
+        contentContainerStyle={{ paddingHorizontal: 12, alignItems: "center" }}
         className="flex-row"
       >
         {categories.map((category) => (
