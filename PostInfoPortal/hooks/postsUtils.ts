@@ -157,3 +157,15 @@ export const getPostTitleText = (post?: WPPost) => {
   const title = post?.title?.rendered;
   return cleanWpRenderedText(title);
 };
+
+export const matchesPostSearchQuery = (post: WPPost, query: string) => {
+  const normalizedQuery = normalizeText(query || "");
+  if (!normalizedQuery) return true;
+
+  const title = normalizeText(post?.title?.rendered || "");
+  const excerpt = normalizeText(post?.excerpt?.rendered || "");
+  return title.includes(normalizedQuery) || excerpt.includes(normalizedQuery);
+};
+
+export const sortPostsNewestFirst = (arr: WPPost[]) =>
+  [...(arr || [])].sort((a, b) => (b.date || "").localeCompare(a.date || ""));

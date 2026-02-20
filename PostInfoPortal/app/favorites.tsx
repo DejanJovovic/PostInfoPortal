@@ -11,6 +11,8 @@ import icons from "@/constants/icons";
 import {
   cleanWpRenderedText,
   getPostTitleText,
+  matchesPostSearchQuery,
+  sortPostsNewestFirst,
 } from "@/hooks/postsUtils";
 import { WPPost } from "@/types/wp";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -30,6 +32,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 type FavoritePost = WPPost & { category: string };
+const SEARCH_PAGE_SIZE = 10;
 
 const Favorites = () => {
   const [groupedFavorites, setGroupedFavorites] = useState<
@@ -41,6 +44,7 @@ const Favorites = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [triggerSearchOpen, setTriggerSearchOpen] = useState(false);
+  const [searchVisibleCount, setSearchVisibleCount] = useState(SEARCH_PAGE_SIZE);
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -106,11 +110,16 @@ const Favorites = () => {
     return unsub;
   }, [navigation]);
 
+  useEffect(() => {
+    setSearchVisibleCount(SEARCH_PAGE_SIZE);
+  }, [searchQuery, isSearchActive]);
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     setSearchQuery("");
     setIsSearchActive(false);
     setTriggerSearchOpen(false);
+    setSearchVisibleCount(SEARCH_PAGE_SIZE);
     await loadFavorites();
     setRefreshing(false);
   }, []);
@@ -128,6 +137,7 @@ const Favorites = () => {
     setSearchQuery("");
     setIsSearchActive(true);
     setTriggerSearchOpen(true);
+    setSearchVisibleCount(SEARCH_PAGE_SIZE);
   };
 
   const handleBackWithLoading = () => {
@@ -138,24 +148,60 @@ const Favorites = () => {
     });
   };
 
-  const goToPost = (postId: number) => {
+  const goToPost = (postId: number, category?: string) => {
     if (isLoading) return;
     setIsLoading(true);
     requestAnimationFrame(() => {
       router.push({
         pathname: "/post-details",
-        params: { postId: String(postId), category: activeCategory },
+        params: { postId: String(postId), category: category || activeCategory },
       });
     });
+  };
+
+  const allFavoritePosts = React.useMemo(() => {
+    const flat: FavoritePost[] = [];
+    for (const [category, posts] of Object.entries(groupedFavorites)) {
+      for (const post of posts || []) {
+        const enriched = post as FavoritePost;
+        flat.push({
+          ...enriched,
+          category: enriched.category || category,
+        });
+      }
+    }
+    return sortPostsNewestFirst(flat as WPPost[]) as FavoritePost[];
+  }, [groupedFavorites]);
+
+  const searchResults = React.useMemo(() => {
+    const query = searchQuery.trim();
+    if (!isSearchActive || !query) return [];
+    return allFavoritePosts.filter((post) => matchesPostSearchQuery(post, query));
+  }, [allFavoritePosts, isSearchActive, searchQuery]);
+
+  const visibleSearchResults = React.useMemo(
+    () => searchResults.slice(0, searchVisibleCount),
+    [searchResults, searchVisibleCount],
+  );
+
+  const hasMoreSearchResults = React.useMemo(
+    () => searchResults.length > visibleSearchResults.length,
+    [searchResults, visibleSearchResults],
+  );
+
+  const loadMoreSearchResults = () => {
+    setSearchVisibleCount((c) =>
+      Math.min(c + SEARCH_PAGE_SIZE, searchResults.length),
+    );
   };
 
   const getFilteredFavorites = (): Record<string, WPPost[]> => {
     if (!searchQuery.trim()) return groupedFavorites;
     const result: Record<string, WPPost[]> = {};
-    const lower = searchQuery.toLowerCase();
+    const query = searchQuery.trim();
     for (const [category, posts] of Object.entries(groupedFavorites)) {
-      const filtered = posts.filter((p) =>
-        getPostTitleText(p).toLowerCase().includes(lower),
+      const filtered = sortPostsNewestFirst(
+        posts.filter((p) => matchesPostSearchQuery(p, query)),
       );
       if (filtered.length > 0) result[category] = filtered;
     }
@@ -270,7 +316,9 @@ const Favorites = () => {
           }}
         >
           <TouchableOpacity
-            onPress={() => goToPost(item.id)}
+            onPress={() =>
+              goToPost(item.id, (item as FavoritePost).category || activeCategory)
+            }
             disabled={isLoading}
           >
             {image && (
@@ -343,6 +391,83 @@ const Favorites = () => {
     );
   };
 
+  const renderSearchPost = ({ item }: { item: FavoritePost }) => {
+    const image = item._embedded?.["wp:featuredmedia"]?.[0]?.source_url;
+    const date = new Date(item.date).toLocaleDateString("sr-RS");
+    const excerpt = cleanWpRenderedText(item.excerpt?.rendered);
+
+    return (
+      <View className="rounded-2xl mb-6 p-4 border"
+        style={{
+          backgroundColor: isDark ? colors.black : colors.grey,
+          borderColor: isDark ? "#525050" : "#e5e7eb",
+          overflow: "hidden",
+          ...(Platform.OS === "ios"
+            ? {
+                shadowColor: "transparent",
+                shadowOpacity: 0,
+                shadowRadius: 0,
+                shadowOffset: { width: 0, height: 0 },
+              }
+            : {
+                elevation: 0,
+              }),
+        }}
+      >
+        <TouchableOpacity
+          onPress={() => goToPost(item.id, item.category)}
+          disabled={isLoading}
+        >
+          {image && (
+            <Image
+              source={{ uri: image }}
+              className="w-full h-[150px] rounded-xl mb-3"
+              resizeMode="cover"
+            />
+          )}
+          {highlightSearchTerm(getPostTitleText(item), searchQuery)}
+          <View className="flex-row justify-between items-center mb-1 mt-1">
+            <Text
+              className="text-xs"
+              style={{
+                color: colors.darkerGray,
+                fontSize: 12,
+                flex: 1,
+                fontFamily: "Roboto-Regular",
+              }}
+              numberOfLines={1}
+            >
+              {item.category} • {date}
+            </Text>
+            <TouchableOpacity
+              onPress={() => removePost(item.id)}
+              disabled={isLoading}
+            >
+              <Image
+                source={icons.close}
+                style={{
+                  width: 20,
+                  height: 20,
+                  tintColor: isDark ? colors.grey : colors.black,
+                }}
+              />
+            </TouchableOpacity>
+          </View>
+          <Text
+            className="text-sm"
+            numberOfLines={3}
+            style={{
+              color: isDark ? colors.grey : colors.black,
+              fontFamily: "Roboto-Light",
+            }}
+          >
+            {excerpt}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView
       className="flex-1"
@@ -387,6 +512,7 @@ const Favorites = () => {
                   setSearchQuery("");
                   setIsSearchActive(false);
                   setTriggerSearchOpen(false);
+                  setSearchVisibleCount(SEARCH_PAGE_SIZE);
                 }}
                 className="mr-3"
                 style={{ color: colors.red }}
@@ -402,6 +528,7 @@ const Favorites = () => {
               onSearch={setSearchQuery}
               onReset={() => {
                 setSearchQuery("");
+                setSearchVisibleCount(SEARCH_PAGE_SIZE);
               }}
               backgroundColor={colors.blue}
             />
@@ -409,69 +536,116 @@ const Favorites = () => {
         />
       )}
 
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: 100 }}
-        className="px-4 pt-4"
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
-        {Object.entries(getFilteredFavorites()).length === 0 ? (
-          <Text
-            className="text-center mt-10"
-            style={{
-              color: isDark ? colors.grey : colors.black,
-              fontFamily: "Roboto-Regular",
-            }}
-          >
-            Nema sačuvanih omiljenih objava.
-          </Text>
-        ) : (
-          Object.entries(getFilteredFavorites()).map(([category, posts]) => (
-            <View key={category} className="mb-6">
-              <View className="flex-row items-center justify-between mt-5 mb-3">
-                <Text
-                  className="text-xl"
+      {isSearchActive ? (
+        <FlatList
+          data={visibleSearchResults}
+          keyExtractor={(item) => `${item.category}-${item.id}`}
+          renderItem={renderSearchPost}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 100, paddingTop: 16 }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          ListEmptyComponent={
+            <Text
+              className="text-center mt-10"
+              style={{
+                color: isDark ? colors.grey : colors.black,
+                fontFamily: "Roboto-Regular",
+              }}
+            >
+              {searchQuery.trim().length
+                ? "Nema rezultata za zadatu pretragu."
+                : "Unesite željenu reč za pretragu."}
+            </Text>
+          }
+          ListFooterComponent={
+            hasMoreSearchResults ? (
+              <View style={{ paddingHorizontal: 12, marginTop: 0 }}>
+                <TouchableOpacity
+                  onPress={loadMoreSearchResults}
                   style={{
-                    fontSize: 24,
-                    color: isDark ? colors.grey : colors.black,
-                    fontFamily: "Roboto-Bold",
+                    backgroundColor: colors.blue,
+                    alignSelf: "center",
+                    paddingHorizontal: 24,
+                    paddingVertical: 12,
+                    borderRadius: 12,
+                    alignItems: "center",
+                    justifyContent: "center",
                   }}
                 >
-                  {category}
-                </Text>
-                <TouchableOpacity
-                  onPress={() => removeCategory(category)}
-                  disabled={isLoading}
-                >
-                  <Image
-                    source={icons.close}
-                    style={{
-                      width: 20,
-                      height: 20,
-                      tintColor: isDark ? colors.grey : colors.black,
-                    }}
-                  />
+                  <Text style={{ color: "#fff", fontFamily: "Roboto-Bold" }}>
+                    Učitaj još
+                  </Text>
                 </TouchableOpacity>
               </View>
+            ) : null
+          }
+        />
+      ) : (
+        <ScrollView
+          contentContainerStyle={{ paddingBottom: 100 }}
+          className="px-4 pt-4"
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
+          {Object.entries(getFilteredFavorites()).length === 0 ? (
+            <Text
+              className="text-center mt-10"
+              style={{
+                color: isDark ? colors.grey : colors.black,
+                fontFamily: "Roboto-Regular",
+              }}
+            >
+              Nema sačuvanih omiljenih objava.
+            </Text>
+          ) : (
+            Object.entries(getFilteredFavorites()).map(([category, posts]) => (
+              <View key={category} className="mb-6">
+                <View className="flex-row items-center justify-between mt-5 mb-3">
+                  <Text
+                    className="text-xl"
+                    style={{
+                      fontSize: 24,
+                      color: isDark ? colors.grey : colors.black,
+                      fontFamily: "Roboto-Bold",
+                    }}
+                  >
+                    {category}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => removeCategory(category)}
+                    disabled={isLoading}
+                  >
+                    <Image
+                      source={icons.close}
+                      style={{
+                        width: 20,
+                        height: 20,
+                        tintColor: isDark ? colors.grey : colors.black,
+                      }}
+                    />
+                  </TouchableOpacity>
+                </View>
 
-              <FlatList
-                data={posts}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                keyExtractor={(item) => item.id.toString()}
-                renderItem={renderPost}
-                scrollEnabled={!isLoading}
-              />
+                <FlatList
+                  data={posts}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  keyExtractor={(item) => item.id.toString()}
+                  renderItem={renderPost}
+                  scrollEnabled={!isLoading}
+                />
 
-              <View
-                className="h-[1px] mt-5"
-                style={{ backgroundColor: isDark ? colors.grey : colors.black }}
-              />
-            </View>
-          ))
-        )}
-      </ScrollView>
+                <View
+                  className="h-[1px] mt-5"
+                  style={{ backgroundColor: isDark ? colors.grey : colors.black }}
+                />
+              </View>
+            ))
+          )}
+        </ScrollView>
+      )}
 
       {isLoading && <LoadingOverlay isDark={isDark} message="Učitavanje..." />}
 

@@ -3,11 +3,12 @@ import colors from "@/constants/colors";
 import { WPPost } from "@/types/wp";
 import React from "react";
 import {
-    ActivityIndicator,
-    FlatList,
-    RefreshControl,
-    Text,
-    View,
+  ActivityIndicator,
+  FlatList,
+  RefreshControl,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 interface SearchResultsProps {
@@ -65,18 +66,32 @@ const SearchResults: React.FC<SearchResultsProps> = ({
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
-      onEndReached={() => {
-        if (hasMore && !loadingMore) {
-          onLoadMore();
-        }
-      }}
-      onEndReachedThreshold={0.5}
       ListFooterComponent={
-        loadingMore ? (
-          <ActivityIndicator
-            size="small"
-            color={isDark ? colors.grey : colors.black}
-          />
+        hasMore || loadingMore ? (
+          <View style={{ paddingHorizontal: 12, marginTop: 0 }}>
+            <TouchableOpacity
+              onPress={onLoadMore}
+              disabled={!hasMore || loadingMore || loadingNav}
+              style={{
+                backgroundColor: colors.blue,
+                alignSelf: "center",
+                paddingHorizontal: 24,
+                paddingVertical: 12,
+                borderRadius: 12,
+                alignItems: "center",
+                justifyContent: "center",
+                opacity: !hasMore || loadingMore || loadingNav ? 0.7 : 1,
+              }}
+            >
+              {loadingMore ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={{ color: "#fff", fontFamily: "Roboto-Bold" }}>
+                  Učitaj još
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
         ) : null
       }
       ListHeaderComponent={

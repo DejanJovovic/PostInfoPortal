@@ -75,7 +75,7 @@ export const getPostsBySearch = async (
   perPage: number = 12,
 ) => {
   const params = new URLSearchParams({
-    search: encodeURIComponent(query),
+    search: query,
     page: String(page),
     per_page: String(perPage),
     _embed: "1",

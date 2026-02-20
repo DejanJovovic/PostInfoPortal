@@ -95,6 +95,10 @@ const Index = () => {
     loadMorePosts,
     loadingMore,
     hasMore,
+    loadMoreSearchPosts,
+    resetSearchPagination,
+    searchHasMore,
+    searchLoadingMore,
   } = usePostsByCategory();
 
   const router = useRouter();
@@ -115,6 +119,7 @@ const Index = () => {
       setIsSearchActive(false);
       setNoSearchResults(false);
       setSearchAttemptCount(0);
+      resetSearchPagination();
     }
   }, [selectedCategory]);
 
@@ -131,6 +136,7 @@ const Index = () => {
       setNoSearchResults(true);
       setSearchAttemptCount(0);
       setTriggerSearchOpen(true);
+      resetSearchPagination();
     }
   }, [openSearch]);
 
@@ -172,6 +178,11 @@ const Index = () => {
   };
 
   const uniquePosts = React.useMemo(() => uniqById(posts), [posts]);
+  const sortedUniquePosts = React.useMemo(
+    () =>
+      [...uniquePosts].sort((a, b) => (b.date || "").localeCompare(a.date || "")),
+    [uniquePosts],
+  );
 
   const goToPost = (postId: number, categoryName?: string) => {
     if (isLoading) return;
@@ -235,6 +246,7 @@ const Index = () => {
     setIsSearchActive(false);
     setNoSearchResults(false);
     setSearchAttemptCount(0);
+    resetSearchPagination();
     setActiveCategory(categoryName);
     fetchPostsForCategory(categoryName);
     if (categoryName === "Naslovna") {
@@ -246,7 +258,8 @@ const Index = () => {
   };
 
   const handleSearch = async (query: string) => {
-    setSearchQuery(query);
+    const trimmed = query.trim();
+    setSearchQuery(trimmed);
     setIsSearchActive(true);
     setNoSearchResults(false);
     setPosts([]);
@@ -254,16 +267,14 @@ const Index = () => {
     const nextAttempt = searchAttemptCount + 1;
     setSearchAttemptCount(nextAttempt);
 
-    const found = await searchPostsFromCache(query);
-    if (found.length === 0) {
-      if (nextAttempt === 1) {
-        setNoSearchResults(true);
-        await fetchPostsForCategory("Naslovna");
-      } else {
-        setPosts([]);
-        setNoSearchResults(true);
-      }
+    if (!trimmed) {
+      resetSearchPagination();
+      setNoSearchResults(true);
+      return;
     }
+
+    const found = await searchPostsFromCache(trimmed);
+    setNoSearchResults(found.length === 0);
   };
 
   const handleFooterSearch = () => {
@@ -272,6 +283,7 @@ const Index = () => {
     setNoSearchResults(true);
     setSearchAttemptCount(0);
     setTriggerSearchOpen(true);
+    resetSearchPagination();
   };
 
   const onRefresh = useCallback(async () => {
@@ -282,6 +294,7 @@ const Index = () => {
       setPosts([]);
       setNoSearchResults(true);
       setSearchAttemptCount(0);
+      resetSearchPagination();
     } else {
       const cat = activeCategory || "Naslovna";
       if (cat === "Naslovna") {
@@ -301,6 +314,7 @@ const Index = () => {
     refreshHome,
     refreshDanas,
     setPosts,
+    resetSearchPagination,
   ]);
 
   const highlightSearchTerm = (text: string, term: string) => {
@@ -500,6 +514,7 @@ const Index = () => {
               setPosts([]);
               setNoSearchResults(true);
               setSearchAttemptCount(0);
+              resetSearchPagination();
             }}
             backgroundColor={colors.blue}
           />
@@ -512,7 +527,7 @@ const Index = () => {
         </View>
       ) : isSearchActive ? (
         <SearchResults
-          posts={uniquePosts}
+          posts={sortedUniquePosts}
           searchQuery={searchQuery}
           noSearchResults={noSearchResults}
           refreshing={refreshing}
@@ -526,9 +541,9 @@ const Index = () => {
             )
           }
           loadingNav={isLoading}
-          hasMore={hasMore[activeCategory] || false}
-          loadingMore={loadingMore}
-          onLoadMore={() => loadMorePosts(activeCategory)}
+          hasMore={searchHasMore}
+          loadingMore={searchLoadingMore}
+          onLoadMore={loadMoreSearchPosts}
           renderItem={renderItem}
         />
       ) : activeCategory === "Naslovna" && !initialized ? (

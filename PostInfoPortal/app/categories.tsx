@@ -8,9 +8,16 @@ import SearchHeader from "@/components/SearchHeader";
 import { useTheme } from "@/components/ThemeContext";
 import { pickRandomAd } from "@/constants/ads";
 import colors from "@/constants/colors";
-import { cleanWpRenderedText, getPostTitleText } from "@/hooks/postsUtils";
+import {
+  cleanWpRenderedText,
+  getPostTitleText,
+  matchesPostSearchQuery,
+  sortPostsNewestFirst,
+} from "@/hooks/postsUtils";
 import { usePostsByCategory } from "@/hooks/usePostsByCategory";
 import { WPPost } from "@/types/wp";
+import { globalSearch } from "@/utils/searchNavigation";
+import { getPostsBySearch } from "@/utils/wpApi";
 import { router, useNavigation } from "expo-router";
 import { ChevronDown, ChevronUp } from "lucide-react-native";
 import React, {
@@ -21,6 +28,7 @@ import React, {
   useState,
 } from "react";
 import {
+  ActivityIndicator,
   Animated,
   FlatList,
   RefreshControl,
@@ -31,6 +39,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const PAGE_SIZE = 5;
+const SEARCH_PAGE_SIZE = 10;
 const ALL_EXCLUDE = new Set(["Naslovna", "Danas"]);
 const months = [
   "Januar",
@@ -70,6 +79,11 @@ const Categories = () => {
   const navigation = useNavigation();
 
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [searchVisibleCount, setSearchVisibleCount] = useState(SEARCH_PAGE_SIZE);
+  const [searchRemotePosts, setSearchRemotePosts] = useState<WPPost[]>([]);
+  const [searchRemotePage, setSearchRemotePage] = useState(1);
+  const [searchRemoteExhausted, setSearchRemoteExhausted] = useState<boolean>(false);
+  const [searchLoadingMore, setSearchLoadingMore] = useState<boolean>(false);
   const [globalSort, setGlobalSort] = useState<"desc" | "asc">("desc");
 
   const [bottomAdVisible, setBottomAdVisible] = useState(false);
@@ -151,6 +165,21 @@ const Categories = () => {
   ]);
 
   useEffect(() => {
+    setSearchVisibleCount(SEARCH_PAGE_SIZE);
+    setSearchRemotePosts([]);
+    setSearchRemotePage(1);
+    setSearchRemoteExhausted(false);
+    setSearchLoadingMore(false);
+  }, [
+    searchQuery,
+    isSearchActive,
+    selectedCategory,
+    isFilterApplied,
+    selectedDate.month,
+    selectedDate.year,
+  ]);
+
+  useEffect(() => {
     const unsub = navigation.addListener("blur", () => setIsLoading(false));
     return unsub;
   }, [navigation]);
@@ -161,25 +190,43 @@ const Categories = () => {
   };
 
   const searchFromActive = (query: string): WPPost[] => {
-    const q = query.toLowerCase().trim();
-    if (!q) return activeDataset;
-    return activeDataset.filter((p) =>
-      getPostTitleText(p).toLowerCase().includes(q),
-    );
+    const q = query.trim();
+    if (!q) return [];
+    return activeDataset.filter((p) => matchesPostSearchQuery(p, q));
   };
 
-  const searchResults = useMemo(() => {
+  const localSearchResults = useMemo(() => {
     if (!isSearchActive) return [];
-    const res = searchFromActive(searchQuery);
-    return [...res].sort((a, b) =>
-      globalSort === "asc"
-        ? (a.date || "").localeCompare(b.date || "")
-        : (b.date || "").localeCompare(a.date || ""),
-    );
-  }, [isSearchActive, searchQuery, activeDataset, globalSort]);
+    return sortPostsNewestFirst(searchFromActive(searchQuery));
+  }, [isSearchActive, searchQuery, activeDataset]);
+
+  const searchResults = useMemo(
+    () => sortPostsNewestFirst(uniqueById([...localSearchResults, ...searchRemotePosts])),
+    [localSearchResults, searchRemotePosts],
+  );
+
+  const visibleSearchResults = useMemo(
+    () => searchResults.slice(0, searchVisibleCount),
+    [searchResults, searchVisibleCount],
+  );
+
+  const hasMoreSearchResults = useMemo(
+    () => {
+      if (!isSearchActive || !searchQuery.trim()) return false;
+      if (searchResults.length > visibleSearchResults.length) return true;
+      return !searchRemoteExhausted;
+    },
+    [
+      isSearchActive,
+      searchQuery,
+      searchResults,
+      visibleSearchResults,
+      searchRemoteExhausted,
+    ],
+  );
 
   const animationRefs = useRef<Animated.Value[]>([]);
-  const listForAnimations = isSearchActive ? searchResults : visibleData;
+  const listForAnimations = isSearchActive ? visibleSearchResults : visibleData;
 
   useEffect(() => {
     animationRefs.current = listForAnimations.map(() => new Animated.Value(0));
@@ -202,6 +249,7 @@ const Categories = () => {
     setSearchQuery("");
     setIsSearchActive(false);
     setVisibleCount(PAGE_SIZE);
+    setSearchVisibleCount(SEARCH_PAGE_SIZE);
 
     if (selectedCategory) {
       setIsCategoryLoading(true);
@@ -215,9 +263,11 @@ const Categories = () => {
   }, [selectedCategory, fetchPostsForCategory]);
 
   const handleFooterSearch = () => {
-    setSearchQuery("");
-    setIsSearchActive(true);
-    setTriggerSearchOpen(true);
+    if (isLoading) return;
+    setIsLoading(true);
+    requestAnimationFrame(() => {
+      router.push(globalSearch());
+    });
   };
 
   const handleBackWithLoading = () => {
@@ -351,6 +401,76 @@ const Categories = () => {
     setVisibleCount((c) => Math.min(c + PAGE_SIZE, sortedActiveDataset.length));
   };
 
+  const loadMoreSearch = async () => {
+    const query = searchQuery.trim();
+    if (!query || searchLoadingMore) return;
+
+    const targetVisible = searchVisibleCount + SEARCH_PAGE_SIZE;
+    const initialCombined = sortPostsNewestFirst(
+      uniqueById([...localSearchResults, ...searchRemotePosts]),
+    );
+
+    if (initialCombined.length >= targetVisible || searchRemoteExhausted) {
+      setSearchVisibleCount(Math.min(targetVisible, initialCombined.length));
+      return;
+    }
+
+    setSearchLoadingMore(true);
+    try {
+      let page = searchRemotePage;
+      let exhausted: boolean = Boolean(searchRemoteExhausted);
+      let nextRemote = [...searchRemotePosts];
+      let combined = initialCombined;
+      const seenIds = new Set(combined.map((p) => p.id));
+      let safety = 0;
+
+      while (combined.length < targetVisible && !exhausted && safety < 10) {
+        safety += 1;
+        const fetchedRaw = await getPostsBySearch(query, page, SEARCH_PAGE_SIZE);
+        const fetched = Array.isArray(fetchedRaw) ? (fetchedRaw as WPPost[]) : [];
+        page += 1;
+
+        if (fetched.length === 0) {
+          exhausted = true;
+          break;
+        }
+        if (fetched.length < SEARCH_PAGE_SIZE) {
+          exhausted = true;
+        }
+
+        const filtered = sortPostsNewestFirst(
+          fetched.filter(
+            (post) =>
+              Boolean(post) &&
+              typeof post.id === "number" &&
+              matchesPostSearchQuery(post, query),
+          ),
+        );
+
+        const additions: WPPost[] = [];
+        for (const post of filtered) {
+          if (seenIds.has(post.id)) continue;
+          seenIds.add(post.id);
+          additions.push(post);
+        }
+
+        if (additions.length) {
+          nextRemote = sortPostsNewestFirst(uniqueById([...nextRemote, ...additions]));
+          combined = sortPostsNewestFirst(
+            uniqueById([...localSearchResults, ...nextRemote]),
+          );
+        }
+      }
+
+      setSearchRemotePosts(nextRemote);
+      setSearchRemotePage(page);
+      setSearchRemoteExhausted(exhausted);
+      setSearchVisibleCount(Math.min(targetVisible, combined.length));
+    } finally {
+      setSearchLoadingMore(false);
+    }
+  };
+
   return (
     <SafeAreaView
       className="flex-1"
@@ -397,6 +517,7 @@ const Categories = () => {
                 onPress={() => {
                   setSearchQuery("");
                   setIsSearchActive(false);
+                  setSearchVisibleCount(SEARCH_PAGE_SIZE);
                 }}
                 className="mr-3"
                 style={{ color: colors.red }}
@@ -412,6 +533,7 @@ const Categories = () => {
               onSearch={setSearchQuery}
               onReset={() => {
                 setSearchQuery("");
+                setSearchVisibleCount(SEARCH_PAGE_SIZE);
               }}
               backgroundColor={colors.blue}
             />
@@ -421,13 +543,41 @@ const Categories = () => {
 
       {isSearchActive ? (
         <FlatList
-          data={searchResults}
+          data={visibleSearchResults}
           renderItem={renderItem}
           keyExtractor={(item) => String(item.id)}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
           contentContainerStyle={{ paddingBottom: 100 }}
+          ListFooterComponent={
+            hasMoreSearchResults || searchLoadingMore ? (
+              <View style={{ paddingHorizontal: 12, marginTop: 0 }}>
+                <TouchableOpacity
+                  onPress={loadMoreSearch}
+                  disabled={!hasMoreSearchResults || searchLoadingMore}
+                  style={{
+                    backgroundColor: colors.blue,
+                    alignSelf: "center",
+                    paddingHorizontal: 24,
+                    paddingVertical: 12,
+                    borderRadius: 12,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    opacity: !hasMoreSearchResults || searchLoadingMore ? 0.7 : 1,
+                  }}
+                >
+                  {searchLoadingMore ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={{ color: "#fff", fontFamily: "Roboto-Bold" }}>
+                      Učitaj još
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            ) : null
+          }
           ListEmptyComponent={
             !isCategoryLoading ? (
               <View className="px-4 mt-10">
@@ -466,6 +616,7 @@ const Categories = () => {
                   setSelectedDate({});
                   setSearchQuery("");
                   setIsSearchActive(false);
+                  setSearchVisibleCount(SEARCH_PAGE_SIZE);
                   setIsCategoryLoading(true);
                   fetchPostsForCategory(cat).finally(() =>
                     setIsCategoryLoading(false),

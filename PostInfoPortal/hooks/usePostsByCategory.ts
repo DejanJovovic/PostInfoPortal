@@ -17,7 +17,12 @@ import {
 } from "./dailyCirclesFeed";
 import { buildDanasForToday, buildDanasFromList } from "./danasUtils";
 import { createGroupedPostsCacheSaver } from "./postsCache";
-import { isSameLocalDate, normalizeText, uniqById } from "./postsUtils";
+import {
+  isSameLocalDate,
+  matchesPostSearchQuery,
+  sortPostsNewestFirst,
+  uniqById,
+} from "./postsUtils";
 import { prefetchNaslovnaStartupPayload } from "./startupPrefetch";
 
 export const usePostsByCategory = () => {
@@ -35,6 +40,8 @@ export const usePostsByCategory = () => {
   const [currentPage, setCurrentPage] = useState<Record<string, number>>({});
   const [hasMore, setHasMore] = useState<Record<string, boolean>>({});
   const [loadingMore, setLoadingMore] = useState(false);
+  const [searchHasMore, setSearchHasMore] = useState(false);
+  const [searchLoadingMore, setSearchLoadingMore] = useState(false);
   const [dailyCirclesPosts, setDailyCirclesPosts] = useState<WPPost[]>([]);
 
   const DANAS_KEY = "Danas";
@@ -48,6 +55,7 @@ export const usePostsByCategory = () => {
   const DANAS_SOURCE_PAGE_SIZE = 30;
   const DAILY_CIRCLES_DAYS = 6;
   const DAILY_CIRCLES_POSTS_PER_DAY = 5;
+  const SEARCH_PAGE_SIZE = 10;
 
   const normalizeCategoryName = (value: string) =>
     String(value || "")
@@ -59,6 +67,12 @@ export const usePostsByCategory = () => {
   const danasSourcePageRef = useRef(1);
   const danasModeRef = useRef<"today" | "fallback" | null>(null);
   const danasExhaustedRef = useRef(false);
+  const searchQueryRef = useRef("");
+  const searchLocalPoolRef = useRef<WPPost[]>([]);
+  const searchLocalCursorRef = useRef(0);
+  const searchRemotePageRef = useRef(1);
+  const searchRemoteExhaustedRef = useRef(false);
+  const searchSeenIdsRef = useRef<Set<number>>(new Set());
 
   const refreshDanasOnly = async ({ showLoader = false } = {}) => {
     if (showLoader) setLoading(true);
@@ -897,27 +911,134 @@ export const usePostsByCategory = () => {
     await fetchPostsForCategory(categoryName, nextPage, true);
   };
 
+  const resetSearchPagination = () => {
+    searchQueryRef.current = "";
+    searchLocalPoolRef.current = [];
+    searchLocalCursorRef.current = 0;
+    searchRemotePageRef.current = 1;
+    searchRemoteExhaustedRef.current = false;
+    searchSeenIdsRef.current = new Set();
+    setSearchHasMore(false);
+    setSearchLoadingMore(false);
+  };
+
+  const collectSearchSourcePosts = async (): Promise<WPPost[]> => {
+    let allPosts = uniqById([
+      ...(Object.values(groupedPosts).flat() as WPPost[]),
+      ...(posts || []),
+    ]);
+
+    if (allPosts.length) return allPosts;
+
+    const cacheRaw = await AsyncStorage.getItem("groupedPostsCache");
+    if (!cacheRaw) return [];
+
+    const { data } = JSON.parse(cacheRaw);
+    allPosts = uniqById((Object.values(data) as WPPost[][]).flat());
+    return allPosts;
+  };
+
+  const pullRemoteSearchBatch = async (
+    query: string,
+    maxCount: number,
+  ): Promise<WPPost[]> => {
+    const next: WPPost[] = [];
+    let safety = 0;
+
+    while (
+      next.length < maxCount &&
+      !searchRemoteExhaustedRef.current &&
+      safety < 10
+    ) {
+      safety += 1;
+      const page = searchRemotePageRef.current;
+      let fetched: WPPost[] = [];
+
+      try {
+        const remote = await getPostsBySearch(query, page, SEARCH_PAGE_SIZE);
+        fetched = Array.isArray(remote) ? (remote as WPPost[]) : [];
+      } catch (error) {
+        console.error("Search remote fetch failed:", error);
+        searchRemoteExhaustedRef.current = true;
+        break;
+      }
+
+      searchRemotePageRef.current = page + 1;
+
+      if (fetched.length === 0) {
+        searchRemoteExhaustedRef.current = true;
+        break;
+      }
+
+      if (fetched.length < SEARCH_PAGE_SIZE) {
+        searchRemoteExhaustedRef.current = true;
+      }
+
+      const filtered = sortPostsNewestFirst(
+        fetched.filter(
+          (post) =>
+            Boolean(post) &&
+            typeof post.id === "number" &&
+            matchesPostSearchQuery(post, query),
+        ),
+      );
+
+      for (const post of filtered) {
+        if (searchSeenIdsRef.current.has(post.id)) continue;
+        searchSeenIdsRef.current.add(post.id);
+        next.push(post);
+        if (next.length >= maxCount) break;
+      }
+    }
+
+    return next;
+  };
+
   const searchPostsFromCache = async (query: string): Promise<WPPost[]> => {
+    const normalizedQuery = String(query || "").trim();
+    resetSearchPagination();
+    searchQueryRef.current = normalizedQuery;
+
+    if (!normalizedQuery) {
+      setPosts([]);
+      return [];
+    }
+
     setSearchLoading(true);
     try {
-      const normalizedQuery = normalizeText(query);
-      let allPosts: WPPost[] = Object.values(groupedPosts).flat();
-      if (!allPosts.length) {
-        const cacheRaw = await AsyncStorage.getItem("groupedPostsCache");
-        if (!cacheRaw) {
-          setPosts([]);
-          return [];
-        }
-        const { data } = JSON.parse(cacheRaw);
-        allPosts = (Object.values(data) as WPPost[][]).flat();
-      }
-      const filtered = allPosts.filter((post) => {
-        const title = normalizeText(post.title?.rendered || "");
-        return title.includes(normalizedQuery);
-      });
+      const allPosts = await collectSearchSourcePosts();
+      const localMatches = sortPostsNewestFirst(
+        uniqById(
+          allPosts.filter((post) => matchesPostSearchQuery(post, normalizedQuery)),
+        ),
+      );
 
-      setPosts(filtered);
-      return filtered;
+      searchLocalPoolRef.current = localMatches;
+
+      const initialLocal = localMatches.slice(0, SEARCH_PAGE_SIZE);
+      searchLocalCursorRef.current = initialLocal.length;
+      for (const post of initialLocal) {
+        searchSeenIdsRef.current.add(post.id);
+      }
+
+      let initialResults = initialLocal;
+      if (initialResults.length < SEARCH_PAGE_SIZE) {
+        const remoteFill = await pullRemoteSearchBatch(
+          normalizedQuery,
+          SEARCH_PAGE_SIZE - initialResults.length,
+        );
+        initialResults = sortPostsNewestFirst(
+          uniqById([...initialResults, ...remoteFill]),
+        );
+      }
+
+      const hasLocalMore =
+        searchLocalCursorRef.current < searchLocalPoolRef.current.length;
+      const hasRemoteMore = !searchRemoteExhaustedRef.current;
+      setSearchHasMore(hasLocalMore || hasRemoteMore);
+
+      setPosts(initialResults);
+      return initialResults;
     } catch (error) {
       console.error("Greška u searchPostsFromCache:", error);
       if (
@@ -935,9 +1056,52 @@ export const usePostsByCategory = () => {
         }
       }
       setPosts([]);
+      setSearchHasMore(false);
       return [];
     } finally {
       setSearchLoading(false);
+    }
+  };
+
+  const loadMoreSearchPosts = async (): Promise<WPPost[]> => {
+    const query = searchQueryRef.current.trim();
+    if (!query || searchLoadingMore || !searchHasMore) return [];
+
+    setSearchLoadingMore(true);
+    try {
+      const nextBatch: WPPost[] = [];
+
+      const start = searchLocalCursorRef.current;
+      const end = start + SEARCH_PAGE_SIZE;
+      const localSlice = searchLocalPoolRef.current.slice(start, end);
+      searchLocalCursorRef.current = start + localSlice.length;
+
+      for (const post of localSlice) {
+        if (searchSeenIdsRef.current.has(post.id)) continue;
+        searchSeenIdsRef.current.add(post.id);
+        nextBatch.push(post);
+      }
+
+      if (nextBatch.length < SEARCH_PAGE_SIZE && !searchRemoteExhaustedRef.current) {
+        const remoteFill = await pullRemoteSearchBatch(
+          query,
+          SEARCH_PAGE_SIZE - nextBatch.length,
+        );
+        nextBatch.push(...remoteFill);
+      }
+
+      if (nextBatch.length) {
+        setPosts((prev) => sortPostsNewestFirst(uniqById([...prev, ...nextBatch])));
+      }
+
+      const hasLocalMore =
+        searchLocalCursorRef.current < searchLocalPoolRef.current.length;
+      const hasRemoteMore = !searchRemoteExhaustedRef.current;
+      setSearchHasMore(hasLocalMore || hasRemoteMore);
+
+      return nextBatch;
+    } finally {
+      setSearchLoadingMore(false);
     }
   };
 
@@ -1116,6 +1280,10 @@ export const usePostsByCategory = () => {
     refreshHome: () => fetchAllPosts({ showLoader: false }),
     refreshDanas: () => refreshDanasOnly({ showLoader: false }),
     searchPostsFromCache,
+    loadMoreSearchPosts,
+    resetSearchPagination,
+    searchHasMore,
+    searchLoadingMore,
     setPosts,
     groupedPosts,
     homeGroupedPosts,
