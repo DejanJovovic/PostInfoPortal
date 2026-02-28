@@ -36,7 +36,10 @@ import { useTheme } from "@/components/ThemeContext";
 import { pickRandomAd } from "@/constants/ads";
 import colors from "@/constants/colors";
 import icons from "@/constants/icons";
-import { getFeaturedMediaCaptionText, getPostTitleText } from "@/hooks/postsUtils";
+import {
+  getFeaturedMediaCaptionText,
+  getPostTitleText,
+} from "@/hooks/postsUtils";
 import { getInbox, type InboxItem } from "@/types/notificationInbox";
 import { WPPost } from "@/types/wp";
 import { globalSearch } from "@/utils/searchNavigation";
@@ -429,16 +432,17 @@ const PostDetails = () => {
         );
 
         if (match) {
+          const previewCategory = (match as any).categoryName || "";
           setPreview({
             title: match.title,
             message: match.message,
             imageUrl: match.imageUrl,
             receivedAt: match.receivedAt,
-            categoryName: (match as any).categoryName,
+            categoryName: previewCategory || undefined,
           });
           if (!activeCategory) {
             setActiveCategory(
-              (match as any).categoryName || decodedCategoryParam || "Naslovna",
+              previewCategory || decodedCategoryParam || "Naslovna",
             );
           }
           return;

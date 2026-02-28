@@ -7,6 +7,7 @@ import {
   getCategoryBySlug,
   getLatestPosts,
   getPostsByCategoryId,
+  getPostsByCategoryIds,
   getPostsBySearch,
 } from "@/utils/wpApi";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -27,7 +28,7 @@ import { prefetchNaslovnaStartupPayload } from "./startupPrefetch";
 
 export const usePostsByCategory = () => {
   const [categories, setCategories] = useState<
-    { id: number; name: string; slug: string }[]
+    { id: number; name: string; slug: string; parent: number }[]
   >([]);
   const [posts, setPosts] = useState<WPPost[]>([]);
   const [groupedPosts, setGroupedPosts] = useState<Record<string, WPPost[]>>(
@@ -56,6 +57,7 @@ export const usePostsByCategory = () => {
   const DAILY_CIRCLES_DAYS = 6;
   const DAILY_CIRCLES_POSTS_PER_DAY = 5;
   const SEARCH_PAGE_SIZE = 10;
+  const LOKAL_ROOT_SLUGS = ["gradovi", "okruzi"] as const;
 
   const normalizeCategoryName = (value: string) =>
     String(value || "")
@@ -194,9 +196,19 @@ export const usePostsByCategory = () => {
   const fetchCategories = async (): Promise<Record<string, number>> => {
     try {
       const data = await getCategories();
-      setCategories(data);
+      const normalizedData = Array.isArray(data)
+        ? (data as { id: number; name: string; slug: string; parent?: number }[])
+            .filter((c) => typeof c?.id === "number" && typeof c?.slug === "string")
+            .map((c) => ({
+              id: c.id,
+              name: String(c.name || ""),
+              slug: String(c.slug || ""),
+              parent: Number(c.parent || 0),
+            }))
+        : [];
+      setCategories(normalizedData);
       const map: Record<string, number> = {};
-      data.forEach((c: { slug: string; id: number }) => {
+      normalizedData.forEach((c) => {
         map[c.slug] = c.id;
       });
       setSlugToId(map);
@@ -280,19 +292,124 @@ export const usePostsByCategory = () => {
     return undefined;
   };
 
-  const fetchCategoryFirstPage = async (
+  const ensureCategoriesList = async () => {
+    if (categories.length > 0) return categories;
+
+    try {
+      const data = await getCategories();
+      const normalizedData = Array.isArray(data)
+        ? (data as { id: number; name: string; slug: string; parent?: number }[])
+            .filter((c) => typeof c?.id === "number" && typeof c?.slug === "string")
+            .map((c) => ({
+              id: c.id,
+              name: String(c.name || ""),
+              slug: String(c.slug || ""),
+              parent: Number(c.parent || 0),
+            }))
+        : [];
+
+      if (normalizedData.length > 0) {
+        setCategories(normalizedData);
+        const map: Record<string, number> = {};
+        normalizedData.forEach((c) => {
+          map[c.slug] = c.id;
+        });
+        setSlugToId(map);
+        await AsyncStorage.setItem("slugToIdCache", JSON.stringify(map));
+        return normalizedData;
+      }
+    } catch {}
+
+    return categories;
+  };
+
+  const collectDescendantCategoryIds = (
+    allCategories: { id: number; parent: number }[],
+    rootIds: number[],
+  ) => {
+    const ids = new Set(rootIds.filter((id) => Number.isInteger(id) && id > 0));
+    let changed = true;
+
+    while (changed) {
+      changed = false;
+      for (const category of allCategories) {
+        const parentId = Number(category.parent || 0);
+        if (parentId > 0 && ids.has(parentId) && !ids.has(category.id)) {
+          ids.add(category.id);
+          changed = true;
+        }
+      }
+    }
+
+    return Array.from(ids);
+  };
+
+  const getLokalCategoryIds = async () => {
+    const allCategories = await ensureCategoriesList();
+    if (!Array.isArray(allCategories) || allCategories.length === 0) return [];
+
+    const rootIds = allCategories
+      .filter((category) =>
+        LOKAL_ROOT_SLUGS.includes(
+          category.slug as (typeof LOKAL_ROOT_SLUGS)[number],
+        ),
+      )
+      .map((category) => category.id);
+
+    if (rootIds.length === 0) return [];
+    return collectDescendantCategoryIds(allCategories, rootIds);
+  };
+
+  const getCategoryIdsForFetch = async (
     categoryName: string,
-    perPage: number,
     slugMapOverride?: Record<string, number>,
   ) => {
+    if (categoryName === "Lokal") {
+      const lokalIds = await getLokalCategoryIds();
+      if (lokalIds.length > 0) return lokalIds;
+    }
+
     const isTema = categoryName === "Crna hronika";
     const categoryId = isTema
       ? await getCategoryIdBySlug(categoryName)
       : await getCategoryId(categoryName, slugMapOverride);
 
-    if (categoryId) {
-      const fetched = await getPostsByCategoryId(categoryId, 1, perPage);
-      if (Array.isArray(fetched)) return fetched as WPPost[];
+    return typeof categoryId === "number" ? [categoryId] : [];
+  };
+
+  const fetchPostsByCategoryName = async (
+    categoryName: string,
+    page: number,
+    perPage: number,
+    slugMapOverride?: Record<string, number>,
+  ) => {
+    const categoryIds = await getCategoryIdsForFetch(
+      categoryName,
+      slugMapOverride,
+    );
+    if (categoryIds.length === 0) return null;
+
+    const fetched =
+      categoryIds.length === 1
+        ? await getPostsByCategoryId(categoryIds[0], page, perPage)
+        : await getPostsByCategoryIds(categoryIds, page, perPage);
+
+    return Array.isArray(fetched) ? (fetched as WPPost[]) : [];
+  };
+
+  const fetchCategoryFirstPage = async (
+    categoryName: string,
+    perPage: number,
+    slugMapOverride?: Record<string, number>,
+  ) => {
+    const fetched = await fetchPostsByCategoryName(
+      categoryName,
+      1,
+      perPage,
+      slugMapOverride,
+    );
+    if (Array.isArray(fetched)) {
+      return fetched;
     }
 
     const fallback = await getPostsBySearch(categoryName, 1, perPage);
@@ -733,14 +850,14 @@ export const usePostsByCategory = () => {
       setLoading(false);
 
       void (async () => {
-        const isTema = categoryName === "Crna hronika";
-        const idBg = isTema
-          ? await getCategoryIdBySlug(categoryName)
-          : await getCategoryId(categoryName);
-        const idResolved = idBg;
-        if (!idResolved) return;
-        const fetchFn = getPostsByCategoryId;
-        fetchFn(idResolved, 1, CATEGORY_PAGE_SIZE)
+        const categoryIds = await getCategoryIdsForFetch(categoryName);
+        if (categoryIds.length === 0) return;
+        const fetchPromise =
+          categoryIds.length === 1
+            ? getPostsByCategoryId(categoryIds[0], 1, CATEGORY_PAGE_SIZE)
+            : getPostsByCategoryIds(categoryIds, 1, CATEGORY_PAGE_SIZE);
+
+        fetchPromise
           .then((fresh) => {
             if (!fresh || !Array.isArray(fresh)) return;
             const current = groupedPosts[categoryName] || [];
@@ -823,18 +940,13 @@ export const usePostsByCategory = () => {
       }
     }
 
-    const isTema = categoryName === "Crna hronika";
-    const categoryId = isTema
-      ? await getCategoryIdBySlug(categoryName)
-      : await getCategoryId(categoryName);
-    const resolvedId = categoryId;
-    if (resolvedId) {
+    const categoryIds = await getCategoryIdsForFetch(categoryName);
+    if (categoryIds.length > 0) {
       try {
-        const fetched = await getPostsByCategoryId(
-          resolvedId,
-          page,
-          CATEGORY_PAGE_SIZE,
-        );
+        const fetched =
+          categoryIds.length === 1
+            ? await getPostsByCategoryId(categoryIds[0], page, CATEGORY_PAGE_SIZE)
+            : await getPostsByCategoryIds(categoryIds, page, CATEGORY_PAGE_SIZE);
         if (append) {
           setPosts((prev) => [...prev, ...(fetched || [])]);
           setGroupedPosts((prev) => {

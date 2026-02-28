@@ -16,7 +16,7 @@ export const menuData = [
       "Kultura",
       "Obrazovanje",
       "Tehnologija",
-      "Turizam",
+      "Life Style",
       "Zdravlje i život",
     ],
   },

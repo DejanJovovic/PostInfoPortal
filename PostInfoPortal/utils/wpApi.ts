@@ -18,19 +18,42 @@ export const getCategoryBySlug = async (slug: string) => {
   return await res.json();
 };
 
-export const getPostsByCategoryId = async (
-  categoryId: number,
-  page: number = 1,
-  perPage: number = 12,
-) => {
-  const params = new URLSearchParams({
-    categories: String(categoryId),
+const buildPostListParams = (page: number, perPage: number) =>
+  new URLSearchParams({
     page: String(page),
     per_page: String(perPage),
     _embed: "1",
     orderby: "date",
     order: "desc",
   });
+
+export const getPostsByCategoryId = async (
+  categoryId: number,
+  page: number = 1,
+  perPage: number = 12,
+) => {
+  const params = buildPostListParams(page, perPage);
+  params.set("categories", String(categoryId));
+  const res = await fetch(`${BASE_URL}/posts?${params.toString()}`);
+  return await res.json();
+};
+
+export const getPostsByCategoryIds = async (
+  categoryIds: number[],
+  page: number = 1,
+  perPage: number = 12,
+) => {
+  const normalizedIds = Array.from(
+    new Set(
+      (categoryIds || [])
+        .map((id) => Number(id))
+        .filter((id) => Number.isInteger(id) && id > 0),
+    ),
+  );
+  if (normalizedIds.length === 0) return [];
+
+  const params = buildPostListParams(page, perPage);
+  params.set("categories", normalizedIds.join(","));
   const res = await fetch(`${BASE_URL}/posts?${params.toString()}`);
   return await res.json();
 };
@@ -39,13 +62,7 @@ export const getLatestPosts = async (
   page: number = 1,
   perPage: number = 10,
 ) => {
-  const params = new URLSearchParams({
-    page: String(page),
-    per_page: String(perPage),
-    _embed: "1",
-    orderby: "date",
-    order: "desc",
-  });
+  const params = buildPostListParams(page, perPage);
   const res = await fetch(`${BASE_URL}/posts?${params.toString()}`);
   return await res.json();
 };

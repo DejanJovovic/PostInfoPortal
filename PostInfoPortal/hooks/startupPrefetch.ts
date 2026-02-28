@@ -6,6 +6,7 @@ import {
   getCategoryBySlug,
   getLatestPosts,
   getPostsByCategoryId,
+  getPostsByCategoryIds,
   getPostsBySearch,
 } from "@/utils/wpApi";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -25,6 +26,14 @@ const MAIN_NEWS_PAGE_SIZE = 7;
 const MAX_DANAS_SOURCE_PAGES = 6;
 const DAILY_CIRCLES_DAYS = 6;
 const DAILY_CIRCLES_POSTS_PER_DAY = 5;
+const LOKAL_ROOT_SLUGS = ["gradovi", "okruzi"] as const;
+
+type FlatCategory = {
+  id: number;
+  name: string;
+  slug: string;
+  parent: number;
+};
 
 const normalizeCategoryName = (value: string) =>
   String(value || "")
@@ -51,6 +60,72 @@ const safeParseGroupedCache = (raw: string | null) => {
 
 const hasNonEmpty = (grouped: Record<string, WPPost[]>, key: string) =>
   Array.isArray(grouped[key]) && grouped[key].length > 0;
+
+const collectDescendantCategoryIds = (
+  allCategories: FlatCategory[],
+  rootIds: number[],
+) => {
+  const ids = new Set(rootIds.filter((id) => Number.isInteger(id) && id > 0));
+  let changed = true;
+
+  while (changed) {
+    changed = false;
+    for (const category of allCategories) {
+      const parentId = Number(category.parent || 0);
+      if (parentId > 0 && ids.has(parentId) && !ids.has(category.id)) {
+        ids.add(category.id);
+        changed = true;
+      }
+    }
+  }
+
+  return Array.from(ids);
+};
+
+const getCategoryFetchIds = async ({
+  categoryName,
+  allCategories,
+  slugMap,
+  nameMap,
+}: {
+  categoryName: string;
+  allCategories: FlatCategory[];
+  slugMap: Record<string, number>;
+  nameMap: Record<string, number>;
+}) => {
+  if (categoryName === "Lokal" && allCategories.length > 0) {
+    const rootIds = allCategories
+      .filter((category) =>
+        LOKAL_ROOT_SLUGS.includes(
+          category.slug as (typeof LOKAL_ROOT_SLUGS)[number],
+        ),
+      )
+      .map((category) => category.id);
+
+    if (rootIds.length > 0) {
+      return collectDescendantCategoryIds(allCategories, rootIds);
+    }
+  }
+
+  const slug = nameToSlugMap[categoryName];
+  let id: number | undefined;
+
+  if (slug) {
+    id = slugMap[slug];
+    if (!id) {
+      const bySlug = await getCategoryBySlug(slug);
+      if (Array.isArray(bySlug) && bySlug.length > 0 && bySlug[0]?.id) {
+        id = bySlug[0].id as number;
+      }
+    }
+  }
+
+  if (!id) {
+    id = nameMap[normalizeCategoryName(categoryName)];
+  }
+
+  return typeof id === "number" ? [id] : [];
+};
 
 /**
  * Prefetches the "Naslovna" startup payload during the custom splash.
@@ -88,21 +163,30 @@ export const prefetchNaslovnaStartupPayload = () => {
 
     let slugMap: Record<string, number> = {};
     let nameMap: Record<string, number> = {};
+    let allCategories: FlatCategory[] = [];
     try {
       const categories = await getCategories();
       if (Array.isArray(categories)) {
+        allCategories = categories
+          .filter(
+            (c: any) =>
+              typeof c?.id === "number" && typeof c?.slug === "string",
+          )
+          .map((c: any) => ({
+            id: Number(c.id),
+            name: String(c.name || ""),
+            slug: String(c.slug || ""),
+            parent: Number(c.parent || 0),
+          }));
+
         slugMap = Object.fromEntries(
-          categories
-            .filter((c: any) => typeof c?.slug === "string" && c?.id)
-            .map((c: any) => [String(c.slug), Number(c.id)]),
+          allCategories.map((c) => [String(c.slug), Number(c.id)]),
         );
         nameMap = Object.fromEntries(
-          categories
-            .filter((c: any) => typeof c?.name === "string" && c?.id)
-            .map((c: any) => [
-              normalizeCategoryName(String(c.name)),
-              Number(c.id),
-            ]),
+          allCategories.map((c) => [
+            normalizeCategoryName(String(c.name)),
+            Number(c.id),
+          ]),
         );
         await AsyncStorage.setItem("slugToIdCache", JSON.stringify(slugMap));
       }
@@ -184,34 +268,28 @@ export const prefetchNaslovnaStartupPayload = () => {
         await mergeAndSave(MAIN_NEWS_KEY, Array.isArray(list) ? list : []);
       }
     } catch {}
-
     // Home categories
     for (const name of HOME_CATEGORIES_ORDER) {
       try {
-        const slug = nameToSlugMap[name];
-        let id: number | undefined;
         const pageSize =
           name === "Kolumne" || name === "Događaji" ? 1 : HOME_PAGE_SIZE;
-
-        if (slug) {
-          id = slugMap[slug];
-          if (!id) {
-            const bySlug = await getCategoryBySlug(slug);
-            if (Array.isArray(bySlug) && bySlug.length > 0 && bySlug[0]?.id) {
-              id = bySlug[0].id as number;
-            }
-          }
-        }
-
-        if (!id) {
-          id = nameMap[normalizeCategoryName(name)];
-        }
+        const categoryIds = await getCategoryFetchIds({
+          categoryName: name,
+          allCategories,
+          slugMap,
+          nameMap,
+        });
 
         let list: WPPost[] | unknown = [];
-        if (id) {
-          list = (await getPostsByCategoryId(id, 1, pageSize)) as
-            | WPPost[]
-            | unknown;
+        if (categoryIds.length > 0) {
+          list =
+            categoryIds.length === 1
+              ? ((await getPostsByCategoryId(categoryIds[0], 1, pageSize)) as
+                  | WPPost[]
+                  | unknown)
+              : ((await getPostsByCategoryIds(categoryIds, 1, pageSize)) as
+                  | WPPost[]
+                  | unknown);
         } else {
           list = (await getPostsBySearch(name, 1, pageSize)) as
             | WPPost[]
