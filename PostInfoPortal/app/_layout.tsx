@@ -21,8 +21,6 @@ export default function RootLayout() {
   const [showCustomSplash, setShowCustomSplash] = React.useState(true);
 
   React.useEffect(() => {
-    // Start fetching the "Naslovna" startup payload immediately (while the custom splash is visible).
-    // If network fails, existing cache remains and the app behaves as it does today.
     prefetchNaslovnaStartupPayload().catch(() => {});
   }, []);
 
@@ -37,7 +35,6 @@ export default function RootLayout() {
     "PlayfairDisplay-Bold": require("../assets/fonts/PlayfairDisplay-Bold.ttf"),
   });
 
-  // hides splash when openning the notification
   const hideSplashFromNotification = (to: RouteTarget) => {
     setShowCustomSplash(false);
     try {
@@ -46,11 +43,10 @@ export default function RootLayout() {
     requestAnimationFrame(() => router.push(to as any));
   };
 
-  // OneSignal (Android-only for now)
   useOneSignalDeepLinks({
     navigate: hideSplashFromNotification,
     onesignalAppId: "9f87ae6e-83b5-4f3b-b49f-1f293096109d",
-    debug: true, // set false in production
+    debug: false,
   });
 
   const rootKey = fontsLoaded ? "fonts-ready" : "fonts-loading";
@@ -79,7 +75,9 @@ export default function RootLayout() {
         <Stack.Screen name="favorites" options={{ headerShown: false }} />
         <Stack.Screen name="categories" options={{ headerShown: false }} />
         <Stack.Screen name="post-details" options={{ headerShown: false }} />
+        <Stack.Screen name="newest" options={{ headerShown: false }} />
         <Stack.Screen name="notifications" options={{ headerShown: false }} />
+        <Stack.Screen name="search" options={{ headerShown: false }} />
       </Stack>
     </ThemeProvider>
   );

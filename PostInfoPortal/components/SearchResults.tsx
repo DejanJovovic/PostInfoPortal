@@ -13,11 +13,9 @@ import {
 
 interface SearchResultsProps {
   posts: WPPost[];
-  searchQuery: string;
   noSearchResults: boolean;
   refreshing: boolean;
   onRefresh: () => void;
-  onPostPress: (postId: number) => void;
   loadingNav: boolean;
   hasMore: boolean;
   loadingMore: boolean;
@@ -27,11 +25,9 @@ interface SearchResultsProps {
 
 const SearchResults: React.FC<SearchResultsProps> = ({
   posts,
-  searchQuery,
   noSearchResults,
   refreshing,
   onRefresh,
-  onPostPress,
   loadingNav,
   hasMore,
   loadingMore,
@@ -41,7 +37,7 @@ const SearchResults: React.FC<SearchResultsProps> = ({
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
-  if (posts.length === 0 && noSearchResults) {
+  if (posts.length === 0 && noSearchResults && !hasMore && !loadingMore) {
     return (
       <View className="flex-1 items-center justify-center px-4">
         <Text
@@ -104,7 +100,7 @@ const SearchResults: React.FC<SearchResultsProps> = ({
                 fontFamily: "Roboto-Regular",
               }}
             >
-              Nema rezultata pretrage. Pogledajte neke od ovih objava.
+              Nema rezultata pretrage.
             </Text>
           </View>
         ) : null

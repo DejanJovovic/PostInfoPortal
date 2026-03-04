@@ -1,9 +1,5 @@
 const BASE_URL = "https://www.postinfo.rs/wp-json/wp/v2";
 
-const LIST_FIELDS = ["id", "date", "title", "excerpt", "featured_media"].join(
-  ",",
-);
-
 export const getCategories = async () => {
   const res = await fetch(
     `${BASE_URL}/categories?per_page=100&_fields=id,name,slug,count,parent`,

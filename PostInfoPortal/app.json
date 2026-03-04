@@ -1,19 +1,16 @@
 {
   "expo": {
-    "name": "PostInfoPortal",
+    "name": "PostInfo",
     "slug": "PostInfoPortal",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icons/favicon.png",
     "scheme": "postinfoportal",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "bundleIdentifier": "com.gosmartdevelopment.postinfoportal",
       "infoPlist": {
-        "UIBackgroundModes": [
-          "remote-notification"
-        ],
+        "UIBackgroundModes": ["remote-notification"],
         "ITSAppUsesNonExemptEncryption": false
       },
       "entitlements": {
@@ -30,20 +27,14 @@
       },
       "package": "com.gosmartdevelopment.postinfoportal",
       "googleServicesFile": "./google-services.json",
-      "permissions": [
-        "INTERNET",
-        "POST_NOTIFICATIONS"
-      ],
+      "permissions": ["INTERNET", "POST_NOTIFICATIONS"],
       "intentFilters": [
         {
           "action": "VIEW",
           "data": {
             "scheme": "mailto"
           },
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
+          "category": ["BROWSABLE", "DEFAULT"]
         },
         {
           "action": "VIEW",
@@ -51,20 +42,14 @@
             "scheme": "https",
             "host": "linkedin.com"
           },
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
+          "category": ["BROWSABLE", "DEFAULT"]
         },
         {
           "action": "VIEW",
           "data": {
             "scheme": "whatsapp"
           },
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
+          "category": ["BROWSABLE", "DEFAULT"]
         }
       ]
     },
@@ -77,7 +62,7 @@
       [
         "onesignal-expo-plugin",
         {
-          "mode": "development",
+          "mode": "production",
           "iPhoneDeploymentTarget": "16.0"
         }
       ],
@@ -130,7 +115,7 @@
             }
           }
         },
-        "projectId": "b61dc622-c694-4257-bb82-65936c515e48"
+        "projectId": "2befb0ff-4bc4-48ff-a1c6-ce8c8170e7a0"
       }
     }
   }

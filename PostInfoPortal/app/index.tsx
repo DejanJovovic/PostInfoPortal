@@ -3,26 +3,16 @@ import CustomBanner from "@/components/CustomBanner";
 import CustomFooter from "@/components/CustomFooter";
 import CustomHeader from "@/components/CustomHeader";
 import CustomMenuCategories from "@/components/CustomMenuCategories";
-import CustomSearchBar from "@/components/CustomSearchBar";
 import HomeContent from "@/components/HomeContent";
-import SearchResults from "@/components/SearchResults";
 import { useTheme } from "@/components/ThemeContext";
 import { pickRandomAd } from "@/constants/ads";
 import colors from "@/constants/colors";
-import { cleanWpRenderedText, getPostTitleText } from "@/hooks/postsUtils";
+import { prefetchNaslovnaStartupPayload } from "@/hooks/startupPrefetch";
 import { usePostsByCategory } from "@/hooks/usePostsByCategory";
-import { WPPost } from "@/types/wp";
-import { Image } from "expo-image";
+import { globalSearch } from "@/utils/searchNavigation";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Platform,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const LoadingOverlay = ({
@@ -61,44 +51,32 @@ const LoadingOverlay = ({
 
 const Index = () => {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [triggerSearchOpen, setTriggerSearchOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState("Naslovna");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isSearchActive, setIsSearchActive] = useState(false);
-  const [noSearchResults, setNoSearchResults] = useState(false);
-  const [searchAttemptCount, setSearchAttemptCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
 
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const [isLoading, setIsLoading] = useState(false);
+  const startupGateCompletedRef = useRef(false);
+  const scrollOffsetsRef = useRef<Record<string, number>>({});
 
-  const { selectedCategory, openSearch } = useLocalSearchParams<{
+  const { selectedCategory } = useLocalSearchParams<{
     selectedCategory?: string;
-    openSearch?: string;
   }>();
   const {
     posts,
     loading,
-    searchLoading,
     fetchPostsForCategory,
     refreshHome,
     refreshDanas,
-    searchPostsFromCache,
-    setPosts,
     initialized,
     groupedPosts,
     homeGroupedPosts,
     homeCategoryOrder,
-    dailyCirclesPosts,
     categories,
     loadMorePosts,
     loadingMore,
     hasMore,
-    loadMoreSearchPosts,
-    resetSearchPagination,
-    searchHasMore,
-    searchLoadingMore,
   } = usePostsByCategory();
 
   const router = useRouter();
@@ -115,30 +93,14 @@ const Index = () => {
     if (selectedCategory && typeof selectedCategory === "string") {
       fetchPostsForCategory(selectedCategory);
       setActiveCategory(selectedCategory);
-      setSearchQuery("");
-      setIsSearchActive(false);
-      setNoSearchResults(false);
-      setSearchAttemptCount(0);
-      resetSearchPagination();
     }
-  }, [selectedCategory]);
+  }, [fetchPostsForCategory, selectedCategory]);
 
   useEffect(() => {
     if (!selectedCategory && activeCategory === "Naslovna" && initialized) {
       fetchPostsForCategory("Naslovna");
     }
   }, [selectedCategory, activeCategory, initialized]);
-
-  useEffect(() => {
-    if (openSearch === "1") {
-      setSearchQuery("");
-      setIsSearchActive(true);
-      setNoSearchResults(true);
-      setSearchAttemptCount(0);
-      setTriggerSearchOpen(true);
-      resetSearchPagination();
-    }
-  }, [openSearch]);
 
   const [bottomAdVisible, setBottomAdVisible] = useState(false);
   const [bottomAd, setBottomAd] = useState(() => pickRandomAd());
@@ -148,11 +110,11 @@ const Index = () => {
   const showBottomAd = React.useCallback(() => {
     if (isLoading) return;
     if (menuOpen) return;
-    if (loading || searchLoading) return;
+    if (loading) return;
 
     setBottomAd(pickRandomAd());
     setBottomAdVisible(true);
-  }, [isLoading, menuOpen, loading, searchLoading]);
+  }, [isLoading, menuOpen, loading]);
 
   const dismissBottomAd = React.useCallback(() => {
     setBottomAdVisible(false);
@@ -161,28 +123,48 @@ const Index = () => {
     adTimerRef.current = setTimeout(showBottomAd, nextIn);
   }, [showBottomAd]);
 
-  const deriveCategoryName = (post: any): string | undefined => {
-    const groups = post?._embedded?.["wp:term"];
-    if (Array.isArray(groups)) {
-      const flat = groups.flat().filter(Boolean);
-      const cat = flat.find((t: any) => t?.taxonomy === "category" && t?.name);
-      if (cat?.name) return String(cat.name);
-    }
-    return undefined;
-  };
-
-  const uniqById = (arr: WPPost[]) => {
-    const map = new Map<number, WPPost>();
-    for (const p of arr || []) map.set(p.id, p);
-    return Array.from(map.values());
-  };
-
-  const uniquePosts = React.useMemo(() => uniqById(posts), [posts]);
-  const sortedUniquePosts = React.useMemo(
-    () =>
-      [...uniquePosts].sort((a, b) => (b.date || "").localeCompare(a.date || "")),
-    [uniquePosts],
+  const hasNaslovnaContent = React.useMemo(() => {
+    const hasHomeSections = (homeCategoryOrder || []).some(
+      (categoryName) => (homeGroupedPosts[categoryName] || []).length > 0,
+    );
+    const hasDanas = (groupedPosts["Danas"] || []).length > 0;
+    const hasMainNews = (groupedPosts["Glavna vest"] || []).length > 0;
+    return hasHomeSections || hasDanas || hasMainNews;
+  }, [groupedPosts, homeCategoryOrder, homeGroupedPosts]);
+  const hasMainCarouselPosts = (groupedPosts["Glavna vest"] || []).length > 0;
+  const hasOrderedHomePosts = (homeCategoryOrder || []).some(
+    (categoryName) => (homeGroupedPosts[categoryName] || []).length > 0,
   );
+  const hasHomeStartupFeedReady =
+    hasMainCarouselPosts && hasOrderedHomePosts && hasNaslovnaContent;
+  const shouldGateNaslovnaStartup =
+    activeCategory === "Naslovna" &&
+    !selectedCategory &&
+    !startupGateCompletedRef.current;
+  const showNaslovnaStartupLoading =
+    shouldGateNaslovnaStartup && !hasHomeStartupFeedReady;
+  const activeCategoryPosts = React.useMemo(() => {
+    if (activeCategory === "Naslovna") return [];
+
+    if (Object.prototype.hasOwnProperty.call(groupedPosts, activeCategory)) {
+      return groupedPosts[activeCategory] || [];
+    }
+
+    return posts || [];
+  }, [activeCategory, groupedPosts, posts]);
+
+  useEffect(() => {
+    if (!shouldGateNaslovnaStartup) return;
+
+    prefetchNaslovnaStartupPayload().catch(() => {});
+  }, [shouldGateNaslovnaStartup]);
+
+  useEffect(() => {
+    if (!shouldGateNaslovnaStartup) return;
+    if (!hasHomeStartupFeedReady) return;
+
+    startupGateCompletedRef.current = true;
+  }, [hasHomeStartupFeedReady, shouldGateNaslovnaStartup]);
 
   const goToPost = (postId: number, categoryName?: string) => {
     if (isLoading) return;
@@ -216,21 +198,14 @@ const Index = () => {
   }, [showBottomAd]);
 
   useEffect(() => {
-    if (menuOpen || isLoading || loading || searchLoading) {
+    if (menuOpen || isLoading || loading) {
       setBottomAdVisible(false);
       if (adTimerRef.current) clearTimeout(adTimerRef.current);
     } else if (!bottomAdVisible && !adTimerRef.current) {
       const inMs = 15000;
       adTimerRef.current = setTimeout(showBottomAd, inMs);
     }
-  }, [
-    menuOpen,
-    isLoading,
-    loading,
-    searchLoading,
-    bottomAdVisible,
-    showBottomAd,
-  ]);
+  }, [menuOpen, isLoading, loading, bottomAdVisible, showBottomAd]);
 
   const handleBackWithLoading = () => {
     if (isLoading) return;
@@ -241,12 +216,7 @@ const Index = () => {
   };
 
   const handleCategorySelect = (categoryName: string) => {
-    if (categoryName === "Latin | Ćirilica") return;
-    setSearchQuery("");
-    setIsSearchActive(false);
-    setNoSearchResults(false);
-    setSearchAttemptCount(0);
-    resetSearchPagination();
+    if (categoryName === "Latin | \u0106irilica") return;
     setActiveCategory(categoryName);
     fetchPostsForCategory(categoryName);
     if (categoryName === "Naslovna") {
@@ -257,202 +227,37 @@ const Index = () => {
     setMenuOpen(false);
   };
 
-  const handleSearch = async (query: string) => {
-    const trimmed = query.trim();
-    setSearchQuery(trimmed);
-    setIsSearchActive(true);
-    setNoSearchResults(false);
-    setPosts([]);
-
-    const nextAttempt = searchAttemptCount + 1;
-    setSearchAttemptCount(nextAttempt);
-
-    if (!trimmed) {
-      resetSearchPagination();
-      setNoSearchResults(true);
-      return;
-    }
-
-    const found = await searchPostsFromCache(trimmed);
-    setNoSearchResults(found.length === 0);
-  };
-
-  const handleFooterSearch = () => {
-    setSearchQuery("");
-    setIsSearchActive(true);
-    setNoSearchResults(true);
-    setSearchAttemptCount(0);
-    setTriggerSearchOpen(true);
-    resetSearchPagination();
+  const handleGlobalSearch = (query?: string) => {
+    if (isLoading) return;
+    setIsLoading(true);
+    requestAnimationFrame(() => {
+      router.replace(globalSearch(query));
+    });
   };
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
 
-    if (isSearchActive) {
-      setSearchQuery("");
-      setPosts([]);
-      setNoSearchResults(true);
-      setSearchAttemptCount(0);
-      resetSearchPagination();
+    const cat = activeCategory || "Naslovna";
+    if (cat === "Naslovna") {
+      await refreshHome();
+    } else if (cat === "Danas") {
+      await refreshDanas();
     } else {
-      const cat = activeCategory || "Naslovna";
-      if (cat === "Naslovna") {
-        await refreshHome();
-      } else if (cat === "Danas") {
-        await refreshDanas();
-      } else {
-        await fetchPostsForCategory(cat, 1, false, true);
-      }
+      await fetchPostsForCategory(cat, 1, false, true);
     }
 
     setRefreshing(false);
-  }, [
-    isSearchActive,
-    activeCategory,
-    fetchPostsForCategory,
-    refreshHome,
-    refreshDanas,
-    setPosts,
-    resetSearchPagination,
-  ]);
+  }, [activeCategory, fetchPostsForCategory, refreshHome, refreshDanas]);
 
-  const highlightSearchTerm = (text: string, term: string) => {
-    if (!term)
-      return (
-        <Text
-          style={{
-            color: isDark ? colors.grey : colors.black,
-            fontFamily: "Roboto-Bold",
-          }}
-        >
-          {text}
-        </Text>
-      );
+  const getRememberedScrollY = useCallback(
+    (categoryName: string) => scrollOffsetsRef.current[categoryName] || 0,
+    [],
+  );
 
-    const parts = text.split(new RegExp(`(${term})`, "gi"));
-    return (
-      <Text
-        style={{
-          color: isDark ? colors.grey : colors.black,
-          fontFamily: "Roboto-ExtraBold",
-        }}
-        numberOfLines={2}
-      >
-        {parts.map((part, i) => (
-          <Text
-            key={i}
-            className={
-              part.toLowerCase() === term.toLowerCase() ? " text-[#FA0A0F]" : ""
-            }
-          >
-            {part}
-          </Text>
-        ))}
-      </Text>
-    );
-  };
-
-  const renderItem = ({ item }: { item: WPPost }) => {
-    const getImg = (p: WPPost) => {
-      const media = p._embedded?.["wp:featuredmedia"]?.[0];
-      if (!media) {
-        console.log("No featured media for post:", p.id, p.title.rendered);
-        return undefined;
-      }
-      const sizes = media.media_details?.sizes;
-      const imgUrl =
-        sizes?.medium?.source_url ||
-        sizes?.medium_large?.source_url ||
-        sizes?.large?.source_url ||
-        media.source_url;
-      if (!imgUrl) {
-        console.log("No image URL found for post:", p.id, "media:", media);
-      }
-      return imgUrl;
-    };
-
-    const image = getImg(item);
-    const date = new Date(item.date).toLocaleDateString("sr-RS");
-    const excerpt = cleanWpRenderedText(item.excerpt?.rendered);
-    const meta = date;
-
-    return (
-      <View
-        className="rounded-2xl mb-6 mx-3 p-4 border"
-        style={{
-          backgroundColor: isDark ? colors.black : colors.grey,
-          borderColor: isDark ? "#525050" : "#e5e7eb",
-          overflow: "hidden",
-          ...(Platform.OS === "ios"
-            ? {
-                shadowColor: "transparent",
-                shadowOpacity: 0,
-                shadowRadius: 0,
-                shadowOffset: { width: 0, height: 0 },
-              }
-            : {
-                elevation: 0,
-              }),
-        }}
-      >
-        <TouchableOpacity
-          onPress={() =>
-            goToPost(item.id, deriveCategoryName(item) || activeCategory)
-          }
-          disabled={isLoading}
-        >
-          <Image
-            source={{
-              uri:
-                image ||
-                "https://via.placeholder.com/400x200/e5e7eb/666666?text=No+Image",
-            }}
-            style={{
-              width: "100%",
-              height: 128,
-              borderRadius: 12,
-              marginBottom: 12,
-            }}
-            contentFit="cover"
-            cachePolicy="disk"
-            onError={(error) => {
-              console.warn(
-                "Image failed to load:",
-                error,
-                "for post:",
-                item.id,
-                "URL:",
-                image,
-              );
-            }}
-          />
-          {highlightSearchTerm(getPostTitleText(item), searchQuery)}
-          <Text
-            className="text-xs mt-1 mb-1"
-            numberOfLines={1}
-            ellipsizeMode="tail"
-            style={{
-              color: colors.darkerGray,
-              fontSize: 12,
-            }}
-          >
-            {meta}
-          </Text>
-          <Text
-            className="text-sm"
-            numberOfLines={3}
-            style={{
-              color: isDark ? colors.grey : colors.black,
-              fontFamily: "Roboto-Light",
-            }}
-          >
-            {excerpt}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    );
-  };
+  const handleScrollYChange = useCallback((categoryName: string, y: number) => {
+    scrollOffsetsRef.current[categoryName] = y;
+  }, []);
 
   return (
     <SafeAreaView
@@ -460,14 +265,10 @@ const Index = () => {
       style={{ backgroundColor: isDark ? colors.black : colors.grey }}
     >
       <CustomHeader
-        onMenuToggle={(visible) => {
-          setMenuOpen(visible);
-          if (!visible) setTriggerSearchOpen(false);
-        }}
+        onMenuToggle={(visible) => setMenuOpen(visible)}
         onCategorySelected={handleCategorySelect}
         activeCategory={activeCategory}
-        onSearchQuery={handleSearch}
-        triggerSearchOpen={triggerSearchOpen}
+        onSearchQuery={handleGlobalSearch}
         onBackPress={handleBackWithLoading}
         loadingNav={isLoading}
       />
@@ -480,75 +281,14 @@ const Index = () => {
         />
       </View>
 
-      {isSearchActive && (
-        <View className="px-2 py-4">
-          <Text
-            className="mt-2 px-4"
-            style={{
-              color: isDark ? colors.grey : colors.black,
-              fontFamily: "Roboto-Medium",
-            }}
-          >
-            {searchQuery.trim().length > 0 ? (
-              <>
-                Rezultati pretrage{" "}
-                <Text
-                  style={{
-                    color: colors.red,
-                    fontFamily: "Roboto-Bold",
-                  }}
-                >
-                  &#34;{searchQuery}&#34;
-                </Text>
-              </>
-            ) : (
-              "Unesite željenu reč za pretragu ispod"
-            )}
-          </Text>
-          <CustomSearchBar
-            key={searchQuery + searchAttemptCount}
-            query={searchQuery}
-            onSearch={handleSearch}
-            onReset={() => {
-              setSearchQuery("");
-              setPosts([]);
-              setNoSearchResults(true);
-              setSearchAttemptCount(0);
-              resetSearchPagination();
-            }}
-            backgroundColor={colors.blue}
-          />
-        </View>
-      )}
-
-      {loading || searchLoading ? (
+      {loading || showNaslovnaStartupLoading ? (
         <View className="flex-1 items-center justify-center">
-          <LoadingOverlay isDark={isDark} message="Učitavanje..." />
+          <LoadingOverlay isDark={isDark} message={"Učitavanje..."} />
         </View>
-      ) : isSearchActive ? (
-        <SearchResults
-          posts={sortedUniquePosts}
-          searchQuery={searchQuery}
-          noSearchResults={noSearchResults}
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          onPostPress={(id) =>
-            goToPost(
-              id,
-              deriveCategoryName(
-                uniquePosts.find((p) => p.id === id) || ({} as WPPost),
-              ) || activeCategory,
-            )
-          }
-          loadingNav={isLoading}
-          hasMore={searchHasMore}
-          loadingMore={searchLoadingMore}
-          onLoadMore={loadMoreSearchPosts}
-          renderItem={renderItem}
-        />
-      ) : activeCategory === "Naslovna" && !initialized ? (
+      ) : activeCategory === "Naslovna" &&
+        (!initialized || !hasNaslovnaContent) ? (
         <View className="flex-1 items-center justify-center">
-          <LoadingOverlay isDark={isDark} message="Učitavanje objava..." />
+          <LoadingOverlay isDark={isDark} message={"Učitavanje objava..."} />
         </View>
       ) : activeCategory === "Naslovna" ? (
         <HomeContent
@@ -560,12 +300,14 @@ const Index = () => {
           loadingNav={isLoading}
           todayPosts={(groupedPosts["Danas"] || []).slice(0, 10)}
           mainPosts={(groupedPosts["Glavna vest"] || []).slice(0, 7)}
-          dailyCirclesPosts={dailyCirclesPosts}
+          rememberedScrollY={getRememberedScrollY("Naslovna")}
+          onScrollYChange={(y) => handleScrollYChange("Naslovna", y)}
         />
       ) : (
         <CategoryContent
+          key={activeCategory}
           activeCategory={activeCategory}
-          posts={posts}
+          posts={activeCategoryPosts}
           refreshing={refreshing}
           onRefresh={onRefresh}
           onPostPress={(id, category) => goToPost(id, category)}
@@ -573,6 +315,8 @@ const Index = () => {
           hasMore={hasMore[activeCategory] || false}
           loadingMore={loadingMore}
           onLoadMore={() => loadMorePosts(activeCategory)}
+          rememberedScrollY={getRememberedScrollY(activeCategory)}
+          onScrollYChange={(y) => handleScrollYChange(activeCategory, y)}
         />
       )}
       {isLoading && (
@@ -603,12 +347,12 @@ const Index = () => {
               textAlign: "center",
             }}
           >
-            Učitavanje objave...
+            {"Učitavanje objave..."}
           </Text>
         </View>
       )}
 
-      {!menuOpen && <CustomFooter onSearchPress={handleFooterSearch} />}
+      {!menuOpen && <CustomFooter />}
 
       {bottomAdVisible && (
         <View

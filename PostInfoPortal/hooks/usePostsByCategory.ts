@@ -17,10 +17,10 @@ import {
   refreshDailyCircles,
 } from "./dailyCirclesFeed";
 import { buildDanasForToday, buildDanasFromList } from "./danasUtils";
-import { createGroupedPostsCacheSaver } from "./postsCache";
+import { createGroupedPostsCacheSaver, simplifyPost } from "./postsCache";
 import {
   isSameLocalDate,
-  matchesPostSearchQuery,
+  normalizeText,
   sortPostsNewestFirst,
   uniqById,
 } from "./postsUtils";
@@ -57,6 +57,9 @@ export const usePostsByCategory = () => {
   const DAILY_CIRCLES_DAYS = 6;
   const DAILY_CIRCLES_POSTS_PER_DAY = 5;
   const SEARCH_PAGE_SIZE = 10;
+  const SEARCH_QUERY_CACHE_KEY = "searchQueryCacheV1";
+  const SEARCH_QUERY_CACHE_MAX_QUERIES = 12;
+  const SEARCH_QUERY_CACHE_POSTS_LIMIT = 80;
   const LOKAL_ROOT_SLUGS = ["gradovi", "okruzi"] as const;
 
   const normalizeCategoryName = (value: string) =>
@@ -75,6 +78,11 @@ export const usePostsByCategory = () => {
   const searchRemotePageRef = useRef(1);
   const searchRemoteExhaustedRef = useRef(false);
   const searchSeenIdsRef = useRef<Set<number>>(new Set());
+  const searchTextIndexRef = useRef<Map<number, string>>(new Map());
+  const searchQueryCacheRef = useRef<Record<string, WPPost[]>>({});
+  const searchQueryCacheLoadedRef = useRef(false);
+  const searchFallbackPoolRef = useRef<WPPost[]>([]);
+  const searchFallbackPoolLoadedRef = useRef(false);
 
   const refreshDanasOnly = async ({ showLoader = false } = {}) => {
     if (showLoader) setLoading(true);
@@ -261,8 +269,6 @@ export const usePostsByCategory = () => {
       } catch {}
     }
 
-    // Fallback for categories not in `nameToSlugMap` (or if the slug changed):
-    // try to resolve by exact category name from the WP categories endpoint.
     try {
       const data = await getCategories();
       if (Array.isArray(data)) {
@@ -527,9 +533,6 @@ export const usePostsByCategory = () => {
         if (running.length) await Promise.race(running);
       }
 
-      // "Glavna vest" (main headline) for the home carousel:
-      // - If the newest post matches the cached newest post, keep cached list.
-      // - If it differs, fetch a fresh list.
       try {
         let mainId = slugMap[MAIN_NEWS_SLUG];
         if (!mainId) {
@@ -1023,6 +1026,107 @@ export const usePostsByCategory = () => {
     await fetchPostsForCategory(categoryName, nextPage, true);
   };
 
+  const getSearchQueryCacheKey = (query: string) => normalizeText(query || "").trim();
+
+  const getPostSearchText = (post: WPPost) => {
+    if (!post || typeof post.id !== "number") return "";
+    const cached = searchTextIndexRef.current.get(post.id);
+    if (typeof cached === "string") return cached;
+
+    const computed = `${normalizeText(post?.title?.rendered || "")} ${normalizeText(
+      post?.excerpt?.rendered || "",
+    )}`.trim();
+    searchTextIndexRef.current.set(post.id, computed);
+    return computed;
+  };
+
+  const matchesNormalizedQuery = (post: WPPost, normalizedQuery: string) => {
+    if (!normalizedQuery) return true;
+    return getPostSearchText(post).includes(normalizedQuery);
+  };
+
+  const loadSearchQueryCache = async () => {
+    if (searchQueryCacheLoadedRef.current) return searchQueryCacheRef.current;
+
+    try {
+      const raw = await AsyncStorage.getItem(SEARCH_QUERY_CACHE_KEY);
+      if (!raw) {
+        searchQueryCacheLoadedRef.current = true;
+        searchQueryCacheRef.current = {};
+        return searchQueryCacheRef.current;
+      }
+
+      const parsed = JSON.parse(raw) as Record<string, WPPost[]>;
+      if (!parsed || typeof parsed !== "object") {
+        searchQueryCacheLoadedRef.current = true;
+        searchQueryCacheRef.current = {};
+        return searchQueryCacheRef.current;
+      }
+
+      const normalized = Object.fromEntries(
+        Object.entries(parsed).map(([key, value]) => [
+          String(key),
+          uniqById(Array.isArray(value) ? (value as WPPost[]) : []).slice(
+            0,
+            SEARCH_QUERY_CACHE_POSTS_LIMIT,
+          ),
+        ]),
+      ) as Record<string, WPPost[]>;
+
+      searchQueryCacheRef.current = normalized;
+      searchQueryCacheLoadedRef.current = true;
+    } catch (error) {
+      console.warn("Failed to load search query cache:", error);
+      searchQueryCacheRef.current = {};
+      searchQueryCacheLoadedRef.current = true;
+      try {
+        await AsyncStorage.removeItem(SEARCH_QUERY_CACHE_KEY);
+      } catch {}
+    }
+
+    return searchQueryCacheRef.current;
+  };
+
+  const persistSearchQueryCache = async () => {
+    const lightweight = Object.fromEntries(
+      Object.entries(searchQueryCacheRef.current).map(([key, value]) => [
+        key,
+        (value || [])
+          .slice(0, SEARCH_QUERY_CACHE_POSTS_LIMIT)
+          .map((post) => simplifyPost(post)),
+      ]),
+    );
+
+    await AsyncStorage.setItem(SEARCH_QUERY_CACHE_KEY, JSON.stringify(lightweight));
+  };
+
+  const cacheSearchResultsForQuery = async (query: string, incoming: WPPost[]) => {
+    const cacheKey = getSearchQueryCacheKey(query);
+    const validIncoming = uniqById(
+      (incoming || []).filter((post) => post && typeof post.id === "number"),
+    );
+    if (!cacheKey || validIncoming.length === 0) return;
+
+    await loadSearchQueryCache();
+    const current = searchQueryCacheRef.current[cacheKey] || [];
+    const merged = sortPostsNewestFirst(uniqById([...current, ...validIncoming])).slice(
+      0,
+      SEARCH_QUERY_CACHE_POSTS_LIMIT,
+    );
+
+    const reorderedEntries = [
+      [cacheKey, merged] as [string, WPPost[]],
+      ...Object.entries(searchQueryCacheRef.current).filter(
+        ([existingKey]) => existingKey !== cacheKey,
+      ),
+    ].slice(0, SEARCH_QUERY_CACHE_MAX_QUERIES);
+
+    searchQueryCacheRef.current = Object.fromEntries(
+      reorderedEntries,
+    ) as Record<string, WPPost[]>;
+    await persistSearchQueryCache();
+  };
+
   const resetSearchPagination = () => {
     searchQueryRef.current = "";
     searchLocalPoolRef.current = [];
@@ -1034,19 +1138,41 @@ export const usePostsByCategory = () => {
     setSearchLoadingMore(false);
   };
 
-  const collectSearchSourcePosts = async (): Promise<WPPost[]> => {
+  const collectSearchSourcePosts = async (query: string): Promise<WPPost[]> => {
+    const queryCacheKey = getSearchQueryCacheKey(query);
+    await loadSearchQueryCache();
+    const queryCachedPosts = queryCacheKey ? searchQueryCacheRef.current[queryCacheKey] || [] : [];
+    const cachedSearchPool = uniqById([
+      ...(Object.values(searchQueryCacheRef.current).flat() as WPPost[]),
+      ...queryCachedPosts,
+    ]);
+
     let allPosts = uniqById([
       ...(Object.values(groupedPosts).flat() as WPPost[]),
       ...(posts || []),
+      ...cachedSearchPool,
     ]);
 
     if (allPosts.length) return allPosts;
 
-    const cacheRaw = await AsyncStorage.getItem("groupedPostsCache");
-    if (!cacheRaw) return [];
+    if (!searchFallbackPoolLoadedRef.current) {
+      const cacheRaw = await AsyncStorage.getItem("groupedPostsCache");
+      if (cacheRaw) {
+        try {
+          const { data } = JSON.parse(cacheRaw);
+          searchFallbackPoolRef.current = uniqById(
+            (Object.values(data) as WPPost[][]).flat(),
+          );
+        } catch {
+          searchFallbackPoolRef.current = [];
+        }
+      } else {
+        searchFallbackPoolRef.current = [];
+      }
+      searchFallbackPoolLoadedRef.current = true;
+    }
 
-    const { data } = JSON.parse(cacheRaw);
-    allPosts = uniqById((Object.values(data) as WPPost[][]).flat());
+    allPosts = uniqById([...searchFallbackPoolRef.current, ...cachedSearchPool]);
     return allPosts;
   };
 
@@ -1054,6 +1180,7 @@ export const usePostsByCategory = () => {
     query: string,
     maxCount: number,
   ): Promise<WPPost[]> => {
+    const queryKey = getSearchQueryCacheKey(query);
     const next: WPPost[] = [];
     let safety = 0;
 
@@ -1091,7 +1218,7 @@ export const usePostsByCategory = () => {
           (post) =>
             Boolean(post) &&
             typeof post.id === "number" &&
-            matchesPostSearchQuery(post, query),
+            matchesNormalizedQuery(post, queryKey),
         ),
       );
 
@@ -1118,11 +1245,10 @@ export const usePostsByCategory = () => {
 
     setSearchLoading(true);
     try {
-      const allPosts = await collectSearchSourcePosts();
+      const queryKey = getSearchQueryCacheKey(normalizedQuery);
+      const allPosts = await collectSearchSourcePosts(normalizedQuery);
       const localMatches = sortPostsNewestFirst(
-        uniqById(
-          allPosts.filter((post) => matchesPostSearchQuery(post, normalizedQuery)),
-        ),
+        uniqById(allPosts.filter((post) => matchesNormalizedQuery(post, queryKey))),
       );
 
       searchLocalPoolRef.current = localMatches;
@@ -1133,20 +1259,11 @@ export const usePostsByCategory = () => {
         searchSeenIdsRef.current.add(post.id);
       }
 
-      let initialResults = initialLocal;
-      if (initialResults.length < SEARCH_PAGE_SIZE) {
-        const remoteFill = await pullRemoteSearchBatch(
-          normalizedQuery,
-          SEARCH_PAGE_SIZE - initialResults.length,
-        );
-        initialResults = sortPostsNewestFirst(
-          uniqById([...initialResults, ...remoteFill]),
-        );
-      }
+      const initialResults = initialLocal;
 
       const hasLocalMore =
         searchLocalCursorRef.current < searchLocalPoolRef.current.length;
-      const hasRemoteMore = !searchRemoteExhaustedRef.current;
+      const hasRemoteMore = true;
       setSearchHasMore(hasLocalMore || hasRemoteMore);
 
       setPosts(initialResults);
@@ -1199,6 +1316,11 @@ export const usePostsByCategory = () => {
           query,
           SEARCH_PAGE_SIZE - nextBatch.length,
         );
+        if (remoteFill.length > 0) {
+          cacheSearchResultsForQuery(query, remoteFill).catch((error) => {
+            console.warn("Failed to cache search remote results:", error);
+          });
+        }
         nextBatch.push(...remoteFill);
       }
 
@@ -1336,8 +1458,6 @@ export const usePostsByCategory = () => {
         }
       }
 
-      // If we didn't have anything cached, give the startup prefetch a short chance to populate the cache
-      // (it may already be in-flight from `app/_layout.tsx`).
       if (!hasAnyCachedPosts) {
         try {
           await Promise.race([

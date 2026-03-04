@@ -42,7 +42,6 @@ import {
 } from "@/hooks/postsUtils";
 import { getInbox, type InboxItem } from "@/types/notificationInbox";
 import { WPPost } from "@/types/wp";
-import { globalSearch } from "@/utils/searchNavigation";
 
 const deriveCategoryName = (post: any): string | undefined => {
   const groups = post?._embedded?.["wp:term"];
@@ -296,14 +295,12 @@ const PostDetails = () => {
                   return true;
                 }
 
-                // Allow normal initial/embedded player navigations.
                 if (next.startsWith(baseEmbedUrl) || next.includes("/embed/")) {
                   return true;
                 }
 
                 if (!embed.isYoutube) return true;
 
-                // Any "watch on YouTube" jump should open externally with direct video URL.
                 const nextTarget = getEmbedTarget(next);
                 if (!nextTarget?.isYoutube) return true;
                 const external =
@@ -486,7 +483,11 @@ const PostDetails = () => {
     if (isLoading) return;
     setIsLoading(true);
     requestAnimationFrame(() => {
-      router.back();
+      if (router.canGoBack()) {
+        router.back();
+        return;
+      }
+      router.replace("/");
     });
   };
 
@@ -689,7 +690,7 @@ const PostDetails = () => {
         style={{ backgroundColor: isDark ? colors.black : colors.grey }}
       >
         <CustomHeader
-          onMenuToggle={(visible) => {}}
+          onMenuToggle={() => {}}
           onCategorySelected={handleCategorySelected}
           activeCategory={activeCategory || preview.categoryName || "Naslovna"}
           showMenu={false}
@@ -792,7 +793,7 @@ const PostDetails = () => {
             </Text>
           )}
         </ScrollView>
-        <CustomFooter onSearchPress={() => router.push(globalSearch())} />
+        <CustomFooter />
 
         <BottomAdBanner
           visible={bottomAdVisible}
@@ -813,7 +814,7 @@ const PostDetails = () => {
       style={{ backgroundColor: isDark ? colors.black : colors.grey }}
     >
       <CustomHeader
-        onMenuToggle={(visible) => {}}
+        onMenuToggle={() => {}}
         onCategorySelected={handleCategorySelected}
         activeCategory={activeCategory || "Naslovna"}
         showMenu={false}
@@ -929,7 +930,7 @@ const PostDetails = () => {
         </View>
       </ScrollView>
       {isLoading && <LoadingOverlay isDark={isDark} message="Učitavanje..." />}
-      <CustomFooter onSearchPress={() => router.push(globalSearch())} />
+      <CustomFooter />
 
       <BottomAdBanner
         visible={bottomAdVisible}

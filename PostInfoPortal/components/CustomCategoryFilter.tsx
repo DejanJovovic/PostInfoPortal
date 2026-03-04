@@ -16,7 +16,6 @@ interface Props {
   filteredPosts: WPPost[];
   setFilteredPosts: (posts: WPPost[]) => void;
   setIsFilterApplied: Dispatch<SetStateAction<boolean>>;
-  isFilterApplied: boolean;
 }
 
 type FlatCategory = {
@@ -99,7 +98,6 @@ const CustomCategoryFilter: React.FC<Props> = ({
   filteredPosts,
   setFilteredPosts,
   setIsFilterApplied,
-  isFilterApplied,
 }) => {
   const [expanded, setExpanded] = useState(true);
   const [showDateModal, setShowDateModal] = useState(false);
@@ -203,7 +201,7 @@ const CustomCategoryFilter: React.FC<Props> = ({
           className="text-lg mr-1"
           style={{
             color: isDark ? colors.grey : colors.black,
-            fontFamily: "YesevaOne-Regular",
+            fontFamily: "Roboto-Bold",
           }}
         >
           Kategorije
@@ -399,7 +397,6 @@ const CustomCategoryFilter: React.FC<Props> = ({
                   >
                     Otkaži
                   </Text>
-                  s{" "}
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={applyFilter}

@@ -41,14 +41,25 @@ export const toLocalIsoNoTz = (d: Date) => {
 };
 
 export const normalizeText = (text: string) =>
-  text
-    .replace(/<[^>]+>/g, "")
-    .replace(/&[^;]+;/g, "")
-    .toLowerCase()
-    .trim();
+  toSearchNormalized(
+    text
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&[^;]+;/g, " ")
+      .trim(),
+  );
+
+export const toSearchNormalized = (text: string) =>
+  String(text || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[šŠ]/g, "s")
+    .replace(/[ćĆ]/g, "c")
+    .replace(/[čČ]/g, "c")
+    .replace(/[žŽ]/g, "z")
+    .replace(/[đĐ]/g, "dj")
+    .toLowerCase();
 
 const decodeHtmlEntity = (entity: string) => {
-  // numeric: &#8211; or &#x2013;
   const num = entity.match(/^&#(\d+);$/);
   if (num) {
     const code = Number(num[1]);
@@ -122,18 +133,15 @@ const decodeHtmlEntity = (entity: string) => {
 export const cleanWpRenderedText = (html?: string) => {
   if (!html) return "";
 
-  // Strip tags but keep word boundaries.
   let text = String(html)
     .replace(/<\s*br\s*\/?>/gi, " ")
     .replace(/<\/p>/gi, " ")
     .replace(/<[^>]*>/g, " ");
 
-  // Decode entities we commonly see from WP.
   text = text.replace(/&#x?[0-9a-fA-F]+;|&[a-zA-Z]+;/g, (m) =>
     decodeHtmlEntity(m),
   );
 
-  // Normalize spaces and remove leading junk like "&nbsp;" / "&#8211;" (en-dash).
   text = text.replace(/\u00A0/g, " ").replace(/\s+/g, " ").trim();
   text = text.replace(/^(?:[-–—]\s*)+/, "").trim();
 

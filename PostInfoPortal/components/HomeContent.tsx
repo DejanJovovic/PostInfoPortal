@@ -15,7 +15,8 @@ interface HomeContentProps {
   loadingNav: boolean;
   todayPosts?: WPPost[];
   mainPosts?: WPPost[];
-  dailyCirclesPosts?: WPPost[];
+  rememberedScrollY?: number;
+  onScrollYChange?: (y: number) => void;
 }
 
 const HomeContent: React.FC<HomeContentProps> = ({
@@ -27,17 +28,36 @@ const HomeContent: React.FC<HomeContentProps> = ({
   loadingNav,
   todayPosts,
   mainPosts,
-  dailyCirclesPosts,
+  rememberedScrollY = 0,
+  onScrollYChange,
 }) => {
   const hasTodayPosts = Boolean(todayPosts && todayPosts.length > 0);
+  const scrollRef = React.useRef<ScrollView>(null);
+  const restoredRef = React.useRef(false);
+
+  const restoreScrollPosition = React.useCallback(() => {
+    if (restoredRef.current) return;
+    restoredRef.current = true;
+    if (rememberedScrollY <= 0) return;
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ y: rememberedScrollY, animated: false });
+    });
+  }, [rememberedScrollY]);
 
   return (
     <ScrollView
+      ref={scrollRef}
       className="flex-1"
       contentContainerStyle={{ paddingBottom: 40 }}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
+      onContentSizeChange={restoreScrollPosition}
+      onScroll={(e) => {
+        const y = Math.max(0, e.nativeEvent.contentOffset.y || 0);
+        onScrollYChange?.(y);
+      }}
+      scrollEventThrottle={16}
     >
       {/* {dailyCirclesPosts && dailyCirclesPosts.length > 0 && (
         <DailyCircles posts={dailyCirclesPosts} />
@@ -60,7 +80,9 @@ const HomeContent: React.FC<HomeContentProps> = ({
               loadingNav={loadingNav}
             />
           </View>
-          <RotatingAdBanner containerStyle={{ marginTop: -6, marginBottom: 6 }} />
+          <RotatingAdBanner
+            containerStyle={{ marginTop: -6, marginBottom: 6 }}
+          />
         </>
       )}
       {homeCategoryOrder.map((categoryName, idx) => {

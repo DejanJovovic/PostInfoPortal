@@ -1,29 +1,50 @@
 import colors from "@/constants/colors";
 import icons from "@/constants/icons";
 import React, { useEffect, useState } from "react";
-import { Image, TextInput, TouchableOpacity, View } from "react-native";
+import {
+  Image,
+  StyleProp,
+  TextInput,
+  TextStyle,
+  TouchableOpacity,
+  View,
+  ViewStyle,
+} from "react-native";
 
 type CustomSearchBarProps = {
   query?: string;
   onSearch: (query: string) => void;
+  onQueryChange?: (query: string) => void;
   onReset?: () => void;
   backgroundColor?: string;
+  inputTextColor?: string;
+  placeholderColor?: string;
+  iconColor?: string;
+  containerStyle?: StyleProp<ViewStyle>;
+  inputStyle?: StyleProp<TextStyle>;
   autoFocus?: boolean;
 };
 
 const CustomSearchBar: React.FC<CustomSearchBarProps> = ({
   query = "",
   onSearch,
+  onQueryChange,
   onReset,
   backgroundColor,
+  inputTextColor,
+  placeholderColor,
+  iconColor,
+  containerStyle,
+  inputStyle,
   autoFocus = false,
 }) => {
   const [input, setInput] = useState(query);
+  const finalInputTextColor = inputTextColor || colors.grey;
+  const finalPlaceholderColor = placeholderColor || colors.grey;
+  const finalIconColor = iconColor || colors.grey;
 
   useEffect(() => {
-    if (query === "") {
-      setInput("");
-    }
+    setInput(query);
   }, [query]);
 
   const handleSearch = () => {
@@ -35,15 +56,18 @@ const CustomSearchBar: React.FC<CustomSearchBarProps> = ({
   return (
     <View
       className="flex-row items-center px-4 py-3 mt-10 mx-2 rounded-xl"
-      style={{ backgroundColor: backgroundColor || "#222" }}
+      style={[{ backgroundColor: backgroundColor || "#222" }, containerStyle]}
     >
       <TextInput
         placeholder="Pretraga..."
-        placeholderTextColor={colors.grey}
-        className="flex-1 text-[#F9F9F9] text-lg"
-        style={{ fontFamily: "Roboto-Bold" }}
+        placeholderTextColor={finalPlaceholderColor}
+        className="flex-1 text-lg"
+        style={[{ fontFamily: "Roboto-Bold", color: finalInputTextColor }, inputStyle]}
         value={input}
-        onChangeText={setInput}
+        onChangeText={(value) => {
+          setInput(value);
+          onQueryChange?.(value);
+        }}
         onSubmitEditing={handleSearch}
         returnKeyType="search"
         autoFocus={autoFocus}
@@ -53,7 +77,7 @@ const CustomSearchBar: React.FC<CustomSearchBarProps> = ({
           <Image
             source={icons.search}
             className="w-4 h-4 ml-2"
-            tintColor={colors.grey}
+            tintColor={finalIconColor}
           />
         </TouchableOpacity>
       ) : (
@@ -67,7 +91,7 @@ const CustomSearchBar: React.FC<CustomSearchBarProps> = ({
             <Image
               source={icons.close}
               className="w-4 h-4 ml-2"
-              tintColor={colors.grey}
+              tintColor={finalIconColor}
             />
           </TouchableOpacity>
         )

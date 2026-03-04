@@ -27,6 +27,8 @@ interface CategoryContentProps {
   hasMore: boolean;
   loadingMore: boolean;
   onLoadMore: () => void;
+  rememberedScrollY?: number;
+  onScrollYChange?: (y: number) => void;
 }
 
 const CategoryContent: React.FC<CategoryContentProps> = ({
@@ -39,12 +41,25 @@ const CategoryContent: React.FC<CategoryContentProps> = ({
   hasMore,
   loadingMore,
   onLoadMore,
+  rememberedScrollY = 0,
+  onScrollYChange,
 }) => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const [popularPosts, setPopularPosts] = useState<WPPost[]>([]);
   const [hoveredPopularId, setHoveredPopularId] = useState<number | null>(null);
   const [pressedPopularId, setPressedPopularId] = useState<number | null>(null);
+  const scrollRef = React.useRef<ScrollView>(null);
+  const restoredRef = React.useRef(false);
+
+  const restoreScrollPosition = React.useCallback(() => {
+    if (restoredRef.current) return;
+    restoredRef.current = true;
+    if (rememberedScrollY <= 0) return;
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ y: rememberedScrollY, animated: false });
+    });
+  }, [rememberedScrollY]);
 
   useEffect(() => {
     let cancelled = false;
@@ -71,11 +86,18 @@ const CategoryContent: React.FC<CategoryContentProps> = ({
 
   return (
     <ScrollView
+      ref={scrollRef}
       className="flex-1"
       contentContainerStyle={{ paddingBottom: 140 }}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
+      onContentSizeChange={restoreScrollPosition}
+      onScroll={(e) => {
+        const y = Math.max(0, e.nativeEvent.contentOffset.y || 0);
+        onScrollYChange?.(y);
+      }}
+      scrollEventThrottle={16}
     >
       {posts.length === 0 ? (
         <View
@@ -101,6 +123,7 @@ const CategoryContent: React.FC<CategoryContentProps> = ({
         />
       )}
 
+      {posts.length > 0 && (hasMore || loadingMore) && (
       <View style={{ paddingHorizontal: 12, marginTop: 0 }}>
         <TouchableOpacity
           onPress={onLoadMore}
@@ -125,6 +148,7 @@ const CategoryContent: React.FC<CategoryContentProps> = ({
           )}
         </TouchableOpacity>
       </View>
+      )}
 
       {popularPosts.length > 0 && (
         <View style={{ paddingHorizontal: 12, marginTop: 26 }}>
@@ -145,7 +169,7 @@ const CategoryContent: React.FC<CategoryContentProps> = ({
             return (
               <Pressable
                 key={post.id}
-                onPress={() => onPostPress(post.id, activeCategory)} // check later if its supposed to actually be activeCategory
+                onPress={() => onPostPress(post.id, activeCategory)}
                 onPressIn={() => setPressedPopularId(post.id)}
                 onPressOut={() => setPressedPopularId(null)}
                 onHoverIn={() => setHoveredPopularId(post.id)}

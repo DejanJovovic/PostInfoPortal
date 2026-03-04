@@ -1,4 +1,6 @@
-﻿import icons from "@/constants/icons";
+import { useTheme } from "@/components/ThemeContext";
+import colors from "@/constants/colors";
+import icons from "@/constants/icons";
 import React, { useEffect, useState } from "react";
 import { Image, Text, TouchableOpacity, View } from "react-native";
 
@@ -22,12 +24,18 @@ const MenuCategoryItem: React.FC<MenuCategoryItemProps> = ({
   activeCategory,
   rootParent,
 }) => {
+  const { theme } = useTheme();
+  const isDarkMode = theme === "dark";
   const [expanded, setExpanded] = useState(false);
 
   const hasChildren = typeof item === "object" && item.children;
   const title = typeof item === "string" ? item : item.title;
-
   const isActive = title === activeCategory;
+
+  const topLevelColor = isDarkMode ? colors.grey : colors.black;
+  const subLevelColor = isDarkMode ? "#d1d5db" : "#4b5563";
+  const chevronColor = isDarkMode ? "#d1d5db" : "#4b5563";
+  const lokalDividerColor = isDarkMode ? "#374151" : "#d1d5db";
 
   const hasActiveSubCategory = (
     children: (CategoryItem | string)[],
@@ -35,13 +43,12 @@ const MenuCategoryItem: React.FC<MenuCategoryItemProps> = ({
     return children.some((child) => {
       if (typeof child === "string") {
         return child === activeCategory;
-      } else {
-        if (child.title === activeCategory) return true;
-        if (child.children) {
-          return hasActiveSubCategory(child.children);
-        }
-        return false;
       }
+      if (child.title === activeCategory) return true;
+      if (child.children) {
+        return hasActiveSubCategory(child.children);
+      }
+      return false;
     });
   };
 
@@ -49,7 +56,7 @@ const MenuCategoryItem: React.FC<MenuCategoryItemProps> = ({
     if (hasChildren && item.children && hasActiveSubCategory(item.children)) {
       setExpanded(true);
     }
-  }, [activeCategory]);
+  }, [activeCategory, hasChildren, item]);
 
   const handleCategoryPress = () => {
     if (title !== "Latin | Ćirilica") {
@@ -66,16 +73,14 @@ const MenuCategoryItem: React.FC<MenuCategoryItemProps> = ({
       <View className="flex-row items-center justify-between px-4 py-2">
         <TouchableOpacity onPress={handleCategoryPress} className="flex-1">
           <Text
-            className={`${
-              isActive
-                ? "text-[#FA0A0F]"
-                : level === 0
-                  ? "text-[#F9F9F9]"
-                  : "text-[#9ca3af]"
-            }`}
             style={{
+              color: isActive
+                ? colors.red
+                : level === 0
+                  ? topLevelColor
+                  : subLevelColor,
               fontSize: 20,
-              fontFamily: "Roboto",
+              fontFamily: "Roboto-Regular",
               marginLeft: level * 12,
             }}
           >
@@ -88,7 +93,7 @@ const MenuCategoryItem: React.FC<MenuCategoryItemProps> = ({
             <Image
               source={expanded ? icons.downArrow : icons.rightArrow}
               className="w-4 h-4"
-              tintColor="#9ca3af"
+              tintColor={chevronColor}
             />
           </TouchableOpacity>
         )}
@@ -109,7 +114,15 @@ const MenuCategoryItem: React.FC<MenuCategoryItemProps> = ({
                 activeCategory={activeCategory}
                 rootParent={title === "Lokal" ? "Lokal" : rootParent}
               />
-              {isFromLokal && <View className="h-[1px] bg-[#9ca3af] mx-4" />}
+              {isFromLokal && (
+                <View
+                  style={{
+                    height: 1,
+                    backgroundColor: lokalDividerColor,
+                    marginHorizontal: 16,
+                  }}
+                />
+              )}
             </View>
           );
         })}

@@ -17,30 +17,24 @@ interface Props {
   categoryName: string;
   posts: WPPost[];
   isHome?: boolean;
-  refreshing?: boolean;
-  onRefresh?: () => void;
   onPostPress: (postId: number, categoryName: string) => void;
   loadingNav?: boolean;
   adAtEnd?: boolean;
   adUrl?: string;
   adImageUrl?: ImageSourcePropType | string;
-  adTitle?: string;
-  adCta?: string;
+  metaTextForPost?: (post: WPPost) => string;
 }
 
 const CustomPostsSection: React.FC<Props> = ({
   categoryName,
   posts,
   isHome = false,
-  refreshing,
-  onRefresh,
   onPostPress,
   loadingNav,
   adAtEnd = false,
   adUrl = "https://example.com",
   adImageUrl = "https://via.placeholder.com/1200x400?text=Ad",
-  adTitle = "Test",
-  adCta = "Saznaj više",
+  metaTextForPost,
 }) => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
@@ -90,7 +84,7 @@ const CustomPostsSection: React.FC<Props> = ({
     return imgUrl;
   };
   const getDate = (p: WPPost) => new Date(p.date).toLocaleDateString("sr-RS");
-  const getMeta = (p: WPPost) => getDate(p);
+  const getMeta = (p: WPPost) => metaTextForPost?.(p) ?? getDate(p);
   const getExcerpt = (p: WPPost) => cleanWpRenderedText(p.excerpt?.rendered);
   const getTitle = (p: WPPost) => getPostTitleText(p);
 

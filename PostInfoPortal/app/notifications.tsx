@@ -1,129 +1,80 @@
-﻿import BottomAdBanner from "@/components/BottomAdBanner";
 import CustomFooter from "@/components/CustomFooter";
 import CustomHeader from "@/components/CustomHeader";
-import CustomSearchBar from "@/components/CustomSearchBar";
 import LoadingOverlay from "@/components/LoadingOverlay";
-import SearchHeader from "@/components/SearchHeader";
 import { useTheme } from "@/components/ThemeContext";
-import { pickRandomAd } from "@/constants/ads";
 import colors from "@/constants/colors";
-import icons from "@/constants/icons";
 import {
   clearInbox,
   getInbox,
+  inboxSubscribe,
   markRead,
   type InboxItem,
 } from "@/types/notificationInbox";
-import { useFocusEffect, useNavigation, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigation, useRouter } from "expo-router";
+import React from "react";
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
-  Image,
   Linking,
   Platform,
   RefreshControl,
+  ScrollView,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const Notifications = () => {
+const NotificationsScreen = () => {
   const router = useRouter();
   const navigation = useNavigation();
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
-  const [items, setItems] = useState<InboxItem[] | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
+  const [items, setItems] = React.useState<InboxItem[] | null>(null);
+  const [refreshing, setRefreshing] = React.useState(false);
+  const [loadingNav, setLoadingNav] = React.useState(false);
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isSearchActive, setIsSearchActive] = useState(false);
-  const [triggerSearchOpen, setTriggerSearchOpen] = useState(false);
-
-  const [isLoading, setIsLoading] = useState(false);
-
-  const load = async () => {
+  const load = React.useCallback(async () => {
     try {
       const data = await getInbox();
       const sorted = [...data].sort(
         (a, b) => (b.receivedAt || 0) - (a.receivedAt || 0),
       );
       setItems(sorted);
-    } catch (e) {
-      console.error("Greška pri čitanju inbox-a:", e);
+    } catch (error) {
+      console.error("Failed to read inbox:", error);
       setItems([]);
     }
-  };
-
-  const [bottomAdVisible, setBottomAdVisible] = useState(false);
-  const [bottomAd, setBottomAd] = useState(() => pickRandomAd());
-
-  const adTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const clearAdTimer = () => {
-    if (adTimerRef.current) {
-      clearTimeout(adTimerRef.current);
-      adTimerRef.current = null;
-    }
-  };
-
-  const scheduleAd = (ms: number) => {
-    clearAdTimer();
-    adTimerRef.current = setTimeout(() => {
-      setBottomAd(pickRandomAd());
-      setBottomAdVisible(true);
-    }, ms);
-  };
-
-  const dismissBottomAd = () => {
-    setBottomAdVisible(false);
-    scheduleAd(10000);
-  };
-
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, []),
-  );
-
-  useEffect(() => {
-    scheduleAd(5000);
-    return () => clearAdTimer();
   }, []);
 
-  useEffect(() => {
-    const unsub = navigation.addListener("blur", () => setIsLoading(false));
-    return unsub;
+  React.useEffect(() => {
+    load();
+  }, [load]);
+
+  React.useEffect(() => {
+    const unsubscribe = inboxSubscribe(() => {
+      load().catch(() => {});
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, [load]);
+
+  React.useEffect(() => {
+    const unsubscribe = navigation.addListener("blur", () => {
+      setLoadingNav(false);
+    });
+    return unsubscribe;
   }, [navigation]);
 
-  const onRefresh = useCallback(async () => {
+  const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
-    setSearchQuery("");
-    setIsSearchActive(false);
-    setTriggerSearchOpen(false);
     await load();
     setRefreshing(false);
-  }, []);
+  }, [load]);
 
-  const handleFooterSearch = () => {
-    const count = (items ?? []).length;
-    if (count === 0) {
-      Alert.alert(
-        "Nema obaveštenja",
-        "Za pretragu je potrebno da postoji bar jedno obaveštenje.",
-        [{ text: "U redu" }],
-      );
-      return;
-    }
-    setSearchQuery("");
-    setIsSearchActive(true);
-    setTriggerSearchOpen(true);
-  };
-
-  const confirmClearAll = () => {
+  const confirmClearAll = React.useCallback(() => {
     Alert.alert(
       "Brisanje obaveštenja",
       "Da li ste sigurni da želite da obrišete sva obaveštenja?",
@@ -140,119 +91,68 @@ const Notifications = () => {
       ],
       { cancelable: true },
     );
-  };
+  }, [load]);
 
-  const highlightSearchTerm = (text?: string, term?: string) => {
-    const safe = text ?? "";
-    const t = term ?? "";
-    if (!t.trim()) {
-      return (
-        <Text
-          style={{
-            color: isDark ? colors.grey : colors.black,
-            fontFamily: "Roboto-Bold",
-          }}
-          numberOfLines={2}
-        >
-          {safe}
-        </Text>
-      );
-    }
-    const parts = safe.split(new RegExp(`(${t})`, "gi"));
-    return (
-      <Text
-        style={{
-          color: isDark ? colors.grey : colors.black,
-          fontFamily: "Roboto-Bold",
-        }}
-        numberOfLines={2}
-      >
-        {parts.map((part, i) => (
-          <Text
-            key={i}
-            className={
-              part.toLowerCase() === t.toLowerCase() ? "text-[#FA0A0F]" : ""
-            }
-          >
-            {part}
-          </Text>
-        ))}
-      </Text>
-    );
-  };
+  const onOpenItem = React.useCallback(
+    async (item: InboxItem) => {
+      if (loadingNav) return;
 
-  const getFilteredItems = (): InboxItem[] => {
-    if (!searchQuery.trim()) return items ?? [];
-    const q = searchQuery.toLowerCase();
-    return (items ?? []).filter((i) => {
-      const title = (i.title ?? "").toLowerCase();
-      const body = (i.message ?? "").toLowerCase();
-      return title.includes(q) || body.includes(q);
-    });
-  };
+      if (item.oneSignalId) {
+        try {
+          await markRead(item.oneSignalId);
+        } catch {}
+      }
 
-  const handleBackWithLoading = () => {
-    if (isLoading) return;
-    setIsLoading(true);
-    requestAnimationFrame(() => {
-      router.back();
-    });
-  };
-
-  const onOpenItem = async (item: InboxItem) => {
-    if (item.postId) {
-      try {
-        await markRead?.(item.oneSignalId);
-      } catch {}
       setItems((prev) =>
-        (prev ?? []).map((i) =>
-          i.oneSignalId === item.oneSignalId ? { ...i, read: true } : i,
+        (prev ?? []).map((inboxItem) =>
+          inboxItem.oneSignalId === item.oneSignalId
+            ? { ...inboxItem, read: true }
+            : inboxItem,
         ),
       );
 
-      if (isLoading) return;
-      setIsLoading(true);
-      requestAnimationFrame(() => {
-        router.push({
-          pathname: "/post-details",
-          params: {
-            postId: String(item.postId),
-            ...((item as any).categoryName
-              ? { category: (item as any).categoryName }
-              : {}),
-          },
+      if (item.postId) {
+        setLoadingNav(true);
+        requestAnimationFrame(() => {
+          router.push({
+            pathname: "/post-details",
+            params: {
+              postId: String(item.postId),
+              ...(item.categoryName ? { category: item.categoryName } : {}),
+            },
+          });
         });
-      });
-      return;
-    }
+        return;
+      }
 
-    if (item.deepLinkUrl) {
-      try {
-        await markRead?.(item.oneSignalId);
-      } catch {}
-      setItems((prev) =>
-        (prev ?? []).map((i) =>
-          i.oneSignalId === item.oneSignalId ? { ...i, read: true } : i,
-        ),
+      if (item.deepLinkUrl) {
+        try {
+          await Linking.openURL(item.deepLinkUrl);
+        } catch (error) {
+          console.error("Failed to open notification deeplink:", error);
+        }
+        return;
+      }
+
+      Alert.alert(
+        "Nije moguce otvoriti",
+        "Ovo obaveštenje nema post ili link.",
       );
-      await Linking.openURL(item.deepLinkUrl);
-      return;
-    }
+    },
+    [loadingNav, router],
+  );
 
-    Alert.alert(
-      "Nije moguće otvoriti",
-      "Ovo obaveštenje nema ID objave ili link.",
-    );
-  };
-
-  const renderItem = ({ item }: { item: InboxItem }) => (
+  const renderItem = (item: InboxItem, index: number) => (
     <TouchableOpacity
+      key={item.oneSignalId || item.id || String(index)}
       onPress={() => onOpenItem(item)}
-      disabled={isLoading}
-      className="px-4 py-3 border-b"
+      disabled={loadingNav}
       style={{
-        backgroundColor: isDark ? colors.black : colors.grey,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderBottomWidth: 1,
         borderColor: isDark ? "#525050" : "#e5e7eb",
+        backgroundColor: isDark ? colors.black : colors.grey,
         overflow: "hidden",
         ...(Platform.OS === "ios"
           ? {
@@ -261,68 +161,52 @@ const Notifications = () => {
               shadowRadius: 0,
               shadowOffset: { width: 0, height: 0 },
             }
-          : {
-              elevation: 0,
-            }),
+          : { elevation: 0 }),
       }}
     >
-      <View className="flex-row items-start">
+      <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
         <View
-          className="w-2 h-2 mt-1 rounded-full mr-3"
-          style={{ backgroundColor: item.read ? "transparent" : colors.red }}
+          style={{
+            width: 8,
+            height: 8,
+            marginTop: 4,
+            marginRight: 12,
+            borderRadius: 99,
+            backgroundColor: item.read ? "transparent" : colors.red,
+          }}
         />
-        <View className="flex-1">
-          {isSearchActive ? (
-            highlightSearchTerm(item.title || "Nova objava", searchQuery)
-          ) : (
-            <Text
-              style={{
-                color: isDark ? colors.grey : colors.black,
-                fontFamily: "Roboto-Bold",
-              }}
-              numberOfLines={2}
-            >
-              {item.title || "Nova objava"}
-            </Text>
-          )}
+
+        <View style={{ flex: 1 }}>
+          <Text
+            style={{
+              color: isDark ? colors.grey : colors.black,
+              fontFamily: "Roboto-Bold",
+            }}
+            numberOfLines={2}
+          >
+            {item.title || "Nova objava"}
+          </Text>
 
           {!!item.message && (
             <Text
-              className="text-sm mt-1"
               numberOfLines={2}
               style={{
-                color: colors.grey,
-                fontFamily: "Roboto-Bold",
+                marginTop: 4,
+                color: isDark ? "#bdbdbd" : "#333333",
+                fontFamily: "Roboto-Regular",
+                fontSize: 13,
               }}
             >
-              {isSearchActive ? (
-                <Text>
-                  {item.message
-                    .split(new RegExp(`(${searchQuery})`, "gi"))
-                    .map((part, i) => (
-                      <Text
-                        key={i}
-                        className={
-                          part.toLowerCase() === searchQuery.toLowerCase()
-                            ? "font-bold text-[#FA0A0F]"
-                            : ""
-                        }
-                      >
-                        {part}
-                      </Text>
-                    ))}
-                </Text>
-              ) : (
-                item.message
-              )}
+              {item.message}
             </Text>
           )}
 
           <Text
-            className="text-[11px] mt-2"
             style={{
+              marginTop: 8,
               color: isDark ? colors.grey : colors.black,
               fontFamily: "Roboto-Regular",
+              fontSize: 11,
             }}
           >
             {new Date(item.receivedAt).toLocaleString("sr-RS")}
@@ -332,46 +216,7 @@ const Notifications = () => {
     </TouchableOpacity>
   );
 
-  const HeaderBar = () => {
-    const canClear = (items?.length ?? 0) > 0;
-
-    return (
-      <View
-        className="flex-row items-center justify-between px-4 py-3 border-b"
-        style={{
-          backgroundColor: isDark ? colors.black : colors.grey,
-          borderColor: isDark ? "#525050" : "#e5e7eb",
-        }}
-      >
-        <Text
-          className="text-lg"
-          style={{
-            fontSize: 24,
-            color: isDark ? colors.grey : colors.black,
-            fontFamily: "Roboto-Bold",
-          }}
-        >
-          Obaveštenja
-        </Text>
-
-        {canClear && (
-          <TouchableOpacity
-            onPress={confirmClearAll}
-            className="py-1 pl-3"
-            disabled={isLoading}
-          >
-            <Image
-              source={icons.close}
-              style={{ width: 20, height: 20, opacity: isLoading ? 0.5 : 1 }}
-              tintColor={colors.red}
-            />
-          </TouchableOpacity>
-        )}
-      </View>
-    );
-  };
-
-  const filtered = getFilteredItems();
+  const canClear = (items?.length ?? 0) > 0;
 
   return (
     <SafeAreaView
@@ -379,112 +224,96 @@ const Notifications = () => {
       style={{ backgroundColor: isDark ? colors.black : colors.grey }}
     >
       <CustomHeader
-        onMenuToggle={() => {}}
         onCategorySelected={() => {}}
-        activeCategory="Naslovna"
+        activeCategory="Obaveštenja"
         showMenu={false}
-        triggerSearchOpen={triggerSearchOpen}
-        onSearchQuery={setSearchQuery}
-        onBackPress={handleBackWithLoading}
-        loadingNav={isLoading}
       />
 
-      {isSearchActive && (
-        <SearchHeader
-          isDark={isDark}
-          labelClassName="mt-2 px-4"
-          label={
-            searchQuery.trim().length > 0 ? (
-              <>
-                Rezultati pretrage{" "}
-                <Text
-                  style={{
-                    color: colors.red,
-                    fontFamily: "Roboto-Bold",
-                  }}
-                >
-                  &#34;{searchQuery}&#34;
-                </Text>
-              </>
-            ) : (
-              "Unesite željenu reč za pretragu ispod"
-            )
-          }
-          rightAction={
-            searchQuery.trim().length > 0 ? (
-              <Text
-                onPress={() => {
-                  setSearchQuery("");
-                  setIsSearchActive(false);
-                  setTriggerSearchOpen(false);
-                }}
-                className="ml-3"
-                style={{ color: colors.red }}
-              >
-                ✕
-              </Text>
-            ) : null
-          }
-          searchBar={
-            <CustomSearchBar
-              key={searchQuery}
-              query={searchQuery}
-              onSearch={setSearchQuery}
-              onReset={() => {
-                setSearchQuery("");
-              }}
-              backgroundColor={colors.blue}
-            />
-          }
-        />
-      )}
+      <View style={{ paddingTop: 6 }}>
+        <Text
+          style={{
+            textAlign: "center",
+            color: isDark ? colors.grey : colors.black,
+            fontFamily: "Roboto-Bold",
+            fontSize: 22,
+          }}
+        >
+          {"Obaveštenja"}
+        </Text>
 
-      <HeaderBar />
+        <View
+          style={{
+            height: 1,
+            backgroundColor: isDark ? "#525050" : "#e5e7eb",
+            marginTop: 10,
+            marginHorizontal: 12,
+            marginBottom: 6,
+          }}
+        />
+
+        {canClear && (
+          <View
+            style={{
+              alignItems: "flex-end",
+              paddingHorizontal: 16,
+              paddingBottom: 8,
+            }}
+          >
+            <TouchableOpacity
+              onPress={confirmClearAll}
+              disabled={loadingNav}
+              style={{ paddingVertical: 4, paddingHorizontal: 6 }}
+            >
+              <Text style={{ color: colors.red, fontFamily: "Roboto-Bold" }}>
+                Obriši sve
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
 
       {items === null ? (
-        <View className="flex-1 items-center justify-center">
+        <View style={{ paddingVertical: 32, alignItems: "center" }}>
           <ActivityIndicator
             size="large"
             color={isDark ? colors.grey : colors.black}
           />
         </View>
       ) : (
-        <FlatList
-          data={filtered}
-          keyExtractor={(i, idx) => i.oneSignalId || i.id || String(idx)}
-          renderItem={renderItem}
-          contentContainerStyle={{ paddingBottom: 100 }}
+        <ScrollView
+          style={{ flex: 1 }}
+          showsVerticalScrollIndicator
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
-          ListEmptyComponent={
-            <View className="flex-1 items-center justify-center mt-12">
+          contentContainerStyle={{
+            paddingBottom: 110,
+            flexGrow: (items || []).length ? 0 : 1,
+            justifyContent: (items || []).length ? undefined : "center",
+          }}
+        >
+          {(items || []).length === 0 ? (
+            <View style={{ alignItems: "center" }}>
               <Text
                 style={{
                   color: isDark ? colors.grey : colors.black,
                   fontFamily: "Roboto-Medium",
                 }}
               >
-                {isSearchActive && searchQuery.trim().length > 0
-                  ? "Nema rezultata za prikaz."
-                  : "Nema obaveštenja"}
+                {"Nema novih obaveštenja"}
               </Text>
             </View>
-          }
-          scrollEnabled={!isLoading}
-        />
+          ) : (
+            (items || []).map((item, index) => renderItem(item, index))
+          )}
+        </ScrollView>
       )}
-      {isLoading && <LoadingOverlay isDark={isDark} message="Učitavanje..." />}
 
-      <CustomFooter onSearchPress={handleFooterSearch} />
+      {loadingNav && <LoadingOverlay isDark={isDark} message="Učitavanje..." />}
 
-      <BottomAdBanner
-        visible={bottomAdVisible}
-        ad={bottomAd}
-        onClose={dismissBottomAd}
-      />
+      <CustomFooter />
     </SafeAreaView>
   );
 };
 
-export default Notifications;
+export default NotificationsScreen;

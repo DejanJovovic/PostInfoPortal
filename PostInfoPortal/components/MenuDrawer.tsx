@@ -1,8 +1,10 @@
-﻿import { useTheme } from "@/components/ThemeContext";
+import { useTheme } from "@/components/ThemeContext";
 import colors from "@/constants/colors";
 import icons from "@/constants/icons";
 import { menuData } from "@/types/menuData";
+import { getUnreadCount, inboxSubscribe } from "@/types/notificationInbox";
 import { Feather } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import React from "react";
 import {
   Image,
@@ -18,18 +20,25 @@ import MenuCategoryItem from "./MenuCategoryItem";
 type MenuDrawerProps = {
   onCategorySelect: (categoryName: string) => void;
   activeCategory: string;
+  onOpenNotifications?: () => void;
 };
 
 const MenuDrawer: React.FC<MenuDrawerProps> = ({
   onCategorySelect,
   activeCategory,
+  onOpenNotifications,
 }) => {
+  const router = useRouter();
   const { theme, toggleTheme } = useTheme();
+  const [unread, setUnread] = React.useState(0);
 
   const isDarkMode = theme === "dark";
+  const drawerBackground = isDarkMode ? colors.black : "#ffffff";
+  const primaryTextColor = isDarkMode ? colors.grey : colors.black;
+  const secondaryTextColor = isDarkMode ? "#d1d5db" : "#4b5563";
   const menuDividerStyle = {
     height: 1,
-    backgroundColor: "#F9F9F9",
+    backgroundColor: isDarkMode ? "#374151" : "#d1d5db",
     marginHorizontal: 8,
   } as const;
   const footerLinks = [
@@ -53,177 +62,287 @@ const MenuDrawer: React.FC<MenuDrawerProps> = ({
     });
   };
 
-  return (
-    <ScrollView
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ paddingBottom: 40, flexGrow: 1 }}
-      style={{ backgroundColor: colors.black }}
-    >
-      {menuData.map((item) => (
-        <MenuCategoryItem
-          key={typeof item === "string" ? item : item.title}
-          item={item}
-          onPress={onCategorySelect}
-          activeCategory={activeCategory}
-        />
-      ))}
+  React.useEffect(() => {
+    let mounted = true;
 
-      <View style={{ marginTop: "auto" }}>
-        <View className="flex-row justify-around items-center mt-6 px-4">
-          <TouchableOpacity
-            onPress={() => openLink("https://www.facebook.com/postinfo.rs")}
-          >
-            <Image
-              source={icons.facebook}
-              className="w-5 h-5"
-              tintColor={colors.grey}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => openLink("https://x.com/postinfo_rs")}
-          >
-            <Image
-              source={icons.twitter}
-              className="w-5 h-5"
-              tintColor={colors.grey}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => openLink("https://youtube.com/@postinfotv")}
-          >
-            <Image
-              source={icons.youtube}
-              className="w-5 h-5"
-              tintColor={colors.grey}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => openLink("https://www.instagram.com/postinfo.rs")}
-          >
-            <Image
-              source={icons.instagram}
-              className="w-5 h-5"
-              tintColor={colors.grey}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() =>
-              openLink("https://www.linkedin.com/company/postinfo-rs")
-            }
-          >
-            <Image
-              source={icons.linkedin}
-              className="w-5 h-5"
-              tintColor={colors.grey}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => openLink("https://www.postinfo.rs")}>
-            <Image
-              source={icons.wifi}
-              className="w-5 h-5"
-              tintColor={colors.grey}
-            />
-          </TouchableOpacity>
-        </View>
+    const loadUnreadCount = async () => {
+      const count = await getUnreadCount();
+      if (mounted) setUnread(count);
+    };
 
-        <View style={[menuDividerStyle, { marginTop: 16 }]} />
+    loadUnreadCount();
+    const unsubscribe = inboxSubscribe(() => {
+      getUnreadCount().then((count) => {
+        if (mounted) setUnread(count);
+      });
+    });
 
-        <View
-          style={{
-            flexDirection: "row",
-            flexWrap: "wrap",
-            justifyContent: "center",
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
+  }, []);
+
+  const renderUnread = (
+    count: number,
+    containerStyle?: {
+      position?: "absolute";
+      top?: number;
+      right?: number;
+      zIndex?: number;
+    },
+  ) => {
+    if (!count) return null;
+    const text = count > 99 ? "99+" : String(count);
+    return (
+      <View
+        style={[
+          {
+            minWidth: 20,
+            height: 20,
+            paddingHorizontal: 6,
+            borderRadius: 10,
+            backgroundColor: colors.red,
             alignItems: "center",
-            marginTop: 12,
-            paddingHorizontal: 16,
-            rowGap: 8,
+            justifyContent: "center",
+          },
+          containerStyle,
+        ]}
+      >
+        <Text
+          style={{
+            color: colors.grey,
+            fontSize: 10,
+            fontFamily: "Roboto-Regular",
           }}
         >
-          {footerLinks.map((link, idx) => (
-            <React.Fragment key={link.label}>
-              <TouchableOpacity onPress={() => openLink(link.url)}>
-                <Text
-                  style={{
-                    color: colors.grey,
-                    fontFamily: "Roboto-Regular",
-                    fontSize: 12,
-                  }}
-                >
-                  {link.label}
-                </Text>
-              </TouchableOpacity>
-              {idx < footerLinks.length - 1 && (
-                <Text
-                  style={{
-                    color: colors.grey,
-                    marginHorizontal: 6,
-                    fontSize: 12,
-                  }}
-                >
-                  /
-                </Text>
-              )}
-            </React.Fragment>
-          ))}
-        </View>
+          {text}
+        </Text>
+      </View>
+    );
+  };
 
-        <View style={[menuDividerStyle, { marginTop: 12 }]} />
+  return (
+    <>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 40, flexGrow: 1 }}
+        style={{ backgroundColor: drawerBackground }}
+      >
+        {menuData.map((item) => (
+          <MenuCategoryItem
+            key={typeof item === "string" ? item : item.title}
+            item={item}
+            onPress={onCategorySelect}
+            activeCategory={activeCategory}
+          />
+        ))}
 
-        <View className="flex-row items-center justify-between px-4 mt-6">
-          <View className="flex-row items-center gap-2">
-            <Feather
-              name="sun"
-              size={20}
-              color={isDarkMode ? "#aaa" : "#333"}
-            />
-            <Switch
-              value={isDarkMode}
-              onValueChange={toggleTheme}
-              trackColor={{ false: "#ccc", true: "#666" }}
-              thumbColor={isDarkMode ? colors.grey : colors.black}
-            />
-            <Feather
-              name="moon"
-              size={20}
-              color={isDarkMode ? "#fff" : "#888"}
-            />
+        <View style={{ marginTop: "auto" }}>
+          <View className="flex-row justify-around items-center mt-6 px-4">
+            <TouchableOpacity
+              onPress={() => openLink("https://www.facebook.com/postinfo.rs")}
+            >
+              <Image
+                source={icons.facebook}
+                className="w-5 h-5"
+                tintColor={primaryTextColor}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => openLink("https://x.com/postinfo_rs")}
+            >
+              <Image
+                source={icons.twitter}
+                className="w-5 h-5"
+                tintColor={primaryTextColor}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => openLink("https://youtube.com/@postinfotv")}
+            >
+              <Image
+                source={icons.youtube}
+                className="w-5 h-5"
+                tintColor={primaryTextColor}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => openLink("https://www.instagram.com/postinfo.rs")}
+            >
+              <Image
+                source={icons.instagram}
+                className="w-5 h-5"
+                tintColor={primaryTextColor}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() =>
+                openLink("https://www.linkedin.com/company/postinfo-rs")
+              }
+            >
+              <Image
+                source={icons.linkedin}
+                className="w-5 h-5"
+                tintColor={primaryTextColor}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => openLink("https://www.postinfo.rs")}
+            >
+              <Image
+                source={icons.wifi}
+                className="w-5 h-5"
+                tintColor={primaryTextColor}
+              />
+            </TouchableOpacity>
           </View>
-        </View>
 
-        <View className="mt-6 px-4 pb-10">
-          <Text
-            className="text-xs flex-wrap leading-5"
+          <View style={[menuDividerStyle, { marginTop: 16 }]} />
+
+          <View
             style={{
-              color: colors.grey,
-              fontFamily: "Roboto",
+              flexDirection: "row",
+              flexWrap: "wrap",
+              justifyContent: "center",
+              alignItems: "center",
+              marginTop: 12,
+              paddingHorizontal: 16,
+              rowGap: 8,
             }}
           >
-            © 2026{" "}
-            <Text
-              className="underline"
-              onPress={() => openLink("https://www.postinfo.rs")}
+            {footerLinks.map((link, idx) => (
+              <React.Fragment key={link.label}>
+                <TouchableOpacity onPress={() => openLink(link.url)}>
+                  <Text
+                    style={{
+                      color: secondaryTextColor,
+                      fontFamily: "Roboto-Regular",
+                      fontSize: 12,
+                    }}
+                  >
+                    {link.label}
+                  </Text>
+                </TouchableOpacity>
+                {idx < footerLinks.length - 1 && (
+                  <Text
+                    style={{
+                      color: secondaryTextColor,
+                      marginHorizontal: 6,
+                      fontSize: 12,
+                    }}
+                  >
+                    /
+                  </Text>
+                )}
+              </React.Fragment>
+            ))}
+          </View>
+
+          <View style={[menuDividerStyle, { marginTop: 12 }]} />
+
+          <View style={{ marginTop: 2, paddingHorizontal: 16 }}>
+            <View
               style={{
-                color: colors.red,
-                fontFamily: "Roboto",
+                marginTop: 4,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
               }}
             >
-              POSTINFO
-            </Text>{" "}
-            - Sva prava zadržava{" "}
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Feather
+                  name="sun"
+                  size={20}
+                  color={isDarkMode ? "#6b7280" : primaryTextColor}
+                  style={{ marginRight: 8 }}
+                />
+                <Switch
+                  value={isDarkMode}
+                  onValueChange={toggleTheme}
+                  trackColor={{ false: "#9ca3af", true: "#475569" }}
+                  thumbColor={isDarkMode ? colors.grey : colors.black}
+                />
+                <Feather
+                  name="moon"
+                  size={20}
+                  color={isDarkMode ? primaryTextColor : "#9ca3af"}
+                  style={{ marginLeft: 8 }}
+                />
+              </View>
+              <TouchableOpacity
+                onPress={() => {
+                  if (onOpenNotifications) {
+                    onOpenNotifications();
+                    return;
+                  }
+                  router.push("/notifications");
+                }}
+                activeOpacity={0.8}
+                style={{ position: "relative", padding: 4 }}
+              >
+                <Image
+                  source={icons.bell}
+                  style={{ width: 20, height: 20 }}
+                  tintColor={primaryTextColor}
+                />
+                {renderUnread(unread, {
+                  position: "absolute",
+                  top: -4,
+                  right: -10,
+                  zIndex: 1,
+                })}
+              </TouchableOpacity>
+            </View>
+
+            <View
+              style={[
+                menuDividerStyle,
+                { marginTop: 12, marginHorizontal: -8 },
+              ]}
+            />
+          </View>
+
+          <View
+            className="mt-6 px-4"
+            style={{
+              paddingBottom: 50,
+            }}
+          >
             <Text
-              className="underline"
-              onPress={() => openLink("https://www.digitalthinking.rs")}
+              className="text-xs flex-wrap leading-5"
               style={{
-                color: colors.red,
-                fontFamily: "Roboto",
+                color: secondaryTextColor,
+                fontFamily: "Roboto-Regular",
               }}
             >
-              Digital Thinking d.o.o.
+              © 2026{" "}
+              <Text
+                className="underline"
+                onPress={() => openLink("https://www.postinfo.rs")}
+                style={{
+                  color: colors.red,
+                  fontFamily: "Roboto-Regular",
+                }}
+              >
+                POSTINFO
+              </Text>{" "}
+              - Sva prava zadržava{" "}
+              <Text
+                className="underline"
+                onPress={() => openLink("https://www.digitalthinking.rs")}
+                style={{
+                  color: colors.red,
+                  fontFamily: "Roboto-Regular",
+                }}
+              >
+                Digital Thinking d.o.o.
+              </Text>
             </Text>
-          </Text>
+          </View>
         </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </>
   );
 };
 

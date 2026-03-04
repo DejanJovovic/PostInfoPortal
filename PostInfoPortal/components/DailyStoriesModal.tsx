@@ -1,7 +1,7 @@
 import { WPPost } from "@/types/wp";
 import { cleanWpRenderedText, getPostTitleText } from "@/hooks/postsUtils";
 import { Image } from "expo-image";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import {
   Dimensions,
   Modal,
@@ -24,13 +24,11 @@ export default function DailyStoriesModal({
   onClose: () => void;
 }) {
   const scrollRef = useRef<ScrollView | null>(null);
-  const [index, setIndex] = useState(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!visible) {
       clearTimer();
-      setIndex(0);
       return;
     }
     scheduleAdvance(0);
@@ -55,7 +53,6 @@ export default function DailyStoriesModal({
       }
       const next = currentIndex + 1;
       scrollRef.current?.scrollTo({ x: next * width, animated: true });
-      setIndex(next);
       scheduleAdvance(next);
     }, delay);
   };
@@ -63,7 +60,6 @@ export default function DailyStoriesModal({
   const onScrollEnd = (e: any) => {
     const x = e.nativeEvent.contentOffset.x;
     const newIndex = Math.round(x / width);
-    setIndex(newIndex);
     scheduleAdvance(newIndex);
   };
 
@@ -79,7 +75,7 @@ export default function DailyStoriesModal({
           showsHorizontalScrollIndicator={true}
           onMomentumScrollEnd={onScrollEnd}
         >
-          {posts.map((p, i) => {
+          {posts.map((p) => {
             const media = p._embedded?.["wp:featuredmedia"]?.[0];
             const sizes = media?.media_details?.sizes;
             const imgUrl =

@@ -127,14 +127,6 @@ const getCategoryFetchIds = async ({
   return typeof id === "number" ? [id] : [];
 };
 
-/**
- * Prefetches the "Naslovna" startup payload during the custom splash.
- * Writes to the same `groupedPostsCache` used by `usePostsByCategory`, so the UI can render instantly.
- *
- * Safe behavior:
- * - If network fails: does nothing (existing cache remains).
- * - Avoids overwriting existing non-empty groups with empty results.
- */
 export const prefetchNaslovnaStartupPayload = () => {
   if (inFlight) return inFlight;
 
@@ -153,7 +145,6 @@ export const prefetchNaslovnaStartupPayload = () => {
       },
     });
 
-    // Merge fetched into existing, but never overwrite non-empty with empty.
     const merged: Record<string, WPPost[]> = { ...existing };
     const mergeAndSave = async (key: string, arr: WPPost[] | undefined) => {
       if (!Array.isArray(arr) || arr.length === 0) return;
@@ -199,14 +190,12 @@ export const prefetchNaslovnaStartupPayload = () => {
       }
     }
 
-    // Daily circles cache (so DailyCircles can render immediately on first open)
     const dailyPromise = refreshDailyCircles({
       baseToday: new Date(),
       days: DAILY_CIRCLES_DAYS,
       postsPerDay: DAILY_CIRCLES_POSTS_PER_DAY,
     }).catch(() => []);
 
-    // Danas (ticker source)
     try {
       const today = new Date();
       const isPostToday = (p: WPPost) => {
@@ -249,7 +238,6 @@ export const prefetchNaslovnaStartupPayload = () => {
       await mergeAndSave(DANAS_KEY, danasInitial);
     } catch {}
 
-    // Main news ("Glavna vest") for carousel (fetch early so it can appear ASAP)
     try {
       let id = slugMap[MAIN_NEWS_SLUG];
       if (!id) {
@@ -268,7 +256,6 @@ export const prefetchNaslovnaStartupPayload = () => {
         await mergeAndSave(MAIN_NEWS_KEY, Array.isArray(list) ? list : []);
       }
     } catch {}
-    // Home categories
     for (const name of HOME_CATEGORIES_ORDER) {
       try {
         const pageSize =
@@ -310,10 +297,8 @@ export const prefetchNaslovnaStartupPayload = () => {
 
     if (!hasAny) return;
 
-    // Ensure at least one final write after all groups are merged.
     await save(merged);
 
-    // Let daily circles run, but don't block startup forever.
     await Promise.race([dailyPromise, new Promise((r) => setTimeout(r, 4000))]);
   })().finally(() => {
     inFlight = null;

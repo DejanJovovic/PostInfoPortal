@@ -2,38 +2,100 @@ import { useTheme } from "@/components/ThemeContext";
 import colors from "@/constants/colors";
 import icons from "@/constants/icons";
 import images from "@/constants/images";
-import { getUnreadCount, inboxSubscribe } from "@/types/notificationInbox";
-import { router, useFocusEffect, usePathname } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { router, usePathname } from "expo-router";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
   Image,
   ImageBackground,
+  Pressable,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const navItems = [
   { key: "home", label: "Naslovna", icon: icons.home },
-  { key: "notifications", label: "Najnovije", icon: icons.bell },
+  { key: "newest", label: "Najnovije", icon: icons.stopwatch },
   { key: "favorites", label: "Omiljeno", icon: icons.bookmark },
   { key: "categories", label: "Sve kategorije", icon: icons.allCategories },
   { key: "search", label: "Pretraga", icon: icons.search },
 ];
 
-type CustomFooterProps = {
-  onSearchPress?: () => void;
+type RouteTarget = "/" | "/newest" | "/favorites" | "/categories" | "/search";
+
+type FooterButtonProps = {
+  item: (typeof navItems)[number];
+  active: boolean;
+  disabled: boolean;
+  onPress: () => void;
 };
 
-type RouteTarget = "/" | "/notifications" | "/favorites" | "/categories";
+const FooterNavButton = ({
+  item,
+  active,
+  disabled,
+  onPress,
+}: FooterButtonProps) => {
+  const [pressed, setPressed] = useState(false);
+  const scaleAnim = useRef(new Animated.Value(active ? 1.05 : 1)).current;
+  const liftAnim = useRef(new Animated.Value(active ? -2 : 0)).current;
 
-const CustomFooter: React.FC<CustomFooterProps> = ({ onSearchPress }) => {
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(scaleAnim, {
+        toValue: active ? 1.06 : pressed ? 1.02 : 1,
+        useNativeDriver: true,
+        speed: 18,
+        bounciness: 8,
+      }),
+      Animated.spring(liftAnim, {
+        toValue: active ? -2 : 0,
+        useNativeDriver: true,
+        speed: 18,
+        bounciness: 8,
+      }),
+    ]).start();
+  }, [active, pressed, liftAnim, scaleAnim]);
+
+  const tintColor = active ? "#ffffff" : "#756f6f";
+
+  return (
+    <Pressable
+      onPressIn={() => setPressed(true)}
+      onPressOut={() => setPressed(false)}
+      onPress={onPress}
+      style={styles.navItem}
+      disabled={disabled}
+    >
+      <Animated.View
+        style={{
+          alignItems: "center",
+          transform: [{ scale: scaleAnim }, { translateY: liftAnim }],
+        }}
+      >
+        <View style={styles.iconSlot}>
+          <View style={active ? styles.activeIconShadow : undefined}>
+            <Image
+              source={item.icon}
+              style={{ width: 22, height: 22, tintColor }}
+            />
+          </View>
+        </View>
+
+        <Text style={[styles.label, { color: tintColor }]}>{item.label}</Text>
+      </Animated.View>
+    </Pressable>
+  );
+};
+
+const CustomFooter: React.FC = () => {
   const pathname = usePathname();
-  const [unread, setUnread] = useState<number>(0);
   const { theme } = useTheme();
   const isDark = theme === "dark";
+  const insets = useSafeAreaInsets();
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -41,30 +103,9 @@ const CustomFooter: React.FC<CustomFooterProps> = ({ onSearchPress }) => {
     if (isLoading) setIsLoading(false);
   }, [pathname, isLoading]);
 
-  useFocusEffect(
-    useCallback(() => {
-      let mounted = true;
-
-      const load = async () => {
-        const c = await getUnreadCount();
-        if (mounted) setUnread(c);
-      };
-      load();
-
-      const unsub = inboxSubscribe(() => {
-        getUnreadCount().then((c) => mounted && setUnread(c));
-      });
-
-      return () => {
-        mounted = false;
-        unsub();
-      };
-    }, []),
-  );
-
   const active = useMemo(() => {
     if (pathname === "/") return "home";
-    if (pathname === "/notifications") return "notifications";
+    if (pathname === "/newest") return "newest";
     if (pathname === "/favorites") return "favorites";
     if (pathname === "/search") return "search";
     if (pathname === "/categories") return "categories";
@@ -75,7 +116,7 @@ const CustomFooter: React.FC<CustomFooterProps> = ({ onSearchPress }) => {
     if (isLoading) return;
     setIsLoading(true);
     requestAnimationFrame(() => {
-      router.push(target);
+      router.replace(target as any);
     });
   };
 
@@ -86,8 +127,8 @@ const CustomFooter: React.FC<CustomFooterProps> = ({ onSearchPress }) => {
       case "home":
         navigateWithLoader("/");
         break;
-      case "notifications":
-        navigateWithLoader("/notifications");
+      case "newest":
+        navigateWithLoader("/newest");
         break;
       case "favorites":
         navigateWithLoader("/favorites");
@@ -96,40 +137,9 @@ const CustomFooter: React.FC<CustomFooterProps> = ({ onSearchPress }) => {
         navigateWithLoader("/categories");
         break;
       case "search":
-        onSearchPress?.();
+        navigateWithLoader("/search");
         break;
     }
-  };
-
-  const renderCount = (count: number) => {
-    if (!count) return null;
-    const text = count > 99 ? "99+" : String(count);
-    return (
-      <View
-        style={{
-          position: "absolute",
-          top: -6,
-          right: -10,
-          minWidth: 16,
-          height: 16,
-          paddingHorizontal: 4,
-          borderRadius: 8,
-          backgroundColor: colors.red,
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <Text
-          style={{
-            color: colors.grey,
-            fontSize: 10,
-            fontFamily: "YesevaOne-Regular",
-          }}
-        >
-          {text}
-        </Text>
-      </View>
-    );
   };
 
   return (
@@ -137,47 +147,25 @@ const CustomFooter: React.FC<CustomFooterProps> = ({ onSearchPress }) => {
       <ImageBackground
         source={images.postInfoWallpaper}
         resizeMode="cover"
-        className="absolute bottom-0 w-full mb-5 flex-row justify-between items-center px-2 py-3 z-50"
+        style={[
+          styles.footerBar,
+          {
+            height: 62 + insets.bottom,
+            paddingBottom: insets.bottom,
+          },
+        ]}
       >
-        {navItems.map((item) => {
-          const isActive = active === item.key;
-          const tintColor = isActive ? "white" : "#756f6f";
-
-          const iconWithBadge =
-            item.key === "notifications" ? (
-              <View style={{ position: "relative" }}>
-                <Image
-                  source={item.icon}
-                  style={{ width: 24, height: 24, tintColor }}
-                />
-                {renderCount(unread)}
-              </View>
-            ) : (
-              <Image
-                source={item.icon}
-                style={{ width: 24, height: 24, tintColor }}
-              />
-            );
-
-          return (
-            <TouchableOpacity
-              key={item.key}
-              onPress={() => handlePress(item.key)}
-              className="flex-1 items-center"
-              disabled={isLoading}
-              activeOpacity={0.8}
-            >
-              {iconWithBadge}
-              <Text
-                style={{ color: tintColor, fontFamily: "Roboto", fontSize: 8 }}
-                className="text-[8px] mt-1"
-              >
-                {item.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
+        {navItems.map((item) => (
+          <FooterNavButton
+            key={item.key}
+            item={item}
+            active={active === item.key}
+            disabled={isLoading}
+            onPress={() => handlePress(item.key)}
+          />
+        ))}
       </ImageBackground>
+
       {isLoading && (
         <View
           style={[
@@ -210,5 +198,43 @@ const CustomFooter: React.FC<CustomFooterProps> = ({ onSearchPress }) => {
     </>
   );
 };
+
+const styles = StyleSheet.create({
+  footerBar: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 50,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 6,
+    paddingTop: 4,
+  },
+  navItem: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconSlot: {
+    width: 22,
+    height: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  label: {
+    fontSize: 8,
+    fontFamily: "Roboto",
+    marginTop: 1,
+  },
+  activeIconShadow: {
+    shadowColor: "#ffffff",
+    shadowOpacity: 0.55,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 8,
+  },
+});
 
 export default CustomFooter;

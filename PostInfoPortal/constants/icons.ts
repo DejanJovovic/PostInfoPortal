@@ -16,6 +16,7 @@ import mail from "../assets/icons/mail.png";
 import menu from "../assets/icons/menu.png";
 import rightArrow from "../assets/icons/right-arrow.png";
 import search from "../assets/icons/search.png";
+import stopwatch from "../assets/icons/stopwatch.png";
 import tiktok from "../assets/icons/tik-tok.png";
 import twitter from "../assets/icons/twitter.png";
 import whatsapp from "../assets/icons/whatsapp.png";
@@ -46,4 +47,5 @@ export default {
   whatsapp,
   filter,
   leftArrow,
+  stopwatch,
 };
