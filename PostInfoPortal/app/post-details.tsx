@@ -80,8 +80,10 @@ const extractYoutubeId = (url: URL) => {
   if (!host.includes("youtube.com") && !host.includes("youtube-nocookie.com")) {
     return undefined;
   }
-  if (url.pathname.startsWith("/watch")) return url.searchParams.get("v") || undefined;
-  if (url.pathname.startsWith("/shorts/")) return url.pathname.split("/shorts/")[1];
+  if (url.pathname.startsWith("/watch"))
+    return url.searchParams.get("v") || undefined;
+  if (url.pathname.startsWith("/shorts/"))
+    return url.pathname.split("/shorts/")[1];
   if (url.pathname.startsWith("/live/")) return url.pathname.split("/live/")[1];
   if (url.pathname.includes("/embed/")) return url.pathname.split("/embed/")[1];
   return undefined;
@@ -223,8 +225,8 @@ const PostDetails = () => {
 
   const tagsStyles = useMemo(
     () => ({
-      body: { color: htmlTextColor },
-      p: { color: htmlTextColor },
+      body: { color: htmlTextColor, fontSize: 20 },
+      p: { color: htmlTextColor, fontSize: 20 },
       span: { color: htmlTextColor },
       li: { color: htmlTextColor },
       h1: { color: htmlTextColor },
@@ -304,7 +306,9 @@ const PostDetails = () => {
                 const nextTarget = getEmbedTarget(next);
                 if (!nextTarget?.isYoutube) return true;
                 const external =
-                  nextTarget?.externalUrl || embed.externalUrl || APP_REFERRER_URL;
+                  nextTarget?.externalUrl ||
+                  embed.externalUrl ||
+                  APP_REFERRER_URL;
 
                 Linking.openURL(external).catch((err) => {
                   console.warn("Failed to open external video URL:", err);
@@ -785,7 +789,7 @@ const PostDetails = () => {
               style={{
                 color: isDark ? colors.grey : colors.black,
                 fontFamily: "Roboto-Regular",
-                fontSize: 16,
+                fontSize: 20,
                 lineHeight: 22,
               }}
             >

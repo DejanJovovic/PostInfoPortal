@@ -213,6 +213,14 @@ const SearchScreen = () => {
     });
   };
 
+  const handleDrawerCategorySelect = (categoryName: string) => {
+    if (!categoryName || categoryName === "Latin | Ćirilica" || loadingNav) return;
+    setLoadingNav(true);
+    requestAnimationFrame(() => {
+      router.replace({ pathname: "/", params: { selectedCategory: categoryName } });
+    });
+  };
+
   const openPost = (post: WPPost) => {
     if (loadingNav) return;
     setLoadingNav(true);
@@ -311,7 +319,7 @@ const SearchScreen = () => {
     >
       <CustomHeader
         onMenuToggle={setMenuOpen}
-        onCategorySelected={() => {}}
+        onCategorySelected={handleDrawerCategorySelect}
         activeCategory="Pretraga"
         onSearchQuery={handleSearchSubmit}
         onBackPress={handleBackWithLoading}

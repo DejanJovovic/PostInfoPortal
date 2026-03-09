@@ -30,7 +30,7 @@ const Favorites = () => {
   const [groupedFavorites, setGroupedFavorites] = useState<
     Record<string, WPPost[]>
   >({});
-  const activeCategory = "Naslovna";
+  const defaultPostCategory = "Naslovna";
   const [refreshing, setRefreshing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -113,6 +113,14 @@ const Favorites = () => {
     });
   };
 
+  const handleDrawerCategorySelect = (categoryName: string) => {
+    if (!categoryName || categoryName === "Latin | Ćirilica" || isLoading) return;
+    setIsLoading(true);
+    requestAnimationFrame(() => {
+      router.replace({ pathname: "/", params: { selectedCategory: categoryName } });
+    });
+  };
+
   const goToPost = (postId: number, category?: string) => {
     if (isLoading) return;
     setIsLoading(true);
@@ -121,7 +129,7 @@ const Favorites = () => {
         pathname: "/post-details",
         params: {
           postId: String(postId),
-          category: category || activeCategory,
+          category: category || defaultPostCategory,
         },
       });
     });
@@ -202,7 +210,7 @@ const Favorites = () => {
             onPress={() =>
               goToPost(
                 item.id,
-                (item as FavoritePost).category || activeCategory,
+                (item as FavoritePost).category || defaultPostCategory,
               )
             }
             disabled={isLoading}
@@ -288,8 +296,8 @@ const Favorites = () => {
       style={{ backgroundColor: isDark ? colors.black : colors.grey }}
     >
       <CustomHeader
-        onCategorySelected={() => {}}
-        activeCategory={activeCategory}
+        onCategorySelected={handleDrawerCategorySelect}
+        activeCategory=""
         onMenuToggle={setMenuOpen}
         onBackPress={handleBackWithLoading}
         loadingNav={isLoading}

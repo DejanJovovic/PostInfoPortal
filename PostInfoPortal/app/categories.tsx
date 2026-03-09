@@ -200,6 +200,14 @@ const Categories = () => {
     });
   };
 
+  const handleDrawerCategorySelect = (categoryName: string) => {
+    if (!categoryName || categoryName === "Latin | Ćirilica" || isLoading) return;
+    setIsLoading(true);
+    requestAnimationFrame(() => {
+      router.replace({ pathname: "/", params: { selectedCategory: categoryName } });
+    });
+  };
+
   const goToPost = (postId: number) => {
     if (isLoading) return;
     setIsLoading(true);
@@ -303,7 +311,7 @@ const Categories = () => {
       <CustomHeader
         onMenuToggle={setMenuOpen}
         activeCategory=""
-        onCategorySelected={() => {}}
+        onCategorySelected={handleDrawerCategorySelect}
         onBackPress={handleBackWithLoading}
         loadingNav={isLoading}
       />

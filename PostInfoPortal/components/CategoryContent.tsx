@@ -99,6 +99,22 @@ const CategoryContent: React.FC<CategoryContentProps> = ({
       }}
       scrollEventThrottle={16}
     >
+      {activeCategory?.trim() ? (
+        <Text
+          style={{
+            fontSize: 28,
+            textAlign: "center",
+            marginTop: 12,
+            marginBottom: 12,
+            color: isDark ? colors.grey : colors.black,
+            fontFamily:
+              Platform.OS === "android" ? "PlayfairDisplay-Bold" : "System",
+          }}
+        >
+          {activeCategory}
+        </Text>
+      ) : null}
+
       {posts.length === 0 ? (
         <View
           className="flex-1 items-center justify-center px-4"

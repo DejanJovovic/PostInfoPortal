@@ -59,10 +59,24 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
   const startupGateCompletedRef = useRef(false);
   const scrollOffsetsRef = useRef<Record<string, number>>({});
+  const appliedSelectedCategoryRef = useRef<string | null>(null);
 
   const { selectedCategory } = useLocalSearchParams<{
-    selectedCategory?: string;
+    selectedCategory?: string | string[];
   }>();
+  const selectedCategoryParam = React.useMemo(() => {
+    const raw = Array.isArray(selectedCategory)
+      ? selectedCategory[0]
+      : selectedCategory;
+    if (typeof raw !== "string") return "";
+    const trimmed = raw.trim();
+    if (!trimmed) return "";
+    try {
+      return decodeURIComponent(trimmed);
+    } catch {
+      return trimmed;
+    }
+  }, [selectedCategory]);
   const {
     posts,
     loading,
@@ -78,9 +92,14 @@ const Index = () => {
     loadingMore,
     hasMore,
   } = usePostsByCategory();
+  const fetchPostsForCategoryRef = useRef(fetchPostsForCategory);
 
   const router = useRouter();
   const navigation = useNavigation();
+
+  useEffect(() => {
+    fetchPostsForCategoryRef.current = fetchPostsForCategory;
+  }, [fetchPostsForCategory]);
 
   useEffect(() => {
     const unsub = navigation.addListener("blur", () => {
@@ -90,17 +109,23 @@ const Index = () => {
   }, [navigation]);
 
   useEffect(() => {
-    if (selectedCategory && typeof selectedCategory === "string") {
-      fetchPostsForCategory(selectedCategory);
-      setActiveCategory(selectedCategory);
+    if (!selectedCategoryParam) {
+      appliedSelectedCategoryRef.current = null;
+      return;
     }
-  }, [fetchPostsForCategory, selectedCategory]);
+
+    if (appliedSelectedCategoryRef.current === selectedCategoryParam) return;
+    appliedSelectedCategoryRef.current = selectedCategoryParam;
+
+    fetchPostsForCategoryRef.current(selectedCategoryParam);
+    setActiveCategory(selectedCategoryParam);
+  }, [selectedCategoryParam]);
 
   useEffect(() => {
-    if (!selectedCategory && activeCategory === "Naslovna" && initialized) {
-      fetchPostsForCategory("Naslovna");
+    if (!selectedCategoryParam && activeCategory === "Naslovna" && initialized) {
+      fetchPostsForCategoryRef.current("Naslovna");
     }
-  }, [selectedCategory, activeCategory, initialized]);
+  }, [selectedCategoryParam, activeCategory, initialized]);
 
   const [bottomAdVisible, setBottomAdVisible] = useState(false);
   const [bottomAd, setBottomAd] = useState(() => pickRandomAd());
@@ -139,7 +164,7 @@ const Index = () => {
     hasMainCarouselPosts && hasOrderedHomePosts && hasNaslovnaContent;
   const shouldGateNaslovnaStartup =
     activeCategory === "Naslovna" &&
-    !selectedCategory &&
+    !selectedCategoryParam &&
     !startupGateCompletedRef.current;
   const showNaslovnaStartupLoading =
     shouldGateNaslovnaStartup && !hasHomeStartupFeedReady;

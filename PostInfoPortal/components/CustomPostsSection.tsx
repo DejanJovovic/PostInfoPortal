@@ -38,6 +38,8 @@ const CustomPostsSection: React.FC<Props> = ({
 }) => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
+  const missingMediaLoggedRef = React.useRef<Set<number>>(new Set());
+  const missingImageUrlLoggedRef = React.useRef<Set<number>>(new Set());
 
   if (!posts || posts.length === 0) return null;
 
@@ -67,9 +69,16 @@ const CustomPostsSection: React.FC<Props> = ({
       : { elevation: 0 };
 
   const getImg = (p: WPPost) => {
+    const postId = p?.id;
     const media = p._embedded?.["wp:featuredmedia"]?.[0];
     if (!media) {
-      console.log("No featured media for post:", p.id, p.title.rendered);
+      if (
+        typeof postId === "number" &&
+        !missingMediaLoggedRef.current.has(postId)
+      ) {
+        missingMediaLoggedRef.current.add(postId);
+        console.log("No featured media for post:", p.id, p.title.rendered);
+      }
       return undefined;
     }
     const sizes = media.media_details?.sizes;
@@ -79,7 +88,13 @@ const CustomPostsSection: React.FC<Props> = ({
       sizes?.large?.source_url ||
       media.source_url;
     if (!imgUrl) {
-      console.log("No image URL found for post:", p.id, "media:", media);
+      if (
+        typeof postId === "number" &&
+        !missingImageUrlLoggedRef.current.has(postId)
+      ) {
+        missingImageUrlLoggedRef.current.add(postId);
+        console.log("No image URL found for post:", p.id, "media:", media);
+      }
     }
     return imgUrl;
   };
