@@ -225,8 +225,18 @@ const PostDetails = () => {
 
   const tagsStyles = useMemo(
     () => ({
-      body: { color: htmlTextColor, fontSize: 20 },
-      p: { color: htmlTextColor, fontSize: 20 },
+      body: {
+        color: htmlTextColor,
+        fontSize: 21,
+        fontFamily: "Roboto-SemiBold",
+        lineHeight: 32,
+      },
+      p: {
+        color: htmlTextColor,
+        fontSize: 21,
+        fontFamily: "Roboto-SemiBold",
+        lineHeight: 32,
+      },
       span: { color: htmlTextColor },
       li: { color: htmlTextColor },
       h1: { color: htmlTextColor },
@@ -788,7 +798,7 @@ const PostDetails = () => {
             <Text
               style={{
                 color: isDark ? colors.grey : colors.black,
-                fontFamily: "Roboto-Regular",
+                fontFamily: "Roboto-SemiBold",
                 fontSize: 20,
                 lineHeight: 22,
               }}
