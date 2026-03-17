@@ -227,13 +227,13 @@ const PostDetails = () => {
     () => ({
       body: {
         color: htmlTextColor,
-        fontSize: 21,
+        fontSize: 20,
         fontFamily: "Roboto-SemiBold",
         lineHeight: 32,
       },
       p: {
         color: htmlTextColor,
-        fontSize: 21,
+        fontSize: 20,
         fontFamily: "Roboto-SemiBold",
         lineHeight: 32,
       },

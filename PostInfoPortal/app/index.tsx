@@ -10,9 +10,10 @@ import colors from "@/constants/colors";
 import { prefetchNaslovnaStartupPayload } from "@/hooks/startupPrefetch";
 import { usePostsByCategory } from "@/hooks/usePostsByCategory";
 import { globalSearch } from "@/utils/searchNavigation";
+import { getLatestPosts } from "@/utils/wpApi";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, AppState, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const LoadingOverlay = ({
@@ -50,6 +51,7 @@ const LoadingOverlay = ({
 );
 
 const Index = () => {
+  const NASLOVNA_AUTO_CHECK_MS = 60 * 1000;
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState("Naslovna");
   const [refreshing, setRefreshing] = useState(false);
@@ -60,6 +62,7 @@ const Index = () => {
   const startupGateCompletedRef = useRef(false);
   const scrollOffsetsRef = useRef<Record<string, number>>({});
   const appliedSelectedCategoryRef = useRef<string | null>(null);
+  const checkingNaslovnaUpdatesRef = useRef(false);
 
   const { selectedCategory } = useLocalSearchParams<{
     selectedCategory?: string | string[];
@@ -274,6 +277,56 @@ const Index = () => {
 
     setRefreshing(false);
   }, [activeCategory, fetchPostsForCategory, refreshHome, refreshDanas]);
+
+  const checkNaslovnaForUpdates = useCallback(async () => {
+    if (checkingNaslovnaUpdatesRef.current) return;
+    if (activeCategory !== "Naslovna" || !initialized) return;
+
+    const cachedTopId =
+      groupedPosts["Danas"]?.[0]?.id || groupedPosts["Glavna vest"]?.[0]?.id;
+    if (!cachedTopId) return;
+
+    checkingNaslovnaUpdatesRef.current = true;
+    try {
+      const latest = (await getLatestPosts(1, 1)) as { id?: number }[];
+      const remoteTopId = Array.isArray(latest) ? latest[0]?.id : undefined;
+      if (
+        typeof remoteTopId === "number" &&
+        typeof cachedTopId === "number" &&
+        remoteTopId !== cachedTopId
+      ) {
+        await refreshHome();
+      }
+    } catch {}
+    finally {
+      checkingNaslovnaUpdatesRef.current = false;
+    }
+  }, [activeCategory, groupedPosts, initialized, refreshHome]);
+
+  useEffect(() => {
+    if (activeCategory !== "Naslovna" || !initialized) return;
+
+    checkNaslovnaForUpdates().catch(() => {});
+    const intervalId = setInterval(() => {
+      checkNaslovnaForUpdates().catch(() => {});
+    }, NASLOVNA_AUTO_CHECK_MS);
+
+    return () => clearInterval(intervalId);
+  }, [
+    activeCategory,
+    checkNaslovnaForUpdates,
+    initialized,
+    NASLOVNA_AUTO_CHECK_MS,
+  ]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        checkNaslovnaForUpdates().catch(() => {});
+      }
+    });
+    return () => subscription.remove();
+  }, [checkNaslovnaForUpdates]);
 
   const getRememberedScrollY = useCallback(
     (categoryName: string) => scrollOffsetsRef.current[categoryName] || 0,
