@@ -22,7 +22,11 @@
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "buildArtifactPaths": ["android/app/build/outputs/mapping/**/mapping.txt"]
     },
     "development-simulator": {
       "developmentClient": true,
