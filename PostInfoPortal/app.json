@@ -10,11 +10,13 @@
     "ios": {
       "bundleIdentifier": "com.gosmartdevelopment.postinfoportal",
       "infoPlist": {
-        "UIBackgroundModes": ["remote-notification"],
+        "UIBackgroundModes": [
+          "remote-notification"
+        ],
         "ITSAppUsesNonExemptEncryption": false
       },
       "entitlements": {
-        "aps-environment": "development",
+        "aps-environment": "production",
         "com.apple.security.application-groups": [
           "group.com.gosmartdevelopment.postinfoportal.onesignal"
         ]
@@ -27,7 +29,10 @@
       },
       "package": "com.gosmartdevelopment.postinfoportal",
       "googleServicesFile": "./google-services.json",
-      "permissions": ["INTERNET", "POST_NOTIFICATIONS"],
+      "permissions": [
+        "INTERNET",
+        "POST_NOTIFICATIONS"
+      ],
       "blockedPermissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE"
@@ -38,7 +43,10 @@
           "data": {
             "scheme": "mailto"
           },
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         },
         {
           "action": "VIEW",
@@ -46,14 +54,20 @@
             "scheme": "https",
             "host": "linkedin.com"
           },
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         },
         {
           "action": "VIEW",
           "data": {
             "scheme": "whatsapp"
           },
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -120,7 +134,7 @@
             }
           }
         },
-        "projectId": "0cd74768-8f7b-405e-b5ea-2d6dd15ab391"
+        "projectId": "b550f05e-79de-4cd3-92b1-47e3bd1e84e1"
       }
     }
   }
